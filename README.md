@@ -1,6 +1,6 @@
 # GalaxyJS
 
-  Framework fully based on WebComponents native API
+  A framework fully based on native WebComponents API
 
   Note: initial thoughts in Spanish (soon translated)
 
