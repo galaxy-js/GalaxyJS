@@ -3,7 +3,7 @@
 <template id="asfas">
   WebCompmonent {{ name }}
 
-  <h2>Hola, {{ name }}</h2>
+  <h2>Hola, {{ result ? name : 'Camilo' }}</h2>
   <input id="test" type="text">
   <input id="test2" type="text" :click="changeName()">
 </template>
@@ -13,10 +13,11 @@
     constructor () {
       super()
 
-      this.state = {
+      this.setState({
+        result: false,
         name: 'Raphael',
         last: 'sfas'
-      }
+      })
     }
 
     changeName() {
@@ -24,11 +25,6 @@
     }
 
     connectedCallback () {
-      setTimeout(() => {
-
-        window.state = this.state
-      }, 100)
-
       this.$shadow.getElementById('test2').oninput = event => {
         console.log('Changing input')
         this.state.last = event.target.value

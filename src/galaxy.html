@@ -1,8 +1,6 @@
 <script type="module">
   import nextTick from './next-tick.js'
-
-  const { hasOwnProperty } = Object.prototype
-  const internalProxySymbol = Symbol('Galaxy.internalProxy')
+  import Observer from './Observer.js'
 
   class Galaxy {}
 
@@ -21,60 +19,40 @@
 
       const content = this.$template.content
 
+      this.$observer = new Observer()
+
       // Default initial state
-      this.state = {}
+      // Just an empty pointer
+      this.initialState = {}
+      this.state = new Proxy(this.initialState, {})
 
       this.$content = content.cloneNode(true)
+
       this.__renderFns = []
 
-      this._setupDataObserver()
       this._setupRender(this.$content.childNodes)
-
 
       this.$shadow.appendChild(this.$content)
     }
 
-    _setupDataObserver () {
-      nextTick(() => {
-        this.state = this._setupDeepObservation(this.state)
-        this._render()
-      })
+    setState (state) {
+      this.initialState = Object.assign({}, state)
+
+      // State is a proxy
+      this.state = this.$observer.observe(state)
+
+      this.$observer.sub(this._onStateChange.bind(this))
+
+      this.render()
     }
 
-    __handlePropertyTransition (target, property, value, receiver) {
-      if (property !== internalProxySymbol) {
-        target[property] = value
+    _onStateChange (target, property, value, receiver) {
+      value = isObject(value) ? this.$observer.observe(value) : value
 
-        if (isObject(value)) {
-          receiver[property] = this._setupDeepObservation(value)
-        }
+      Reflect.set(target, property, value, receiver)
 
-        // Pass to rendering phase
-        this._render()
-      }
-
-      return true
-    }
-
-    _setupDeepObservation (state) {
-      const proxy = new Proxy(state, {
-        set: this.__handlePropertyTransition.bind(this)
-      })
-
-      // Avoids multiple render calling
-      proxy[internalProxySymbol] = true
-
-      for (const property in state) {
-        if (hasOwnProperty.call(state, property)) {
-          const value = state[property]
-
-          if (isObject(value)) {
-            proxy[property] = this._setupDeepObservation(value)
-          }
-        }
-      }
-
-      return proxy
+      // Pass to rendering phase
+      this.render()
     }
 
     _setupRender (nodes) {
@@ -95,21 +73,13 @@
       }
     }
 
-    _render () {
+    render () {
       nextTick(() => {
         for (const renderFn of this.__renderFns) {
           renderFn()
         }
       })
     }
-  }
-
-  function isObject (value) {
-    return value !== null && typeof value === 'object'
-  }
-
-  function isProxy (value) {
-    return value instanceof Proxy
   }
 
   Galaxy.Element = Element
