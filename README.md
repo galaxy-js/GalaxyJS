@@ -10,3 +10,7 @@
 2. Reactividad... Un tema bastante necesario y usado por frameworks de la actualidad como React, VueJS (etc...)
 
 **Muchas más ideas pueden ser tomadas del mismo [Polymer](https://github.com/Polymer/polymer), el cuál tiene la iniciativa**
+
+## Progress
+
+  - Data binding system (WIP)

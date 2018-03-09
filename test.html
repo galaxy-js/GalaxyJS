@@ -1,0 +1,45 @@
+<link rel="import" href="src/galaxy.html">
+
+<template id="asfas">
+  WebCompmonent {{ name }}
+
+  <h2>Hola, {{ name }}</h2>
+  <input id="test" type="text">
+  <input id="test2" type="text" :click="changeName()">
+</template>
+
+<script>
+  class Test extends Galaxy.Element {
+    constructor () {
+      super()
+
+      this.state = {
+        name: 'Raphael',
+        last: 'sfas'
+      }
+    }
+
+    changeName() {
+
+    }
+
+    connectedCallback () {
+      setTimeout(() => {
+
+        window.state = this.state
+      }, 100)
+
+      this.$shadow.getElementById('test2').oninput = event => {
+        console.log('Changing input')
+        this.state.last = event.target.value
+      }
+
+      this.$shadow.getElementById('test').oninput = event => {
+        console.log('Changing input')
+        this.state.name = event.target.value
+      }
+    }
+  }
+
+  customElements.define('custom-test', Test)
+</script>

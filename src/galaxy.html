@@ -1,0 +1,118 @@
+<script type="module">
+  import nextTick from './next-tick.js'
+
+  const { hasOwnProperty } = Object.prototype
+  const internalProxySymbol = Symbol('Galaxy.internalProxy')
+
+  class Galaxy {}
+
+  class Element extends HTMLElement {
+    static get TEMPLATE_REGEX () {
+      return /{{(.*?)}}/g
+    }
+
+    constructor () {
+      super()
+
+      this.$document = document.currentScript.ownerDocument
+      this.$template = this.$document.querySelector('template')
+
+      this.$shadow = this.attachShadow({ mode: 'open' })
+
+      const content = this.$template.content
+
+      // Default initial state
+      this.state = {}
+
+      this.$content = content.cloneNode(true)
+      this.__renderFns = []
+
+      this._setupDataObserver()
+      this._setupRender(this.$content.childNodes)
+
+
+      this.$shadow.appendChild(this.$content)
+    }
+
+    _setupDataObserver () {
+      nextTick(() => {
+        this.state = this._setupDeepObservation(this.state)
+        this._render()
+      })
+    }
+
+    __handlePropertyTransition (target, property, value, receiver) {
+      if (property !== internalProxySymbol) {
+        target[property] = value
+
+        if (isObject(value)) {
+          receiver[property] = this._setupDeepObservation(value)
+        }
+
+        // Pass to rendering phase
+        this._render()
+      }
+
+      return true
+    }
+
+    _setupDeepObservation (state) {
+      const proxy = new Proxy(state, {
+        set: this.__handlePropertyTransition.bind(this)
+      })
+
+      // Avoids multiple render calling
+      proxy[internalProxySymbol] = true
+
+      for (const property in state) {
+        if (hasOwnProperty.call(state, property)) {
+          const value = state[property]
+
+          if (isObject(value)) {
+            proxy[property] = this._setupDeepObservation(value)
+          }
+        }
+      }
+
+      return proxy
+    }
+
+    _setupRender (nodes) {
+      for (const node of nodes) {
+        if (node instanceof Text && node.data.indexOf('{{') > -1) {
+          const template = node.data
+
+          this.__renderFns.push(() => {
+            node.data = template.replace(Element.TEMPLATE_REGEX, (_, expression) => {
+              return (new Function(`with (this) { return ${expression} }`)).call(this.state)
+            })
+          })
+        }
+
+        if (node.firstChild) {
+          this._setupRender(node.childNodes)
+        }
+      }
+    }
+
+    _render () {
+      nextTick(() => {
+        for (const renderFn of this.__renderFns) {
+          renderFn()
+        }
+      })
+    }
+  }
+
+  function isObject (value) {
+    return value !== null && typeof value === 'object'
+  }
+
+  function isProxy (value) {
+    return value instanceof Proxy
+  }
+
+  Galaxy.Element = Element
+
+  window.Galaxy = Galaxy
+</script>
