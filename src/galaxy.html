@@ -21,13 +21,14 @@
 
       // Default initial state
       // Just an empty pointer
-      this.initialState = {}
-      this.state = new Proxy(this.initialState, {})
+      this.state = {}
 
       this.$root = content.cloneNode(true)
       this.$renderer = new Renderer(this.$root.childNodes)
 
       this.$shadow.appendChild(this.$root)
+
+      // TODO: Check for defer initial render by calling setState here
     }
 
     _onStateChange (target, property, value, receiver) {
@@ -40,8 +41,6 @@
     }
 
     setState (state) {
-      this.initialState = Object.assign({}, state)
-
       // State is a proxy
       this.state = this.$observer.observe(state)
 
@@ -50,8 +49,8 @@
       this.render()
     }
 
-    render (force) {
-      this.$renderer.render(this.state, force)
+    render (refresh) {
+      this.$renderer.render(this.state, refresh)
     }
   }
 

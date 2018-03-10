@@ -61,8 +61,8 @@ export default class Renderer {
     }
   }
 
-  render (state, force = false) {
-    if (force) {
+  render (state, refresh = false) {
+    if (refresh) {
       this._setupRender(this._nodes)
     }
 
