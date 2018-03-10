@@ -1,4 +1,5 @@
 import nextTick from './utils/next-tick.js'
+import { isTextNode, isElementNode, hasTemplate } from './utils/type-check.js'
 
 export default class Renderer {
   constructor (nodes) {
@@ -35,26 +36,32 @@ export default class Renderer {
     return parsedExpression + (template ? `+ ${JSON.stringify(template)}` : '')
   }
 
+  _attachRender (node) {
+    if (hasTemplate(node)) {
+      const transformer = new Function(`
+        with (this) {
+          return ${Renderer.getExpression(node.nodeValue)}
+        }
+      `)
+
+      this._renders.push(state => {
+        const transformed = transformer.call(state)
+
+        if (transformed !== node.nodeValue) {
+          node.nodeValue = transformed
+        }
+      })
+    }
+  }
+
   _setupRender (nodes) {
     for (const node of nodes) {
-      if (node.nodeType === Node.TEXT_NODE && node.data.indexOf('{{') > -1) {
-        const transformer = new Function(`
-          with (this) {
-            return ${Renderer.getExpression(node.data)}
-          }
-        `)
-
-        this._renders.push(state => {
-          const transformed = transformer.call(state)
-
-          if (transformed !== node.data) {
-            node.data = transformed
-          }
-        })
-      }
-
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        // TODO: Check attributes binding
+      if (isTextNode(node)) {
+        this._attachRender(node)
+      } else if (isElementNode(node)) {
+        for (const attribute of node.attributes) {
+          this._attachRender(attribute)
+        }
       }
 
       if (node.firstChild) {

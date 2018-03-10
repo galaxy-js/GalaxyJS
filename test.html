@@ -1,9 +1,15 @@
 <link rel="import" href="src/galaxy.html">
 
 <template id="asfas">
+  <style>
+    :host .tomato {
+      background: tomato;
+    }
+  </style>
+
   WebCompmonent {{ name }}
 
-  <h2>Hola, {{ fruits[0].name }}</h2>
+  <h2 class="something {{ color }} always">Hola, {{ fruits[0].name }}</h2>
   <input id="test" type="text">
   <input id="test2" type="text">
 </template>
@@ -23,7 +29,8 @@
             calories: 20
           },
           'strawberry'
-        ]
+        ],
+        color: null
       })
     }
 
@@ -41,6 +48,10 @@
         console.log('Changing input')
         this.state.name = event.target.value
       }
+
+      setTimeout(() => {
+        this.state.color = 'tomato'
+      }, 1000)
     }
   }
 
