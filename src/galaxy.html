@@ -1,14 +1,12 @@
 <script type="module">
-  import nextTick from './next-tick.js'
+  import Renderer from './Renderer.js'
   import Observer from './Observer.js'
+
+  import { isObject } from './utils.js'
 
   class Galaxy {}
 
   class Element extends HTMLElement {
-    static get TEMPLATE_REGEX () {
-      return /{{(.*?)}}/g
-    }
-
     constructor () {
       super()
 
@@ -26,13 +24,19 @@
       this.initialState = {}
       this.state = new Proxy(this.initialState, {})
 
-      this.$content = content.cloneNode(true)
+      this.$root = content.cloneNode(true)
+      this.$renderer = new Renderer(this.$root.childNodes)
 
-      this.__renderFns = []
+      this.$shadow.appendChild(this.$root)
+    }
 
-      this._setupRender(this.$content.childNodes)
+    _onStateChange (target, property, value, receiver) {
+      value = isObject(value) ? this.$observer.observe(value) : value
 
-      this.$shadow.appendChild(this.$content)
+      Reflect.set(target, property, value, receiver)
+
+      // Pass to rendering phase
+      this.render()
     }
 
     setState (state) {
@@ -46,39 +50,8 @@
       this.render()
     }
 
-    _onStateChange (target, property, value, receiver) {
-      value = isObject(value) ? this.$observer.observe(value) : value
-
-      Reflect.set(target, property, value, receiver)
-
-      // Pass to rendering phase
-      this.render()
-    }
-
-    _setupRender (nodes) {
-      for (const node of nodes) {
-        if (node instanceof Text && node.data.indexOf('{{') > -1) {
-          const template = node.data
-
-          this.__renderFns.push(() => {
-            node.data = template.replace(Element.TEMPLATE_REGEX, (_, expression) => {
-              return (new Function(`with (this) { return ${expression} }`)).call(this.state)
-            })
-          })
-        }
-
-        if (node.firstChild) {
-          this._setupRender(node.childNodes)
-        }
-      }
-    }
-
     render () {
-      nextTick(() => {
-        for (const renderFn of this.__renderFns) {
-          renderFn()
-        }
-      })
+      this.$renderer.render(this.state)
     }
   }
 
