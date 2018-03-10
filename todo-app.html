@@ -1,0 +1,62 @@
+<link rel="import" href="src/galaxy.html">
+
+<template>
+  <style>
+    :host .tomato {
+      background: tomato;
+    }
+  </style>
+
+  <pre><code>{{ wellPrintTodos }}</code></pre>
+
+  <input type="text" @input="onTodo($event)">
+  <button type="button" @click="addTodo(state.todo)">Add</button>
+</template>
+
+<script>
+  class TodoApp extends Galaxy.Element {
+    constructor () {
+      super()
+
+      this.state = {
+        todo: {
+          name: '',
+          done: false
+        },
+
+        todos: [
+          {
+            name: 'Default todo 1',
+            done: true
+          },
+          {
+            name: 'Default todo 2',
+            done: false
+          }
+        ],
+
+        // Computed property
+        get wellPrintTodos() {
+          return JSON.stringify(this.todos, null, 2)
+        }
+      }
+    }
+
+    static get is () {
+      return 'todo-app'
+    }
+
+    addTodo ({ todos }, todo) {
+      todos.push(Object.assign({}, todo))
+
+      // Reset todo name
+      todo.name = ''
+    }
+
+    onTodo ({ todo }, { target }) {
+      todo.name = target.value
+    }
+  }
+
+  customElements.define(TodoApp.is, TodoApp)
+</script>
