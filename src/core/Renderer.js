@@ -1,5 +1,5 @@
-import nextTick from './utils/next-tick.js'
-import { isTextNode, isElementNode, hasTemplate } from './utils/type-check.js'
+import nextTick from '../utils/next-tick.js'
+import { isTextNode, isElementNode, hasTemplate } from '../utils/type-check.js'
 
 export default class Renderer {
   constructor (nodes) {

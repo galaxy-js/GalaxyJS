@@ -1,62 +1,7 @@
 <script type="module">
-  import Renderer from './Renderer.js'
-  import Observer from './Observer.js'
-
-  import nextTick from './utils/next-tick.js'
-  import { isObject, isFunction } from './utils/type-check.js'
+  import Element from './Element.js'
 
   class Galaxy {}
-
-  class Element extends HTMLElement {
-    constructor () {
-      super()
-
-      this.$document = document.currentScript.ownerDocument
-      this.$template = this.$document.querySelector('template')
-
-      this.$shadow = this.attachShadow({ mode: 'open' })
-
-      this.$observer = new Observer()
-
-      // Default initial state
-      // Just an empty pointer
-      this.state = {}
-
-      this.$root = this.$template.content.cloneNode(true)
-      this.$renderer = new Renderer(this.$root.childNodes)
-
-      this.$renderer.setupEvents(this)
-
-      this.$shadow.appendChild(this.$root)
-
-      // Defer state observation
-      nextTick(() => {
-        this._initState()
-      })
-    }
-
-    _initState () {
-      // Reassign state as proxy
-      this.state = this.$observer.observe(this.state)
-
-      this.$observer.sub(this._onStateChange.bind(this))
-
-      this.$render()
-    }
-
-    _onStateChange (target, property, value, receiver) {
-      value = isObject(value) ? this.$observer.observe(value) : value
-
-      Reflect.set(target, property, value, receiver)
-
-      // Pass to rendering phase
-      this.$render()
-    }
-
-    $render (refresh) {
-      this.$renderer.render(this.state, refresh)
-    }
-  }
 
   Galaxy.Element = Element
 
