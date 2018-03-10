@@ -10,8 +10,11 @@
   WebCompmonent {{ name }}
 
   <h2 class="something {{ color }} always">Hola, {{ fruits[0].name }}</h2>
-  <input id="test" type="text">
-  <input id="test2" type="text">
+  <input type="text" @input="changeName($event)">
+  <input type="text" @input="changeFruitName($event)">
+
+  <p>Count: {{ count }}</p>
+  <button @click="incrementCount($event)">Increment</button>
 </template>
 
 <script>
@@ -30,25 +33,24 @@
           },
           'strawberry'
         ],
-        color: null
+        color: null,
+        count: 1
       })
     }
 
-    changeName() {
+    incrementCount ($event) {
+      this.state.count++
+    }
 
+    changeName ({ target }) {
+      this.state.name = target.value
+    }
+
+    changeFruitName ({ target }) {
+      this.state.fruits[0].name = target.value
     }
 
     connectedCallback () {
-      this.$shadow.getElementById('test2').oninput = event => {
-        console.log('Changing input')
-        this.state.fruits[0].name = event.target.value
-      }
-
-      this.$shadow.getElementById('test').oninput = event => {
-        console.log('Changing input')
-        this.state.name = event.target.value
-      }
-
       setTimeout(() => {
         this.state.color = 'tomato'
       }, 1000)

@@ -15,16 +15,16 @@
 
       this.$shadow = this.attachShadow({ mode: 'open' })
 
-      const content = this.$template.content
-
       this.$observer = new Observer()
 
       // Default initial state
       // Just an empty pointer
       this.state = {}
 
-      this.$root = content.cloneNode(true)
+      this.$root = this.$template.content.cloneNode(true)
       this.$renderer = new Renderer(this.$root.childNodes)
+
+      this.$renderer.setupEvents(this)
 
       this.$shadow.appendChild(this.$root)
 

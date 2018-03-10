@@ -5,6 +5,7 @@ export default class Renderer {
   constructor (nodes) {
     this._nodes = nodes
     this._renders = []
+    this._events = []
 
     this.rendering = false
 
@@ -13,6 +14,10 @@ export default class Renderer {
 
   static get TEMPLATE_REGEX () {
     return /{{(.*?)}}/
+  }
+
+  static get EVENT_REGEX () {
+    return /^[\w\d]+\([^)]*\)$/i
   }
 
   static getExpression (template) {
@@ -36,20 +41,42 @@ export default class Renderer {
     return parsedExpression + (template ? `+ ${JSON.stringify(template)}` : '')
   }
 
+  static getEvaluator (expression) {
+    return new Function('context', `
+      with (context) {
+        return ${expression}
+      }
+    `)
+  }
+
   _attachRender (node) {
     if (hasTemplate(node)) {
-      const transformer = new Function(`
-        with (this) {
-          return ${Renderer.getExpression(node.nodeValue)}
-        }
-      `)
+      const evaluator = Renderer.getEvaluator(Renderer.getExpression(node.nodeValue))
 
       this._renders.push(state => {
-        const transformed = transformer.call(state)
+        const evaluated = evaluator(state)
 
-        if (transformed !== node.nodeValue) {
-          node.nodeValue = transformed
+        if (evaluated !== node.nodeValue) {
+          node.nodeValue = evaluated
         }
+      })
+    }
+  }
+
+  _attachEvent (element, attribute) {
+    // Determine a function call
+    if (Renderer.EVENT_REGEX.test(attribute.nodeValue)) {
+      const evaluator = Renderer.getEvaluator(attribute.nodeValue)
+
+      element.removeAttribute(attribute.name)
+
+      this._events.push(component => {
+        element.addEventListener(attribute.name.slice(1), event => {
+          // Externalize event
+          component.$event = event
+
+          evaluator(component)
+        })
       })
     }
   }
@@ -60,13 +87,23 @@ export default class Renderer {
         this._attachRender(node)
       } else if (isElementNode(node)) {
         for (const attribute of node.attributes) {
-          this._attachRender(attribute)
+          if (attribute.name.startsWith('@')) {
+            this._attachEvent(node, attribute)
+          } else {
+            this._attachRender(attribute)
+          }
         }
       }
 
       if (node.firstChild) {
         this._setupRender(node.childNodes)
       }
+    }
+  }
+
+  setupEvents (component) {
+    for (const _event of this._events) {
+      _event(component)
     }
   }
 
