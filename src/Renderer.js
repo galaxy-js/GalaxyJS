@@ -17,7 +17,7 @@ export default class Renderer {
   }
 
   static get EVENT_REGEX () {
-    return /^[\w\d]+\([^)]*\)$/i
+    return /^[\w\d]+\(([^)]*)\)$/
   }
 
   static getExpression (template) {
@@ -64,9 +64,23 @@ export default class Renderer {
   }
 
   _attachEvent (element, attribute) {
+    let match
+    let fnCall = attribute.nodeValue
+
     // Determine a function call
-    if (Renderer.EVENT_REGEX.test(attribute.nodeValue)) {
-      const evaluator = Renderer.getEvaluator(attribute.nodeValue)
+    if (match = fnCall.match(Renderer.EVENT_REGEX)) {
+
+      // Intercept arguments
+      if (!match[1]) {
+        fnCall = `${fnCall.slice(0, -1)}state)`
+      } else {
+        const args = match[1].split(',')
+        args.unshift('state')
+
+        fnCall = fnCall.replace(match[1], args.join(','))
+      }
+
+      const evaluator = Renderer.getEvaluator(fnCall)
 
       element.removeAttribute(attribute.name)
 

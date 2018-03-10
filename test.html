@@ -14,7 +14,7 @@
   <input type="text" @input="changeFruitName($event)">
 
   <p>Count: {{ count }}</p>
-  <button @click="incrementCount($event)">Increment</button>
+  <button @click="incrementCount($event, true)">Increment</button>
 </template>
 
 <script>
@@ -22,32 +22,33 @@
     constructor () {
       super()
 
-      this.setState({
+      this.state = {
         result: false,
         name: 'Raphael',
         last: 'sfas',
+        color: null,
+        count: 1,
         fruits: [
           {
             name: 'Apple',
             calories: 20
           },
           'strawberry'
-        ],
-        color: null,
-        count: 1
-      })
+        ]
+      }
     }
 
-    incrementCount ($event) {
-      this.state.count++
+    incrementCount (state, $event, Roflmao) {
+      console.log(Roflmao)
+      state.count++
     }
 
-    changeName ({ target }) {
-      this.state.name = target.value
+    changeName (state, { target }) {
+      state.name = target.value
     }
 
-    changeFruitName ({ target }) {
-      this.state.fruits[0].name = target.value
+    changeFruitName ({ fruits }, { target }) {
+      fruits[0].name = target.value
     }
 
     connectedCallback () {

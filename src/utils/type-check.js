@@ -13,3 +13,7 @@ export function isElementNode (node) {
 export function hasTemplate (node) {
   return node.nodeValue.indexOf('{{') > -1
 }
+
+export function isFunction (value) {
+  return typeof value === 'function'
+}
