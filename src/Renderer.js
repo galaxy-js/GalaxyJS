@@ -5,6 +5,8 @@ export default class Renderer {
     this._nodes = nodes
     this._renders = []
 
+    this.rendering = false
+
     this._setupRender(nodes)
   }
 
@@ -62,14 +64,20 @@ export default class Renderer {
   }
 
   render (state, refresh = false) {
-    if (refresh) {
-      this._setupRender(this._nodes)
-    }
+    if (!this.rendering) {
+      this.rendering = true
 
-    nextTick(() => {
-      for (const _render of this._renders) {
-        _render(state)
+      if (refresh) {
+        this._setupRender(this._nodes)
       }
-    })
+
+      nextTick(() => {
+        for (const _render of this._renders) {
+          _render(state)
+        }
+
+        this.rendering = false
+      })
+    }
   }
 }

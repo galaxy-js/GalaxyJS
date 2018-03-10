@@ -3,9 +3,9 @@
 <template id="asfas">
   WebCompmonent {{ name }}
 
-  <h2>Hola, {{ result ? name : 'Camilo' }}</h2>
+  <h2>Hola, {{ fruits[0].name }}</h2>
   <input id="test" type="text">
-  <input id="test2" type="text" :click="changeName()">
+  <input id="test2" type="text">
 </template>
 
 <script>
@@ -16,7 +16,14 @@
       this.setState({
         result: false,
         name: 'Raphael',
-        last: 'sfas'
+        last: 'sfas',
+        fruits: [
+          {
+            name: 'Apple',
+            calories: 20
+          },
+          'strawberry'
+        ]
       })
     }
 
@@ -27,7 +34,7 @@
     connectedCallback () {
       this.$shadow.getElementById('test2').oninput = event => {
         console.log('Changing input')
-        this.state.last = event.target.value
+        this.state.fruits[0].name = event.target.value
       }
 
       this.$shadow.getElementById('test').oninput = event => {
