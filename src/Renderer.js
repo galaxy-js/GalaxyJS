@@ -1,7 +1,8 @@
-import nextTick from './next-tick.js'
+import nextTick from './utils/next-tick.js'
 
 export default class Renderer {
   constructor (nodes) {
+    this._nodes = nodes
     this._renders = []
 
     this._setupRender(nodes)
@@ -60,7 +61,11 @@ export default class Renderer {
     }
   }
 
-  render (state) {
+  render (state, force = false) {
+    if (force) {
+      this._setupRender(this._nodes)
+    }
+
     nextTick(() => {
       for (const _render of this._renders) {
         _render(state)

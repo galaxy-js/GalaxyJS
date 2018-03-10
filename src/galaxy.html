@@ -2,7 +2,7 @@
   import Renderer from './Renderer.js'
   import Observer from './Observer.js'
 
-  import { isObject } from './utils.js'
+  import { isObject } from './utils/type-check.js'
 
   class Galaxy {}
 
@@ -50,8 +50,8 @@
       this.render()
     }
 
-    render () {
-      this.$renderer.render(this.state)
+    render (force) {
+      this.$renderer.render(this.state, force)
     }
   }
 

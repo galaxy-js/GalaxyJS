@@ -1,4 +1,4 @@
-import { isObject, isProxy } from './utils.js'
+import { isObject } from './utils/type-check.js'
 
 const { hasOwnProperty } = Object.prototype
 
