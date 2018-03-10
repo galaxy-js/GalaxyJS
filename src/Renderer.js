@@ -69,18 +69,14 @@ export default class Renderer {
 
     // Determine a function call
     if (match = fnCall.match(Renderer.EVENT_REGEX)) {
+      const args = match[1]
 
-      // Intercept arguments
-      if (!match[1]) {
-        fnCall = `${fnCall.slice(0, -1)}state)`
-      } else {
-        const args = match[1].split(',')
-        args.unshift('state')
-
-        fnCall = fnCall.replace(match[1], args.join(','))
-      }
-
-      const evaluator = Renderer.getEvaluator(fnCall)
+      const evaluator = Renderer.getEvaluator(
+        // Intercept arguments
+        args
+          ? fnCall.replace(args, `state, ${args}`)
+          : `${fnCall.slice(0, -1)}state)`
+      )
 
       element.removeAttribute(attribute.name)
 
