@@ -7,10 +7,12 @@
     }
   </style>
 
+  <h1>{{ title }}</h1>
   <pre><code>{{ wellPrintTodos }}</code></pre>
 
   <input type="text" @input="onTodo($event)">
   <button type="button" @click="addTodo(state.todo)">Add</button>
+  <input type="text" @input="changeTitle($event)">
 </template>
 
 <script>
@@ -19,6 +21,8 @@
       super()
 
       this.state = {
+        title: 'Custom title',
+
         todo: {
           name: '',
           done: false
@@ -55,6 +59,10 @@
 
     onTodo ({ todo }, { target }) {
       todo.name = target.value
+    }
+
+    changeTitle (state, { target }) {
+      state.title = target.value
     }
   }
 

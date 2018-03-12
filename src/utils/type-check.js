@@ -10,10 +10,6 @@ export function isElementNode (node) {
   return node.nodeType === Node.ELEMENT_NODE
 }
 
-export function hasTemplate (node) {
-  return node.nodeValue.indexOf('{{') > -1
-}
-
 export function isFunction (value) {
   return typeof value === 'function'
 }

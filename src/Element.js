@@ -1,5 +1,5 @@
-import Renderer from './core/Renderer.js'
 import Observer from './core/Observer.js'
+import RenderElement from './core/RenderElement.js'
 
 import nextTick from './utils/next-tick.js'
 import { isObject, isFunction } from './utils/type-check.js'
@@ -12,22 +12,30 @@ export default class Element extends HTMLElement {
     // Just an empty pointer
     this.state = {}
 
-    this.$document = document.currentScript.ownerDocument
-    this.$shadow = this.attachShadow({ mode: 'open' })
+    // Actual event being dispatched
+    this.$event = null
 
+    this.$root = this.attachShadow({ mode: 'open' })
+
+    this.$document = document.currentScript.ownerDocument
     this.$template = this.$document.querySelector('template')
-    this.$root = this.$template.content.cloneNode(true)
 
     // Setup core utilities
     this.$observer = new Observer()
-    this.$renderer = new Renderer(this.$root.childNodes)
 
-    this.$renderer.setupEvents(this)
-    this.$shadow.appendChild(this.$root)
+    // Hacky to avoid attributes initialization error
+    this.$root.attributes = []
+
+    this.$root.appendChild(this.$template.content.cloneNode(true))
+
+    this.$renderer = new RenderElement(this.$root, this)
+    this.$rendering = false
 
     // Defer state observation
     nextTick(() => {
       this._initState()
+
+      console.dir(this)
     })
   }
 
@@ -50,6 +58,13 @@ export default class Element extends HTMLElement {
   }
 
   $render (refresh) {
-    this.$renderer.render(this.state, refresh)
+    if (!this.$rendering) {
+      this.$rendering = true
+
+      nextTick(() => {
+        this.$renderer.render(this.state, refresh)
+        this.$rendering = false
+      })
+    }
   }
 }
