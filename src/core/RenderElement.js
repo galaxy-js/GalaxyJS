@@ -17,26 +17,20 @@ export default class RenderElement {
     this.element = element
     this.scope = scope
 
-    this.renders = []
+    this.attributeRenders = []
 
-    this._attach()
-  }
-
-  _attach () {
     this._attachAttributes()
-    this._attachChildren()
   }
 
   _attachAttributes () {
     for (const attribute of this.element.attributes) {
       let match
       const { name, nodeValue } = attribute
+      const isEvent = name.startsWith(RenderElement.EVENT_INDICATOR)
 
-      if (!name.startsWith(RenderElement.EVENT_INDICATOR) && hasTemplate(attribute)) {
-        this.addRender(attribute)
-
-        // Check if value is a binding event expression
-      } else if (match = nodeValue.match(RenderElement.EVENT_REGEX)) {
+      if (!isEvent && hasTemplate(attribute)) {
+        this.attributeRenders.push(new RenderNode(attribute))
+      } else if (isEvent && (match = nodeValue.match(RenderElement.EVENT_REGEX)) /* Check if value is a binding event expression */) {
         // Determine a function call
         const args = match[1]
 
@@ -61,36 +55,18 @@ export default class RenderElement {
     }
   }
 
-  _attachChildren () {
-    for (const child of this.element.childNodes) {
-      if (!isTextWithoutTemplate(child)) {
-        this.addRender(child)
-      }
-    }
-  }
-
-  addRender (child) {
-    let render
-    let isRenderable = true
-
-    if (isElementNode(child)) {
-      render = new RenderElement(child, this.scope /* Simple scope inheritance */)
-      isRenderable = render.renders.length > 0
-    } else {
-      render = new RenderNode(child)
-    }
-
-    if (isRenderable) this.renders.push(render)
+  isRenderable () {
+    return this.attributeRenders.length > 0
   }
 
   render (state = this.scope.state, refresh) {
     if (refresh) {
-      this.renders.length = 0
-      this._attach()
+      this.attributeRenders.length = 0
+      this._attachAttributes()
     }
 
-    for (const render of this.renders) {
-      render.render(state)
+    for (const attributeRender of this.attributeRenders) {
+      attributeRender.render(state)
     }
   }
 }

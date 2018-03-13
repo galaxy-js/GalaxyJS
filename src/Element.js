@@ -1,5 +1,5 @@
 import Observer from './core/Observer.js'
-import RenderElement from './core/RenderElement.js'
+import Renderer from './core/Renderer.js'
 
 import nextTick from './utils/next-tick.js'
 import { isObject, isFunction } from './utils/type-check.js'
@@ -23,19 +23,14 @@ export default class Element extends HTMLElement {
     // Setup core utilities
     this.$observer = new Observer()
 
-    // Hacky to avoid attributes initialization error
-    this.$root.attributes = []
-
     this.$root.appendChild(this.$template.content.cloneNode(true))
 
-    this.$renderer = new RenderElement(this.$root, this)
+    this.$renderer = new Renderer(this.$root, this)
     this.$rendering = false
 
     // Defer state observation
-    nextTick(() => {
+    nextTick.afterFlush(() => {
       this._initState()
-
-      console.dir(this)
     })
   }
 

@@ -30,6 +30,24 @@ Object.defineProperty(nextTick, 'waiting', {
 })
 
 /**
+ * Defers a callback to be called
+ * after flush the queue
+ *
+ * @param {Function} fn
+ *
+ * @return void
+ */
+nextTick.afterFlush = fn => {
+  setTimeout(() => {
+    if (nextTick.waiting) {
+      return nextTick.afterFlush(fn)
+    }
+
+    fn()
+  })
+}
+
+/**
  * Flushes the actual queue
  *
  * @return {boolean}
