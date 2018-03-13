@@ -5,5 +5,23 @@
 
   Galaxy.Element = Element
 
+  Galaxy.elements = []
+
+  Galaxy.register = CustomElement => {
+    return new Promise((resolve, reject) => {
+      if (typeof CustomElement.is === 'undefined') {
+        return reject(new GalaxyError('Unknown element name'))
+      }
+
+      try {
+        customElements.define(CustomElement.is, CustomElement)
+      } catch (e) {
+        return reject(new GalaxyError(e.message))
+      }
+
+      customElements.whenDefined(CustomElement.is).then(resolve)
+    })
+  }
+
   window.Galaxy = Galaxy
 </script>

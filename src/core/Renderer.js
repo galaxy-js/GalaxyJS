@@ -14,6 +14,7 @@ export default class Renderer {
     this.scope = scope
 
     this.renders = []
+    this.refs = {}
 
     this.addRenders(fragment.childNodes)
   }
@@ -23,7 +24,16 @@ export default class Renderer {
       if (!isTextWithoutTemplate(node)) {
         this.addRender(node)
       }
+
+      if (isElementNode(node) && 'gRef' in node.dataset) {
+        this.addRef(node)
+      }
     }
+  }
+
+  addRef (node) {
+    this.refs[camelize(node.dataset.gRef)] = node
+    node.removeAttribute('data-g-ref')
   }
 
   addRender (node) {
@@ -49,4 +59,8 @@ export default class Renderer {
       render.render(state, refresh)
     }
   }
+}
+
+function camelize (string) {
+  return string.replace(/-([a-z])/, (_, letter) => letter.toUpperCase())
 }

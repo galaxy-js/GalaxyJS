@@ -52,6 +52,10 @@ export default class Element extends HTMLElement {
     this.$render()
   }
 
+  get $refs () {
+    return this.$renderer.refs
+  }
+
   $render (refresh) {
     if (!this.$rendering) {
       this.$rendering = true
