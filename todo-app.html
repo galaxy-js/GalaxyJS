@@ -9,10 +9,10 @@
 
   <h1>{{ title }}</h1>
   <h2>Plain element</h2>
-  <pre><code>{{ wellPrintTodos }}</code></pre>
+  <pre><code>Todos: {{ wellPrintTodos }}</code></pre>
 
   <input data-g-ref="todoInput" type="text" @input="onTodo($event)">
-  <button type="button" @click="addTodo($refs.todoInput)">Add</button>
+  <button :id="'Todos: ' + wellPrintTodos" type="button" @click="addTodo($refs.todoInput)">Add</button>
   <input type="text" @input="changeTitle($event)">
 </template>
 

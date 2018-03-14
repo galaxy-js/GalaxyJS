@@ -2,7 +2,9 @@ import Observer from './core/Observer.js'
 import Renderer from './core/Renderer.js'
 
 import nextTick from './utils/next-tick.js'
-import { isObject, isFunction } from './utils/type-check.js'
+import { isObject, isFunction, isReserved } from './utils/type-check.js'
+
+import GalaxyError from './errors/GalaxyError.js'
 
 export default class Element extends HTMLElement {
   constructor () {
@@ -54,6 +56,20 @@ export default class Element extends HTMLElement {
 
   get $refs () {
     return this.$renderer.refs
+  }
+
+  $commit (method, ...args) {
+    if (method in this) {
+      if (!isFunction(this[method])) {
+        throw new GalaxyError(`Method '${method}' must be a function`)
+      }
+
+      if (isReserved(method)) {
+        throw new GalaxyError(`Could no call reserved method '${method}'`)
+      }
+
+      this[method](this.state, ...args)
+    }
   }
 
   $render (refresh) {

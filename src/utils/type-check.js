@@ -13,3 +13,7 @@ export function isElementNode (node) {
 export function isFunction (value) {
   return typeof value === 'function'
 }
+
+export function isReserved (name) {
+  return name.startsWith('$') || name.startsWith('_')
+}

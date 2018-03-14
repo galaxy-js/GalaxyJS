@@ -1,14 +1,21 @@
-import RenderElement from './RenderElement.js'
 import RenderNode from './RenderNode.js'
 
-import { isElementNode } from '../utils/type-check.js'
-import { isTextWithoutTemplate } from '../utils/evaluation.js'
+import { isTextNode, isElementNode } from '../utils/type-check.js'
+import { hasTemplate, attachEvent } from '../utils/evaluation.js'
 
 /**
  * Renderer is to inline render objects
  * and avoid multiple and nested unecessary childs
  */
 export default class Renderer {
+  static get BIND_INDICATOR () {
+    return ':'
+  }
+
+  static get EVENT_INDICATOR () {
+    return '@'
+  }
+
   constructor (fragment, scope) {
     this.fragment = fragment
     this.scope = scope
@@ -21,12 +28,25 @@ export default class Renderer {
 
   addRenders (nodes) {
     for (const node of nodes) {
-      if (!isTextWithoutTemplate(node)) {
-        this.addRender(node)
-      }
+      if (isTextNode(node) && hasTemplate(node)) {
+        this.renders.push(new RenderNode(node, false))
+      } else if (isElementNode(node)) { /* In a element node */
+        if ('gRef' in node.dataset) {
+          this.addRef(node)
+        }
 
-      if (isElementNode(node) && 'gRef' in node.dataset) {
-        this.addRef(node)
+        for (const attribute of node.attributes) {
+          const { name } = attribute
+          const isDirect = name.startsWith(Renderer.BIND_INDICATOR)
+
+          if (isDirect || hasTemplate(attribute)) {
+            this.renders.push(new RenderNode(attribute, isDirect))
+          } else if (name.startsWith(Renderer.EVENT_INDICATOR)) {
+            attachEvent(node, attribute, this.scope)
+          }
+        }
+
+        this.addRenders(node.childNodes)
       }
     }
   }
@@ -36,27 +56,11 @@ export default class Renderer {
     node.removeAttribute('data-g-ref')
   }
 
-  addRender (node) {
-    let render
-    let isRenderable = true
+  render (state, refresh) {
+    console.log(this)
 
-    if (!isElementNode(node)) {
-      render = new RenderNode(node)
-    } else {
-      render = new RenderElement(node, this.scope /* Simple scope inheritance */)
-      isRenderable = render.attributeRenders.length > 0
-
-      this.addRenders(node.childNodes)
-    }
-
-    if (isRenderable) {
-      this.renders.push(render)
-    }
-  }
-
-  render (state = this.scope.state, refresh) {
-    for (const render of this.renders) {
-      render.render(state, refresh)
+    for (const nodeRender of this.renders) {
+      nodeRender.render(state, refresh)
     }
   }
 }
