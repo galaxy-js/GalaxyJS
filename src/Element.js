@@ -40,22 +40,26 @@ export default class Element extends HTMLElement {
     // Reassign state as proxy
     this.state = this.$observer.observe(this.state)
 
-    this.$observer.sub(this._onStateChange.bind(this))
+    this.$onChange((target, property, value, receiver) => {
+      Reflect.set(
+        target, property,
+        isObject(value) ? this.$observer.observe(value) : value,
+        receiver
+      )
 
-    this.$render()
-  }
+      // Pass to rendering phase
+      this.$render()
+    })
 
-  _onStateChange (target, property, value, receiver) {
-    value = isObject(value) ? this.$observer.observe(value) : value
-
-    Reflect.set(target, property, value, receiver)
-
-    // Pass to rendering phase
     this.$render()
   }
 
   get $refs () {
     return this.$renderer.refs
+  }
+
+  $onChange (callback) {
+    this.$observer.sub(callback.bind(this))
   }
 
   $commit (method, ...args) {

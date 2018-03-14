@@ -2,6 +2,7 @@ import RenderNode from './RenderNode.js'
 
 import { isTextNode, isElementNode } from '../utils/type-check.js'
 import { hasTemplate, attachEvent } from '../utils/evaluation.js'
+import { camelize } from '../utils/generic.js'
 
 /**
  * Renderer is to inline render objects
@@ -57,14 +58,8 @@ export default class Renderer {
   }
 
   render (state, refresh) {
-    console.log(this)
-
     for (const nodeRender of this.renders) {
       nodeRender.render(state, refresh)
     }
   }
-}
-
-function camelize (string) {
-  return string.replace(/-([a-z])/, (_, letter) => letter.toUpperCase())
 }

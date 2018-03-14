@@ -8,8 +8,8 @@ export default class Observer {
   }
 
   _dispatcher (...args) {
-    for (const fn of this.subs) {
-      fn(...args)
+    for (const sub of this.subs) {
+      sub(...args)
     }
 
     return true
