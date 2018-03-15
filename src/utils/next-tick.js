@@ -55,13 +55,12 @@ nextTick.afterFlush = fn => {
 nextTick.flush = () => {
   if (nextTick.waiting) {
     const callbacks = queue.slice()
-    const { length } = callbacks
 
     // Empty actual queue
     queue.length = 0
 
-    for (let i = 0; i < length; ++i) {
-      callbacks[i]()
+    for (const callback of callbacks) {
+      callback()
     }
   }
 }

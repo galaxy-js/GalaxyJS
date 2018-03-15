@@ -17,6 +17,9 @@ export default class Element extends HTMLElement {
     // Actual event being dispatched
     this.$event = null
 
+    // Hold element references
+    this.$refs = {}
+
     this.$root = this.attachShadow({ mode: 'open' })
 
     this.$document = document.currentScript.ownerDocument
@@ -27,7 +30,9 @@ export default class Element extends HTMLElement {
 
     this.$root.appendChild(this.$template.content.cloneNode(true))
 
-    this.$renderer = new Renderer(this.$root, this)
+    this.$renderer = new Renderer(this)
+
+    // Flag whether we are in a rendering phase
     this.$rendering = false
 
     // Defer state observation
@@ -53,10 +58,6 @@ export default class Element extends HTMLElement {
     })
 
     this.$render()
-  }
-
-  get $refs () {
-    return this.$renderer.refs
   }
 
   $onChange (callback) {

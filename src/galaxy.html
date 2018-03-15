@@ -5,7 +5,8 @@
 
   Galaxy.Element = Element
 
-  Galaxy.elements = []
+  // Element registry
+  Galaxy.elements = new Map()
 
   Galaxy.register = CustomElement => {
     return new Promise((resolve, reject) => {
@@ -19,7 +20,10 @@
         return reject(new GalaxyError(e.message))
       }
 
-      customElements.whenDefined(CustomElement.is).then(resolve)
+      customElements.whenDefined(CustomElement.is).then(() => {
+        Galaxy.elements.set(CustomElement.is, CustomElement)
+        resolve(CustomElement)
+      })
     })
   }
 

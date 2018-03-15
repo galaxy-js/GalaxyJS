@@ -18,14 +18,17 @@ export default class Renderer {
     return '@'
   }
 
-  constructor (fragment, scope) {
-    this.fragment = fragment
+  // data-g-ref
+  static get REF_INDICATOR () {
+    return 'gRef'
+  }
+
+  constructor (scope) {
+    // Set to root fragment
     this.scope = scope
-
     this.renders = []
-    this.refs = {}
 
-    this.addRenders(fragment.childNodes)
+    this.addRenders(scope.$root.childNodes)
   }
 
   addRenders (nodes) {
@@ -38,7 +41,7 @@ export default class Renderer {
     if (isTextNode(node) && hasTemplate(node)) {
       this.renders.push(new RenderNode(node, false))
     } else if (isElementNode(node)) {
-      if ('gRef' in node.dataset) {
+      if (Renderer.REF_INDICATOR in node.dataset) {
         this.addRef(node)
       }
 
@@ -47,7 +50,13 @@ export default class Renderer {
         const isDirect = name.startsWith(Renderer.BIND_INDICATOR)
 
         if (isDirect || hasTemplate(attribute)) {
-          this.renders.push(new RenderNode(attribute, isDirect))
+          const observed = document.createAttribute(name.slice(1))
+          observed.value = attribute.value
+
+          node.attributes.setNamedItem(observed)
+          node.removeAttribute(name)
+
+          this.renders.push(new RenderNode(observed, isDirect))
         } else if (name.startsWith(Renderer.EVENT_INDICATOR)) {
           attachEvent(node, attribute, this.scope)
         }
@@ -58,8 +67,8 @@ export default class Renderer {
   }
 
   addRef (node) {
-    this.refs[camelize(node.dataset.gRef)] = node
-    node.removeAttribute('data-g-ref')
+    this.scope.$refs[camelize(node.dataset[Renderer.REF_INDICATOR])] = node
+    delete node.dataset[Renderer.REF_INDICATOR]
   }
 
   render (state, refresh) {
