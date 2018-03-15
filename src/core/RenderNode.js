@@ -7,15 +7,15 @@ export default class RenderNode {
     this.node = node
     this.isDirect = isDirect
 
-    this._compileEval()
+    this.compile()
   }
 
-  _compileEval () {
+  compile () {
     this.eval = getEvaluator(this.isDirect ? this.node.value : getExpression(this.node))
   }
 
   render (state, refresh) {
-    if (refresh) this._compileEval()
+    if (refresh) this.compile()
 
     const result = this.eval(state)
 

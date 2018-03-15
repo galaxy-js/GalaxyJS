@@ -6,7 +6,8 @@ import { camelize } from '../utils/generic.js'
 
 /**
  * Renderer is to inline render objects
- * and avoid multiple and nested unecessary childs
+ * and to avoid multiple and nested unecessary
+ * render node childs
  */
 export default class Renderer {
   static get BIND_INDICATOR () {
@@ -29,26 +30,30 @@ export default class Renderer {
 
   addRenders (nodes) {
     for (const node of nodes) {
-      if (isTextNode(node) && hasTemplate(node)) {
-        this.renders.push(new RenderNode(node, false))
-      } else if (isElementNode(node)) { /* In a element node */
-        if ('gRef' in node.dataset) {
-          this.addRef(node)
-        }
+      this.addRender(node)
+    }
+  }
 
-        for (const attribute of node.attributes) {
-          const { name } = attribute
-          const isDirect = name.startsWith(Renderer.BIND_INDICATOR)
-
-          if (isDirect || hasTemplate(attribute)) {
-            this.renders.push(new RenderNode(attribute, isDirect))
-          } else if (name.startsWith(Renderer.EVENT_INDICATOR)) {
-            attachEvent(node, attribute, this.scope)
-          }
-        }
-
-        this.addRenders(node.childNodes)
+  addRender (node) {
+    if (isTextNode(node) && hasTemplate(node)) {
+      this.renders.push(new RenderNode(node, false))
+    } else if (isElementNode(node)) {
+      if ('gRef' in node.dataset) {
+        this.addRef(node)
       }
+
+      for (const attribute of node.attributes) {
+        const { name } = attribute
+        const isDirect = name.startsWith(Renderer.BIND_INDICATOR)
+
+        if (isDirect || hasTemplate(attribute)) {
+          this.renders.push(new RenderNode(attribute, isDirect))
+        } else if (name.startsWith(Renderer.EVENT_INDICATOR)) {
+          attachEvent(node, attribute, this.scope)
+        }
+      }
+
+      this.addRenders(node.childNodes)
     }
   }
 

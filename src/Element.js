@@ -40,6 +40,7 @@ export default class Element extends HTMLElement {
     // Reassign state as proxy
     this.state = this.$observer.observe(this.state)
 
+    // Init state observation
     this.$onChange((target, property, value, receiver) => {
       Reflect.set(
         target, property,
