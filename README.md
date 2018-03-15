@@ -13,4 +13,6 @@
 
 ## Progress
 
-  - Data binding system (WIP)
+  - [] Data binding system (WIP)
+  - [] Event binding system (WIP)
+  - [] Element references (WIP)
