@@ -1,5 +1,4 @@
 const TEMPLATE_REGEX = /{{(.*?)}}/
-const EVENT_REGEX = /^([\w\d]+)(?:\(([^)]*)\))?$/
 
 export function hasTemplate ({ nodeValue }) {
   return nodeValue.indexOf('{{') > -1
@@ -31,23 +30,4 @@ export function getExpression ({ nodeValue }) {
   }
 
   return parsedExpression + (template ? `+ ${JSON.stringify(template)}` : '')
-}
-
-export function attachEvent (element, { name, nodeValue }, scope) {
-  let match
-
-  if (match = nodeValue.match(EVENT_REGEX)) {
-    const [, method, args] = match
-    const evaluator = getEvaluator(`$commit('${method}'${args ? `, ${args}` : ''})`)
-
-    element.removeAttribute(name)
-    element.addEventListener(name.slice(1), event => {
-      // Externalize event
-      scope.$event = event
-
-      evaluator(scope)
-
-      scope.$event = null
-    })
-  }
 }

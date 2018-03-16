@@ -1,9 +1,11 @@
 import RenderNode from './RenderNode.js'
 
-import nextTick from '../utils/next-tick.js'
 import { isTextNode, isElementNode } from '../utils/type-check.js'
-import { hasTemplate, attachEvent, getEvaluator } from '../utils/evaluation.js'
-import { camelize } from '../utils/generic.js'
+import { hasTemplate } from '../utils/evaluation.js'
+
+import reference, { REF_DATA } from '../directives/reference.js'
+import bind, { BIND_DATA } from '../directives/bind.js'
+import event from '../directives/event.js'
 
 /**
  * Renderer is to inline render objects
@@ -17,15 +19,6 @@ export default class Renderer {
 
   static get EVENT_INDICATOR () {
     return '@'
-  }
-
-  // data-g-ref
-  static get REF_INDICATOR () {
-    return 'gRef'
-  }
-
-  static get BIND_INDICATOR () {
-    return 'gBind'
   }
 
   constructor (scope) {
@@ -46,12 +39,12 @@ export default class Renderer {
     if (isTextNode(node) && hasTemplate(node)) {
       this.renders.push(new RenderNode(node, false))
     } else if (isElementNode(node)) {
-      if (Renderer.REF_INDICATOR in node.dataset) {
-        this.addRef(node)
+      if (REF_DATA in node.dataset) {
+        reference(node, this.scope)
       }
 
-      if (Renderer.BIND_INDICATOR in node.dataset) {
-        this.addBind(node)
+      if (BIND_DATA in node.dataset) {
+        this.renders.push(bind(node, this.scope))
       }
 
       for (const attribute of node.attributes) {
@@ -67,38 +60,12 @@ export default class Renderer {
 
           this.renders.push(new RenderNode(observed, isDirect))
         } else if (name.startsWith(Renderer.EVENT_INDICATOR)) {
-          attachEvent(node, attribute, this.scope)
+          event(node, attribute, this.scope)
         }
       }
 
       this.addRenders(node.childNodes)
     }
-  }
-
-  addBind (node) {
-    const property = node.dataset[Renderer.BIND_INDICATOR]
-
-    const setter = new Function('value', `this.state.${property} = value`)
-    const getter = getEvaluator(`state.${property}`)
-
-    node.addEventListener('input', event => {
-      setter.call(this.scope, node.value)
-    })
-
-    const render = () => {
-      nextTick(() => {
-        node.value = getter(this.scope)
-      })
-    }
-
-    this.scope.$onChange(render)
-
-    render()
-  }
-
-  addRef (node) {
-    this.scope.$refs[camelize(node.dataset[Renderer.REF_INDICATOR])] = node
-    delete node.dataset[Renderer.REF_INDICATOR]
   }
 
   render (state, refresh) {
