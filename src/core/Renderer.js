@@ -1,7 +1,8 @@
 import RenderNode from './RenderNode.js'
 
+import nextTick from '../utils/next-tick.js'
 import { isTextNode, isElementNode } from '../utils/type-check.js'
-import { hasTemplate, attachEvent } from '../utils/evaluation.js'
+import { hasTemplate, attachEvent, getEvaluator } from '../utils/evaluation.js'
 import { camelize } from '../utils/generic.js'
 
 /**
@@ -21,6 +22,10 @@ export default class Renderer {
   // data-g-ref
   static get REF_INDICATOR () {
     return 'gRef'
+  }
+
+  static get BIND_INDICATOR () {
+    return 'gBind'
   }
 
   constructor (scope) {
@@ -45,6 +50,10 @@ export default class Renderer {
         this.addRef(node)
       }
 
+      if (Renderer.BIND_INDICATOR in node.dataset) {
+        this.addBind(node)
+      }
+
       for (const attribute of node.attributes) {
         const { name } = attribute
         const isDirect = name.startsWith(Renderer.BIND_INDICATOR)
@@ -64,6 +73,27 @@ export default class Renderer {
 
       this.addRenders(node.childNodes)
     }
+  }
+
+  addBind (node) {
+    const property = node.dataset[Renderer.BIND_INDICATOR]
+
+    const setter = new Function('value', `this.state.${property} = value`)
+    const getter = getEvaluator(`state.${property}`)
+
+    node.addEventListener('input', event => {
+      setter.call(this.scope, node.value)
+    })
+
+    const render = () => {
+      nextTick(() => {
+        node.value = getter(this.scope)
+      })
+    }
+
+    this.scope.$onChange(render)
+
+    render()
   }
 
   addRef (node) {
