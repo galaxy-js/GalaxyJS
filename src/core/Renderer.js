@@ -6,6 +6,7 @@ import { hasTemplate } from '../utils/evaluation.js'
 import reference, { REF_DATA } from '../directives/reference.js'
 import bind, { BIND_DATA } from '../directives/bind.js'
 import event from '../directives/event.js'
+import conditional, { CONDITIONAL_DATA } from '../directives/conditional.js'
 
 /**
  * Renderer is to inline render objects
@@ -45,6 +46,10 @@ export default class Renderer {
 
       if (BIND_DATA in node.dataset) {
         this.renders.push(bind(node, this.scope))
+      }
+
+      if (CONDITIONAL_DATA in node.dataset) {
+        this.renders.push(conditional(node))
       }
 
       for (const attribute of node.attributes) {
