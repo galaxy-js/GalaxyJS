@@ -1,8 +1,7 @@
-import { camelize } from '../utils/generic.js'
+import { camelize, digestData } from '../utils/generic.js'
 
-export const REF_DATA = 'gRef'
+export const REFERENCE_ATTRIBUTE = 'g-ref'
 
 export default function reference (node, scope) {
-  scope.$refs[camelize(node.dataset[REF_DATA])] = node
-  delete node.dataset[REF_DATA]
+  scope.$refs[camelize(digestData(node, REFERENCE_ATTRIBUTE))] = node
 }

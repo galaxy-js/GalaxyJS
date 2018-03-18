@@ -11,11 +11,11 @@
   <h2>Plain element</h2>
   <pre><code>Todos: {{ wellPrintTodos }}</code></pre>
 
-  <h3 data-g-if="showMessage">Hello World</h3>
+  <h3 g-if="showMessage">Hello World</h3>
 
-  <input data-g-ref="todoInput" type="text" @input="onTodo($event)">
+  <input g-ref="todoInput" type="text" @input="onTodo($event)">
   <button :id="'Todos: ' + wellPrintTodos" type="button" @click="addTodo($refs.todoInput)">Add</button>
-  <input type="text" data-g-bind="title">
+  <input type="text" g-bind="title">
 
   <button @click="toggleMessage()">Toggle message</button>
 </template>
