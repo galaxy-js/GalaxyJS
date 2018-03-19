@@ -1,5 +1,5 @@
 import Observer from './core/Observer.js'
-import Renderer from './core/Renderer.js'
+import RenderElement from './core/RenderElement.js'
 
 import nextTick from './utils/next-tick.js'
 import { isObject, isFunction, isReserved } from './utils/type-check.js'
@@ -25,17 +25,15 @@ export default class Element extends HTMLElement {
     this.$document = document.currentScript.ownerDocument
     this.$template = this.$document.querySelector('template')
 
+    // We need to append content before setting up the main renderer
+    this.$root.appendChild(this.$template.content.cloneNode(true))
+
     // Setup core utilities
     this.$observer = new Observer()
-    this.$renderer = new Renderer(this)
+    this.$renderer = new RenderElement(this.$root, this)
 
     // Flag whether we are in a rendering phase
     this.$rendering = false
-
-    const fragment = this.$template.content.cloneNode(true)
-
-    this.$renderer.addRenders(fragment.childNodes)
-    this.$root.appendChild(fragment)
 
     // Defer state observation
     nextTick.afterFlush(() => {

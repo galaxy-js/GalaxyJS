@@ -1,9 +1,16 @@
 import { digestData } from '../utils/generic.js'
-import { compileSetter, compileGetter } from '../utils/evaluation.js'
+import { compileSetter, compileGetter, diff } from '../utils/evaluation.js'
+
+const BIND_ATTRIBUTE = 'g-bind'
 
 export const BIND_TOKEN = ':'
 
-export const BIND_ATTRIBUTE = 'g-bind'
+export function needBind (element) {
+  return (
+    BIND_ATTRIBUTE in element.attributes &&
+    element instanceof HTMLInputElement
+  )
+}
 
 /**
  * With support just for input types:
@@ -16,10 +23,8 @@ export const BIND_ATTRIBUTE = 'g-bind'
  *   - Number
  */
 export default class RenderBind {
-  constructor (input, scope) {
+  constructor (input) {
     this.input = input
-    this.scope = scope
-
     this.path = digestData(input, BIND_ATTRIBUTE)
 
     this.setting = false
@@ -32,19 +37,28 @@ export default class RenderBind {
 
     this.conversor = input.type === 'number' ? Number : String
 
-    this.onInput()
+    // Hold previous state
+    this.__prev = null
   }
 
   // Change state (Input -> State)
-  onInput () {
-    this.input.addEventListener('input', ({ target }) => {
+  onInput (state) {
+    this._onInput = ({ target }) => {
       this.setting = true
-      this.setter(this.scope.state, this.conversor(target.value))
-    })
+      this.setter(state, this.conversor(target.value))
+    }
+
+    this.input.addEventListener('input', this._onInput)
   }
 
   // Change input (State -> Input)
   render (state) {
+    if (this.__prev !== state) {
+      this.input.removeEventListener('input', this._onInput)
+      this.onInput(state)
+      this.__prev = state
+    }
+
     // Avoid re-dispatching on flush cycle
     // for an already assigned value
     if (this.setting) {
@@ -54,7 +68,7 @@ export default class RenderBind {
 
     const value = String(this.getter(state))
 
-    if (this.input.value !== value) {
+    if (diff(this.input, value)) {
       this.input.value = value
     }
   }

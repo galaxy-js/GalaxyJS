@@ -5,6 +5,10 @@ import { compileGetter } from '../utils/evaluation.js'
 
 export const CONDITIONAL_ATTRIBUTE = 'g-if'
 
+export function needConditional ({ attributes }) {
+  return CONDITIONAL_ATTRIBUTE in attributes
+}
+
 export default class RenderConditional {
   constructor (element) {
     this.element = element
