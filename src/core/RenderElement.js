@@ -36,7 +36,7 @@ export default class RenderElement {
     if ('attributes' in $el) {
       // Since a loop takes the element as a template
       // we don't need to render its childs, attributes, etc...
-      if (needLoop($el)) return this.addDirective(new RenderLoop($el))
+      if (needLoop($el)) return this.addDirective(new RenderLoop($el, this.scope))
 
       if (needReference($el)) {
         reference($el, this.scope)

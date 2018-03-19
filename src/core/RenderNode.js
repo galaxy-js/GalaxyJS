@@ -25,12 +25,12 @@ export default class RenderNode {
 
     while (match = template.match(TEMPLATE_REGEX)) {
       // Push left context and the expression itself
-      expressions.push(`'${RegExp['$`']}'`, `(${match[1].trim()})`)
+      expressions.push(`\`${RegExp['$`']}\``, `(${match[1].trim()})`)
 
       template = RegExp["$'"] // .rightContext
     }
 
-    return expressions.join(' + ') + ` + '${template}'`
+    return expressions.join(' + ') + ` + \`${template}\``
   }
 
   render (state) {

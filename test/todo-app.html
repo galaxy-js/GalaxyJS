@@ -1,0 +1,57 @@
+<link rel="import" href="../src/galaxy.html">
+
+<template>
+  <style>
+    :host .tomato {
+      background: tomato;
+    }
+  </style>
+
+  <h1>Galaxy TODO APP</h1>
+
+  <ul>
+    <li g-for="todo in todos">
+      {{ todo.name }}
+      <input type="checkbox" :checked="todo.done">
+      <button @click="removeTodo(todo)">&times;</button>
+    </li>
+  </ul>
+
+  <div>
+    <input type="text" g-bind="todo.name">
+    <button @click="addTodo()">Add TODO</button>
+  </div>
+</template>
+
+<script>
+  class TodoApp extends Galaxy.Element {
+    constructor () {
+      super()
+
+      this.state = {
+        todo: {
+          name: 'Testing Galaxy',
+          done: false
+        },
+
+        todos: []
+      }
+    }
+
+    static get is () {
+      return 'todo-app'
+    }
+
+    addTodo ({ todos, todo }) {
+      todos.push(Object.assign({}, todo))
+
+      todo.name = ''
+    }
+
+    removeTodo ({ todos }, todo) {
+      todos.splice(todos.indexOf(todo), 1)
+    }
+  }
+
+  Galaxy.register(TodoApp)
+</script>
