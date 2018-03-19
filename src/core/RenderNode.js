@@ -34,13 +34,6 @@ export default class RenderNode {
   }
 
   render (state) {
-    try {
-      this.getter(state)
-    } catch (e) {
-      console.log(state)
-      console.log(e)
-    }
-
     const value = this.getter(state)
 
     if (diff(this.node, value)) {
