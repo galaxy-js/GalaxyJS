@@ -13,9 +13,16 @@ import { isTextNode, isElementNode } from '../utils/type-check.js'
 import { hasTemplate } from '../utils/evaluation.js'
 
 export default class RenderElement {
-  constructor (element, scope) {
+  constructor (element, scope, isolated = {}) {
     this.element = element
     this.scope = scope
+
+    // Isolated scope
+    /**
+     * We need an isolated scope which contains
+     * individually data taken from RenderLoop
+     */
+    this.isolated = Object.assign({}, isolated)
 
     /**
      * Renders could contain directive, attribute and child renders.
@@ -73,7 +80,7 @@ export default class RenderElement {
 
         this.addRender(new RenderNode(observed, isDirect))
       } else if (name.startsWith(EVENT_TOKEN)) {
-        event(this.element, name, this.scope)
+        event(this.element, name, this.scope, this.isolated)
       }
     }
   }
@@ -83,7 +90,7 @@ export default class RenderElement {
       if (isTextNode(child) && hasTemplate(child)) {
         this.addRender(new RenderNode(child, false))
       } else if (isElementNode(child)) {
-        const render = new RenderElement(child, this.scope)
+        const render = new RenderElement(child, this.scope, this.isolated)
 
         // Only consider a render element if its childs
         // or attributes has something to bind/update
@@ -111,7 +118,15 @@ export default class RenderElement {
     this.renders.push(render)
   }
 
+  mountAt (parent, state) {
+    parent.appendChild(this.element)
+    this.render(state)
+  }
+
   render (state) {
+    // Merge with isolated scope
+    state = Object.assign({}, state, this.isolated)
+
     for (const directive of this.directives) {
       directive.render(state)
     }

@@ -44,9 +44,6 @@ export default class RenderLoop {
   }
 
   render (state) {
-    // Shallow copy
-    const shadow = Object.assign({}, state)
-
     const collection = this.getter(state)
     const keys = Object.keys(collection)
 
@@ -56,18 +53,27 @@ export default class RenderLoop {
 
     // Only support Arrays for now
     for (const key of keys) {
-      shadow[this.key] = collection[key]
-
-      // Perform a simple render recycling
-      let renderer = this.cache.get(key)
-
-      if (!renderer) {
-        renderer = new RenderElement(this.template.cloneNode(true), this.scope)
-        this.cache.set(key, renderer)
+      // Isolated scope is interpreted as a child scope that override
+      // properties from its parent (the custom element itself)
+      const isolated = {
+        [this.key]: collection[key]
       }
 
-      this.parent.appendChild(renderer.element)
-      renderer.render(shadow)
+      // TODO: Perform render recycling
+
+      // Perform a simple render recycling
+      // let renderer = this.cache.get(key)
+      const renderer = new RenderElement(this.template.cloneNode(true), this.scope, isolated)
+
+      // if (renderer) {
+        // Update isolated scope
+        // Object.assign(renderer.isolated, isolated)
+      // } else {
+        // renderer = new RenderElement(this.template.cloneNode(true), this.scope, isolated)
+        // this.cache.set(key, renderer)
+      //}
+
+      renderer.mountAt(this.parent, state)
     }
   }
 }
