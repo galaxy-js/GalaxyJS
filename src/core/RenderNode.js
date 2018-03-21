@@ -1,5 +1,4 @@
-import nextTick from '../utils/next-tick.js'
-import { compileGetter, diff } from '../utils/evaluation.js'
+import { compileNestedGetter, diff } from '../utils/evaluation.js'
 
 const TEMPLATE_REGEX = /{{(.*?)}}/
 
@@ -13,7 +12,7 @@ export default class RenderNode {
     this.isDirect = isDirect
 
     // {{ template }} or :attribute -> compile state
-    this.getter = compileGetter(this.isDirect ? this.node.value : this.getExpression())
+    this.getter = compileNestedGetter(this.isDirect ? this.node.value : this.getExpression())
   }
 
   getExpression () {
@@ -33,8 +32,8 @@ export default class RenderNode {
     return expressions.join(' + ') + ` + \`${template}\``
   }
 
-  render (state) {
-    const value = this.getter(state)
+  render (state, isolated) {
+    const value = this.getter(state, isolated)
 
     if (diff(this.node, value)) {
       this.node.nodeValue = value

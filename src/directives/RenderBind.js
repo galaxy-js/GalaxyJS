@@ -1,5 +1,5 @@
 import { digestData } from '../utils/generic.js'
-import { compileSetter, compileGetter, diff } from '../utils/evaluation.js'
+import { compileNestedSetter, compileNestedGetter, diff } from '../utils/evaluation.js'
 
 const BIND_ATTRIBUTE = 'g-bind'
 
@@ -30,10 +30,10 @@ export default class RenderBind {
     this.setting = false
 
     // Input -> State
-    this.setter = compileSetter(this.path)
+    this.setter = compileNestedSetter(this.path)
 
     // State -> Input
-    this.getter = compileGetter(this.path)
+    this.getter = compileNestedGetter(this.path)
 
     this.conversor = input.type === 'number' ? Number : String
 
@@ -42,22 +42,19 @@ export default class RenderBind {
   }
 
   // Change state (Input -> State)
-  onInput (state) {
+  onInput (state, isolated) {
     this._onInput = ({ target }) => {
       this.setting = true
-      this.setter(state, this.conversor(target.value))
+      this.setter(state, isolated, this.conversor(target.value))
     }
 
     this.input.addEventListener('input', this._onInput)
   }
 
   // Change input (State -> Input)
-  render (state) {
-    if (this.__prev !== state) {
-      this.input.removeEventListener('input', this._onInput)
-      this.onInput(state)
-      this.__prev = state
-    }
+  render (state, isolated) {
+    this.input.removeEventListener('input', this._onInput)
+    this.onInput(state, isolated)
 
     // Avoid re-dispatching on flush cycle
     // for an already assigned value
@@ -66,7 +63,7 @@ export default class RenderBind {
       return
     }
 
-    const value = String(this.getter(state))
+    const value = String(this.getter(state, isolated))
 
     if (diff(this.input, value)) {
       this.input.value = value

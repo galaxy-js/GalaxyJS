@@ -1,7 +1,7 @@
 import config from '../config.js'
 
 import { digestData } from '../utils/generic.js'
-import { compileGetter } from '../utils/evaluation.js'
+import { compileNestedGetter } from '../utils/evaluation.js'
 
 export const CONDITIONAL_ATTRIBUTE = 'g-if'
 
@@ -16,11 +16,11 @@ export default class RenderConditional {
 
     this.anchor = document.createComment(config.debug ? ` gIf: ${this.condition} ` : ' ')
 
-    this.getter = compileGetter(this.condition)
+    this.getter = compileNestedGetter(this.condition)
   }
 
-  render (state) {
-    if (this.getter(state)) {
+  render (state, isolated) {
+    if (this.getter(state, isolated)) {
       if (!this.element.isConnected) {
         this.anchor.parentNode.replaceChild(this.element, this.anchor)
       }

@@ -75,12 +75,12 @@ export default class Element extends HTMLElement {
     }
   }
 
-  $render (refresh) {
+  $render () {
     if (!this.$rendering) {
       this.$rendering = true
 
       nextTick(() => {
-        this.$renderer.render(this.state, refresh)
+        this.$renderer.render(this.state)
         this.$rendering = false
       })
     }

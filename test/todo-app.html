@@ -7,12 +7,13 @@
     }
   </style>
 
-  <h1>Galaxy TODO APP</h1>
+  <h1>{{ title }}</h1>
+  <input type="text" g-bind="title">
 
   <ul>
     <li g-for="todo in todos">
       {{ todo.name }}
-      <input type="checkbox" :checked="todo.done">
+      <input g-ref="done{{ $index }}" id="done{{ $index }}" type="checkbox" @change="setTodoStatus(todo, $refs['done' + $index])">
       <button @click="removeTodo(todo)">&times;</button>
     </li>
   </ul>
@@ -29,12 +30,19 @@
       super()
 
       this.state = {
+        title: 'Galaxy TODO APP',
+
         todo: {
           name: 'Testing Galaxy',
           done: false
         },
 
-        todos: []
+        todos: [
+          {
+            name: 'Make good things',
+            done: false
+          }
+        ]
       }
     }
 
@@ -50,6 +58,10 @@
 
     removeTodo ({ todos }, todo) {
       todos.splice(todos.indexOf(todo), 1)
+    }
+
+    setTodoStatus (_, todo, done) {
+      // todo.done = done.checked
     }
   }
 

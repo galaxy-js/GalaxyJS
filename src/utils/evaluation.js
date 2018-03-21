@@ -2,6 +2,14 @@ export function hasTemplate ({ nodeValue }) {
   return nodeValue.indexOf('{{') > -1
 }
 
+export function compileNestedGetter (expression) {
+  return compileNestedEvaluator(`return ${expression}`)
+}
+
+export function compileNestedSetter (expression) {
+  return compileNestedEvaluator(`${expression} = value`)
+}
+
 /**
  * Compile an evaluator function with
  * inner and outer contexts.
@@ -12,28 +20,12 @@ export function hasTemplate ({ nodeValue }) {
  *
  * @return {Function}
  */
-export function compileNestedEvaluator (expression) {
-  return new Function('outer', 'inner', `
+export function compileNestedEvaluator (body) {
+  return new Function('outer', 'inner', 'value' /* Used only on setter */, `
     with (outer) {
       with (inner) {
-        ${expression}
+        ${body}
       }
-    }
-  `)
-}
-
-export function compileGetter (expression) {
-  return new Function('context', `
-    with (context) {
-      return ${expression}
-    }
-  `)
-}
-
-export function compileSetter (expression) {
-  return new Function('context', 'value', `
-    with (context) {
-      ${expression} = value
     }
   `)
 }

@@ -25,14 +25,19 @@ export default class RenderElement {
     this.isolated = Object.assign({}, isolated)
 
     /**
-     * Renders could contain directive, attribute and child renders.
+     * Hold directives to digest
      */
     this.directives = []
 
     /**
-     * Renders could contain directive, attribute and child renders.
+     * Hold attribute bindings to digest
      */
-    this.renders = []
+    this.bindings = []
+
+    /**
+     * Resolve children renders
+     */
+    this.children = []
 
     this._init()
   }
@@ -45,10 +50,6 @@ export default class RenderElement {
       // we don't need to render its childs, attributes, etc...
       if (needLoop($el)) return this.addDirective(new RenderLoop($el, this.scope))
 
-      if (needReference($el)) {
-        reference($el, this.scope)
-      }
-
       if (needConditional($el)) {
         this.addDirective(new RenderConditional($el))
       }
@@ -57,20 +58,20 @@ export default class RenderElement {
         this.addDirective(new RenderBind($el))
       }
 
-      this._initAttributes()
+      this._initBindings()
     }
 
     this._initChildren()
   }
 
-  _initAttributes () {
+  _initBindings () {
     const { attributes } = this.element
 
     for (const attribute of attributes) {
       const { name } = attribute
-      const isDirect = name.startsWith(BIND_TOKEN)
 
-      if (isDirect || hasTemplate(attribute)) {
+      // It's direct?
+      if (name.startsWith(BIND_TOKEN)) {
         const observed = document.createAttribute(name.slice(1))
         observed.value = attribute.value
 
@@ -78,9 +79,11 @@ export default class RenderElement {
 
         if (!config.debug) this.element.removeAttribute(name)
 
-        this.addRender(new RenderNode(observed, isDirect))
+        this.addBinding(observed, true)
       } else if (name.startsWith(EVENT_TOKEN)) {
         event(this.element, name, this.scope, this.isolated)
+      } else if (hasTemplate(attribute)) {
+        this.addBinding(attribute, false)
       }
     }
   }
@@ -88,14 +91,14 @@ export default class RenderElement {
   _initChildren () {
     for (const child of this.element.childNodes) {
       if (isTextNode(child) && hasTemplate(child)) {
-        this.addRender(new RenderNode(child, false))
+        this.addChild(new RenderNode(child, false))
       } else if (isElementNode(child)) {
-        const render = new RenderElement(child, this.scope, this.isolated)
+        const element = new RenderElement(child, this.scope, this.isolated)
 
         // Only consider a render element if its childs
         // or attributes has something to bind/update
-        if (render.isRenderable) {
-          this.addRender(render)
+        if (element.isRenderable) {
+          this.addChild(element)
         }
       }
 
@@ -106,35 +109,49 @@ export default class RenderElement {
   get isRenderable () {
     return (
       this.directives.length > 0 ||
-      this.renders.length > 0
+      this.bindings.length > 0 ||
+      this.children.length > 0
     )
   }
 
-  addDirective (render) {
-    this.directives.push(render)
+  addChild (child) {
+    this.children.push(child)
   }
 
-  addRender (render) {
-    this.renders.push(render)
+  addDirective (directive) {
+    this.directives.push(directive)
+  }
+
+  addBinding (node, direct) {
+    this.bindings.push(new RenderNode(node, direct))
   }
 
   mountAt (parent, state) {
     parent.appendChild(this.element)
-    this.render(state)
+    this.render(state, this.isolated)
   }
 
   render (state) {
-    // Merge with isolated scope
-    state = Object.assign({}, state, this.isolated)
-
     for (const directive of this.directives) {
-      directive.render(state)
+      directive.render(state, this.isolated)
     }
 
-    // TODO: don't perform updates on disconnected element
+    // Don't perform updates on disconnected element
     if (this.element.isConnected) {
-      for (const render of this.renders) {
-        render.render(state)
+      if ('attributes' in this.element) {
+        for (const binding of this.bindings) {
+          binding.render(state, this.isolated)
+        }
+
+        // We need to resolve the reference first
+        // since childs may need access to
+        if (needReference(this.element)) {
+          reference(this.element, this.scope)
+        }
+      }
+
+      for (const child of this.children) {
+        child.render(state, this.isolated)
       }
     }
   }
