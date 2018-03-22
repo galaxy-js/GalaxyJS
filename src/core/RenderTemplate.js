@@ -1,3 +1,4 @@
+import { isDefined } from '../utils/type-check.js'
 import { compileNestedGetter, diff } from '../utils/evaluation.js'
 
 const TEMPLATE_REGEX = /{{(.*?)}}/
@@ -31,10 +32,13 @@ export default class RenderTemplate {
   }
 
   render (state, isolated) {
-    const value = String(this.getter(state, isolated))
+    const value = this.getter(state, isolated)
 
-    if (diff(this.node, value)) {
-      this.node.nodeValue = value
+    // TODO: Handle objects without __proto__
+    const normalized = isDefined(value) ? String(value) : ''
+
+    if (diff(this.node, normalized)) {
+      this.node.nodeValue = normalized
     }
   }
 }
