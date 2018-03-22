@@ -1,12 +1,13 @@
 import config from '../config.js'
 
-import RenderNode from '../core/RenderNode.js'
+import RenderBinding, { needBinding } from '../core/RenderBinding.js'
+import RenderTemplate, { needTemplate } from '../core/RenderTemplate.js'
 
-import event, { EVENT_TOKEN } from '../directives/event.js'
+import event, { needEvent } from '../directives/event.js'
 import reference, { needReference } from '../directives/reference.js'
 
 import RenderLoop, { needLoop } from '../directives/RenderLoop.js'
-import RenderBind, { needBind, BIND_TOKEN } from '../directives/RenderBind.js'
+import RenderBind, { needBind } from '../directives/RenderBind.js'
 import RenderConditional, { needConditional } from '../directives/RenderConditional.js'
 
 import { isTextNode, isElementNode } from '../utils/type-check.js'
@@ -30,7 +31,7 @@ export default class RenderElement {
     this.directives = []
 
     /**
-     * Hold attribute bindings to digest
+     * Hold attribute and template bindings to digest
      */
     this.bindings = []
 
@@ -42,56 +43,66 @@ export default class RenderElement {
     this._init()
   }
 
+  get isRenderable () {
+    return (
+      this.directives.length > 0 ||
+      this.bindings.length > 0 ||
+      this.children.length > 0
+    )
+  }
+
   _init () {
     const $el = this.element
 
+    // Fragment (templates) has not attributes
     if ('attributes' in $el) {
       // Since a loop takes the element as a template
       // we don't need to render its childs, attributes, etc...
-      if (needLoop($el)) return this.addDirective(new RenderLoop($el, this.scope))
-
-      if (needConditional($el)) {
-        this.addDirective(new RenderConditional($el))
+      if (needLoop($el)) {
+        return this.addDirective(new RenderLoop($el, this.scope))
       }
 
-      if (needBind($el)) {
-        this.addDirective(new RenderBind($el))
-      }
-
-      this._initBindings()
+      this._initDirectives($el)
+      this._initBindings($el)
     }
 
-    this._initChildren()
+    this._initChildren($el)
   }
 
-  _initBindings () {
-    const { attributes } = this.element
+  _initDirectives ($el) {
+    if (needConditional($el)) {
+      this.addDirective(new RenderConditional($el))
+    }
+
+    if (needBind($el)) {
+      this.addDirective(new RenderBind($el))
+    }
+  }
+
+  _initBindings ($el) {
+    // Avoid live list
+    const attributes = Array.from($el.attributes)
 
     for (const attribute of attributes) {
-      const { name } = attribute
+      // 1. Check @binding
+      if (needEvent(attribute)) {
+        event($el, attribute.name, this.scope, this.isolated)
 
-      // It's direct?
-      if (name.startsWith(BIND_TOKEN)) {
-        const observed = document.createAttribute(name.slice(1))
-        observed.value = attribute.value
+      // 2. Check :binding
+      } else if (needBinding(attribute)) {
+        this.addBinding(new RenderBinding(attribute))
 
-        attributes.setNamedItem(observed)
-
-        if (!config.debug) this.element.removeAttribute(name)
-
-        this.addBinding(observed, true)
-      } else if (name.startsWith(EVENT_TOKEN)) {
-        event(this.element, name, this.scope, this.isolated)
-      } else if (hasTemplate(attribute)) {
-        this.addBinding(attribute, false)
+      // 3. Check {{ binding }}
+      } else if (needTemplate(attribute)) {
+        this.addBinding(new RenderTemplate(attribute))
       }
     }
   }
 
-  _initChildren () {
-    for (const child of this.element.childNodes) {
-      if (isTextNode(child) && hasTemplate(child)) {
-        this.addChild(new RenderNode(child, false))
+  _initChildren ($el) {
+    for (const child of $el.childNodes) {
+      if (isTextNode(child) && needTemplate(child)) {
+        this.addChild(new RenderTemplate(child))
       } else if (isElementNode(child)) {
         const element = new RenderElement(child, this.scope, this.isolated)
 
@@ -106,14 +117,6 @@ export default class RenderElement {
     }
   }
 
-  get isRenderable () {
-    return (
-      this.directives.length > 0 ||
-      this.bindings.length > 0 ||
-      this.children.length > 0
-    )
-  }
-
   addChild (child) {
     this.children.push(child)
   }
@@ -122,8 +125,8 @@ export default class RenderElement {
     this.directives.push(directive)
   }
 
-  addBinding (node, direct) {
-    this.bindings.push(new RenderNode(node, direct))
+  addBinding (binding) {
+    this.bindings.push(binding)
   }
 
   mountAt (parent, state) {
@@ -132,21 +135,23 @@ export default class RenderElement {
   }
 
   render (state) {
+    const $el = this.element
+
     for (const directive of this.directives) {
       directive.render(state, this.isolated)
     }
 
     // Don't perform updates on disconnected element
-    if (this.element.isConnected) {
-      if ('attributes' in this.element) {
+    if ($el.isConnected) {
+      if ('attributes' in $el) {
         for (const binding of this.bindings) {
           binding.render(state, this.isolated)
         }
 
         // We need to resolve the reference first
         // since childs may need access to
-        if (needReference(this.element)) {
-          reference(this.element, this.scope)
+        if (needReference($el)) {
+          reference($el, this.scope)
         }
       }
 

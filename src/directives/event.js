@@ -1,9 +1,12 @@
 import { digestData } from '../utils/generic.js'
 import { compileNestedEvaluator } from '../utils/evaluation.js'
 
+const EVENT_TOKEN = '@'
 const EVENT_REGEX = /^([\w\d]+)(?:\(([^)]*)\))?$/
 
-export const EVENT_TOKEN = '@'
+export function needEvent ({ name }) {
+  return name.startsWith(EVENT_TOKEN)
+}
 
 export default function event (element, name, scope, isolated) {
   let match

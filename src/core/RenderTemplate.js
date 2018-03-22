@@ -2,24 +2,22 @@ import { compileNestedGetter, diff } from '../utils/evaluation.js'
 
 const TEMPLATE_REGEX = /{{(.*?)}}/
 
-/**
- * Render for one-way binding
- */
-export default class RenderNode {
-  // `scope` is the component itself
-  constructor (node, isDirect) {
-    this.node = node
-    this.isDirect = isDirect
+export function needTemplate ({ nodeValue }) {
+  return nodeValue.includes('{{')
+}
 
-    // {{ template }} or :attribute -> compile state
-    this.getter = compileNestedGetter(this.isDirect ? this.node.value : this.getExpression())
+export default class RenderTemplate {
+  constructor (node) {
+    this.node = node
+
+    this.getter = compileNestedGetter(RenderTemplate.getExpression(node))
   }
 
-  getExpression () {
+  static getExpression (node) {
     // Hold inlined expressions
     const expressions = []
 
-    let template = this.node.nodeValue
+    let template = node.nodeValue
     let match
 
     while (match = template.match(TEMPLATE_REGEX)) {
@@ -33,7 +31,7 @@ export default class RenderNode {
   }
 
   render (state, isolated) {
-    const value = this.getter(state, isolated)
+    const value = String(this.getter(state, isolated))
 
     if (diff(this.node, value)) {
       this.node.nodeValue = value
