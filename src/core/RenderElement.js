@@ -11,7 +11,6 @@ import RenderBind, { needBind } from '../directives/RenderBind.js'
 import RenderConditional, { needConditional } from '../directives/RenderConditional.js'
 
 import { isTextNode, isElementNode } from '../utils/type-check.js'
-import { hasTemplate } from '../utils/evaluation.js'
 
 export default class RenderElement {
   constructor (element, scope, isolated = {}) {
@@ -56,12 +55,6 @@ export default class RenderElement {
 
     // Fragment (templates) has not attributes
     if ('attributes' in $el) {
-      // Since a loop takes the element as a template
-      // we don't need to render its childs, attributes, etc...
-      if (needLoop($el)) {
-        return this.addDirective(new RenderLoop($el, this.scope))
-      }
-
       this._initDirectives($el)
       this._initBindings($el)
     }
@@ -104,12 +97,18 @@ export default class RenderElement {
       if (isTextNode(child) && needTemplate(child)) {
         this.addChild(new RenderTemplate(child))
       } else if (isElementNode(child)) {
-        const element = new RenderElement(child, this.scope, this.isolated)
+        // The loop directive is resolved as a child
+        // to avoid some errors (TODO: Clarify 'errors')
+        if (needLoop(child)) {
+          this.addChild(new RenderLoop(child, this.scope))
+        } else {
+          const element = new RenderElement(child, this.scope, this.isolated)
 
-        // Only consider a render element if its childs
-        // or attributes has something to bind/update
-        if (element.isRenderable) {
-          this.addChild(element)
+          // Only consider a render element if its childs
+          // or attributes has something to bind/update
+          if (element.isRenderable) {
+            this.addChild(element)
+          }
         }
       }
 
@@ -127,11 +126,6 @@ export default class RenderElement {
 
   addBinding (binding) {
     this.bindings.push(binding)
-  }
-
-  mountAt (parent, state) {
-    parent.appendChild(this.element)
-    this.render(state, this.isolated)
   }
 
   render (state) {

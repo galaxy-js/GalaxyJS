@@ -12,16 +12,17 @@ const LOOP_ATTRIBUTE = 'g-for'
 /**
  * Captures:
  *
- *   [item] in [expression]
- */
-const SIMPLE_LOOP_REGEX = /^(.*)\s+in\s+(.*)$/
-
-/**
- * Captures:
+ *  1. Simple
  *
+ *   [item] in [expression]
+ *   ([item]) in [expression]
+ *
+ *  2. Complex
+ *
+ *   [item], [key|index] in [expression]
  *   ([item], [key|index]) in [expression]
  */
-const COMPLEX_LOOP_REGEX = /^\((.*),(.*)\)\s+in\s+(.*)$/
+const LOOP_REGEX = /^\(?(\w+)(?:\s*,\s*(\w+))?\)?\s+in\s+(.+)$/
 
 export function needLoop ({ attributes }) {
   return LOOP_ATTRIBUTE in attributes
@@ -29,22 +30,35 @@ export function needLoop ({ attributes }) {
 
 export default class RenderLoop {
   constructor (template, scope) {
-    const match = digestData(template, LOOP_ATTRIBUTE).match(SIMPLE_LOOP_REGEX)
-
     this.parent = template.parentNode
 
     this.template = template
     this.scope = scope
 
-    this.key = match[1]
+    const [, value, keyOrIndex, expression] = digestData(template, LOOP_ATTRIBUTE).match(LOOP_REGEX)
 
-    // TODO: Perform render recycling on this
-    this.tracker = new Array(1000)
+    this.keyName = keyOrIndex
+    this.valueName = value
 
-    this.getter = compileNestedGetter(match[2])
+    this.tracker = []
+
+    this.getter = compileNestedGetter(expression)
 
     // Since `template` is just a template
     template.remove()
+  }
+
+  purge (length) {
+    let residual = this.tracker.length - length
+
+    if (residual > 0) {
+      while (residual--) {
+        const renderer = this.tracker.pop()
+
+        // Unmount element
+        renderer.element.remove()
+      }
+    }
   }
 
   render (state, isolated) {
@@ -53,21 +67,36 @@ export default class RenderLoop {
     const collection = this.getter(state, isolated)
     const keys = Object.keys(collection)
 
-    // TODO: Make a more complex child diffing
-    // https://jsperf.com/innerhtml-vs-removechild
-    this.parent.innerHTML = ''
+    // TODO: Maybe check arrayLike?
+    const keyName = this.keyName || (Array.isArray(collection) ? '$index' : '$key')
 
     // Only support Arrays for now
     for (const key of keys) {
       // Isolated scope is interpreted as a child scope that override
-      // properties from its parent (the custom element itself)
+      // properties from its parent (the element itself)
       const isolated = {
-        [this.key]: collection[key],
-        $index: index++
+        [keyName]: key,
+        [this.valueName]: collection[key]
       }
 
-      let renderer = new RenderElement(this.template.cloneNode(true), this.scope, isolated)
-      renderer.mountAt(this.parent, state)
+      let renderer = this.tracker[index++]
+
+      if (renderer) {
+        // TODO: Check possible isolated collisions
+        // Update isolated scope
+        Object.assign(renderer.isolated, isolated)
+      } else {
+        const element = this.template.cloneNode(true)
+
+        renderer = new RenderElement(element, this.scope, isolated)
+
+        this.parent.appendChild(element)
+        this.tracker.push(renderer)
+      }
+
+      renderer.render(state)
     }
+
+    this.purge(keys.length)
   }
 }

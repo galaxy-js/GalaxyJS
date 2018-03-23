@@ -1,7 +1,3 @@
-export function hasTemplate ({ nodeValue }) {
-  return nodeValue.indexOf('{{') > -1
-}
-
 export function compileNestedGetter (expression) {
   return compileNestedEvaluator(`return ${expression}`)
 }
