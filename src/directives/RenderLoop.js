@@ -5,7 +5,7 @@ import { compileNestedGetter } from '../utils/evaluation.js'
 
 // Note: to maintain consistence avoid `of` reserved word on iterators.
 
-// TODO: Make directive debuggable
+// TODO: Add anchor delimiters
 
 const LOOP_ATTRIBUTE = 'g-for'
 
