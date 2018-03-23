@@ -11,10 +11,16 @@
   <input type="text" g-bind="title">
 
   <ul>
+    <li>
+      Wrapped (Start)
+    </li>
     <li g-for="todo in todos">
       {{ todo.name }}
       <input g-ref="done{{ $index }}" id="done{{ $index }}" type="checkbox" @change="setTodoStatus(todo, $refs['done' + $index])">
       <button @click="removeTodo(todo)">&times;</button>
+    </li>
+    <li>
+      Wrapped (End)
     </li>
   </ul>
 

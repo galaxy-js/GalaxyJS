@@ -1,7 +1,7 @@
 import config from '../config.js'
 
 import { digestData } from '../utils/generic.js'
-import { compileNestedGetter } from '../utils/evaluation.js'
+import { compileNestedGetter, createAnchor } from '../utils/evaluation.js'
 
 export const CONDITIONAL_ATTRIBUTE = 'g-if'
 
@@ -14,7 +14,7 @@ export default class RenderConditional {
     this.element = element
     this.condition = digestData(element, CONDITIONAL_ATTRIBUTE)
 
-    this.anchor = document.createComment(config.debug ? ` gIf: ${this.condition} ` : ' ')
+    this.anchor = createAnchor(`gIf: ${this.condition}`)
 
     this.getter = compileNestedGetter(this.condition)
   }

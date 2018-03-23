@@ -1,7 +1,7 @@
 import RenderElement from '../core/RenderElement.js'
 
 import { digestData } from '../utils/generic.js'
-import { compileNestedGetter } from '../utils/evaluation.js'
+import { compileNestedGetter, createAnchor } from '../utils/evaluation.js'
 
 // Note: to maintain consistence avoid `of` reserved word on iterators.
 
@@ -30,8 +30,6 @@ export function needLoop ({ attributes }) {
 
 export default class RenderLoop {
   constructor (template, scope) {
-    this.parent = template.parentNode
-
     this.template = template
     this.scope = scope
 
@@ -44,8 +42,14 @@ export default class RenderLoop {
 
     this.getter = compileNestedGetter(expression)
 
-    // Since `template` is just a template
-    template.remove()
+    this.startAnchor = createAnchor(`Start gFor: ${expression}`)
+    this.endAnchor = createAnchor(`End gFor: ${expression}`)
+
+    const parent = template.parentNode
+
+    // Remove `template` since is just a template
+    parent.replaceChild(this.startAnchor, template)
+    parent.insertBefore(this.endAnchor, this.startAnchor.nextSibling)
   }
 
   purge (length) {
@@ -70,6 +74,10 @@ export default class RenderLoop {
     // TODO: Maybe check arrayLike?
     const keyName = this.keyName || (Array.isArray(collection) ? '$index' : '$key')
 
+    const parent = this.endAnchor.parentNode
+
+    this.purge(keys.length)
+
     for (const key of keys) {
       // Isolated scope is interpreted as a child scope that override
       // properties from its parent (the element itself)
@@ -89,13 +97,11 @@ export default class RenderLoop {
 
         renderer = new RenderElement(element, this.scope, isolated)
 
-        this.parent.appendChild(element)
+        parent.insertBefore(element, this.endAnchor)
         this.tracker.push(renderer)
       }
 
       renderer.render(state)
     }
-
-    this.purge(keys.length)
   }
 }

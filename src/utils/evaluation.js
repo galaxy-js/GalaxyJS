@@ -1,3 +1,9 @@
+import config from '../config.js'
+
+export const createAnchor = config.debug
+  ? content => document.createComment(` ${content} `)
+  : () => document.createTextNode('')
+
 export function compileNestedGetter (expression) {
   return compileNestedEvaluator(`return ${expression}`)
 }
