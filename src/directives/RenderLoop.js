@@ -70,7 +70,6 @@ export default class RenderLoop {
     // TODO: Maybe check arrayLike?
     const keyName = this.keyName || (Array.isArray(collection) ? '$index' : '$key')
 
-    // Only support Arrays for now
     for (const key of keys) {
       // Isolated scope is interpreted as a child scope that override
       // properties from its parent (the element itself)
