@@ -3,7 +3,6 @@ import config from '../config.js'
 import RenderBinding, { needBinding } from '../core/RenderBinding.js'
 import RenderTemplate, { needTemplate } from '../core/RenderTemplate.js'
 
-import event, { needEvent } from '../directives/event.js'
 import reference, { needReference } from '../directives/reference.js'
 
 import RenderLoop, { needLoop } from '../directives/RenderLoop.js'
@@ -11,6 +10,11 @@ import RenderBind, { needBind } from '../directives/RenderBind.js'
 import RenderConditional, { needConditional } from '../directives/RenderConditional.js'
 
 import { isTextNode, isElementNode } from '../utils/type-check.js'
+import { compileNestedEvaluator } from '../utils/evaluation.js'
+import { digestData } from '../utils/generic.js'
+
+const EVENT_TOKEN = '@'
+const EVENT_REGEX = /^([\w\d]+)(?:\(([^)]*)\))?$/
 
 export default class RenderElement {
   constructor (element, scope, isolated = {}) {
@@ -72,14 +76,33 @@ export default class RenderElement {
     }
   }
 
+  _attachEvent ($el, name) {
+    let match
+
+    if (match = digestData($el, name).match(EVENT_REGEX)) {
+      const [, method, args] = match
+      const evaluate = compileNestedEvaluator(`$commit('${method}'${args ? `, ${args}` : ''})`)
+
+      $el.addEventListener(name.slice(1), event => {
+        // Externalize event
+        this.scope.$event = event
+
+        // TODO: Check for async evaluation
+        evaluate(this.scope, this.isolated)
+
+        this.scope.$event = null
+      })
+    }
+  }
+
   _initBindings ($el) {
     // Avoid live list
     const attributes = Array.from($el.attributes)
 
     for (const attribute of attributes) {
       // 1. Check @binding
-      if (needEvent(attribute)) {
-        event($el, attribute.name, this.scope, this.isolated)
+      if (attribute.name.startsWith(EVENT_TOKEN)) {
+        this._attachEvent($el, attribute.name)
 
       // 2. Check :binding
       } else if (needBinding(attribute)) {
