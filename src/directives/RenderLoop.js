@@ -7,6 +7,8 @@ import { compileNestedGetter, createAnchor } from '../utils/evaluation.js'
 
 // TODO: Add anchor delimiters
 
+const LOOP_DIFFING_SYMBOL = Symbol('Galaxy.LoopDiffing')
+
 const LOOP_ATTRIBUTE = 'g-for'
 
 /**
@@ -45,11 +47,25 @@ export default class RenderLoop {
     this.startAnchor = createAnchor(`Start gFor: ${expression}`)
     this.endAnchor = createAnchor(`End gFor: ${expression}`)
 
-    const parent = template.parentNode
+    const parent = this.parent = template.parentNode
 
     // Remove `template` since is just a template
     parent.replaceChild(this.startAnchor, template)
     parent.insertBefore(this.endAnchor, this.startAnchor.nextSibling)
+  }
+
+  getIndex (reference) {
+    const { length } = this.tracker
+
+    for (let i = 0; i < length; i++) {
+      const renderer = this.tracker[renderer]
+
+      if (renderer[LOOP_DIFFING_SYMBOL] === reference) {
+        return i
+      }
+    }
+
+    return -1
   }
 
   purge (length) {
@@ -79,18 +95,30 @@ export default class RenderLoop {
     this.purge(keys.length)
 
     for (const key of keys) {
-      // Isolated scope is interpreted as a child scope that override
-      // properties from its parent (the element itself)
+      const value = collection[key]
+
       const isolated = {
         [keyName]: key,
-        [this.valueName]: collection[key]
+        [this.valueName]: value
       }
 
-      let renderer = this.tracker[index++]
+      let renderer
+      let rendererIndex = this.getIndex(value)
 
-      if (renderer) {
-        // TODO: Check possible isolated collisions
-        // Update isolated scope
+      if (rendererIndex > -1) {
+        renderer = this.tracker[rendererIndex]
+
+        if (rendererIndex !== index) {
+          const actual = this.tracker[index]
+          const before = actual.element.nextSibling
+
+          this.tracker[rendererIndex] = actual
+          this.tracker[index] = renderer
+
+          this.parent.replaceChild(renderer.element, actual.element)
+          this.parent.insertBefore()
+        }
+
         Object.assign(renderer.isolated, isolated)
       } else {
         const element = this.template.cloneNode(true)
@@ -102,6 +130,8 @@ export default class RenderLoop {
       }
 
       renderer.render(state)
+
+      index += 1
     }
   }
 }
