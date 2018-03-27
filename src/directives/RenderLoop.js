@@ -1,13 +1,14 @@
 import RenderElement from '../core/RenderElement.js'
 
+import Tracker from './loop/Tracker.js'
+
 import { digestData } from '../utils/generic.js'
 import { compileNestedGetter, createAnchor } from '../utils/evaluation.js'
+import { isDefined } from '../utils/type-check.js'
 
 // Note: to maintain consistence avoid `of` reserved word on iterators.
 
 // TODO: Add anchor delimiters
-
-const LOOP_DIFFING_SYMBOL = Symbol('Galaxy.LoopDiffing')
 
 const LOOP_ATTRIBUTE = 'g-for'
 
@@ -26,6 +27,9 @@ const LOOP_ATTRIBUTE = 'g-for'
  */
 const LOOP_REGEX = /^\(?(\w+)(?:\s*,\s*(\w+))?\)?\s+in\s+(.+)$/
 
+const LOOP_INDEX = '$index'
+const LOOP_KEY_NAME = '$key'
+
 export function needLoop ({ attributes }) {
   return LOOP_ATTRIBUTE in attributes
 }
@@ -37,47 +41,63 @@ export default class RenderLoop {
 
     const [, value, keyOrIndex, expression] = digestData(template, LOOP_ATTRIBUTE).match(LOOP_REGEX)
 
-    this.keyName = keyOrIndex
+    this.keyName = keyOrIndex || LOOP_KEY_NAME
     this.valueName = value
 
-    this.tracker = []
+    this.renders = []
 
     this.getter = compileNestedGetter(expression)
 
     this.startAnchor = createAnchor(`Start gFor: ${expression}`)
     this.endAnchor = createAnchor(`End gFor: ${expression}`)
 
-    const parent = this.parent = template.parentNode
+    const parent = 
+    this.parent = template.parentNode
 
     // Remove `template` since is just a template
     parent.replaceChild(this.startAnchor, template)
     parent.insertBefore(this.endAnchor, this.startAnchor.nextSibling)
   }
 
-  getIndex (reference) {
-    const { length } = this.tracker
-
-    for (let i = 0; i < length; i++) {
-      const renderer = this.tracker[renderer]
-
-      if (renderer[LOOP_DIFFING_SYMBOL] === reference) {
-        return i
-      }
-    }
-
-    return -1
+  same (render, isolated) {
+    return render.isolated[this.valueName] === isolated
   }
 
-  purge (length) {
-    let residual = this.tracker.length - length
+  getMap (start, end) {
+    const map = new WeakMap()
 
-    if (residual > 0) {
-      while (residual--) {
-        const renderer = this.tracker.pop()
+    for (let i = start; i < end; i++) {
+      const render = this.renders[i]
+      if (render) map.set(render, i)
+    }
 
-        // Unmount element
-        renderer.element.remove()
+    return map
+  }
+
+  attach (collection, { track, startIndex, endIndex }, state) {
+    for (let i = startIndex; i <= endIndex; i++) {
+      const key = track[i]
+
+      if (isDefined(key)) {
+        const element = this.template.cloneNode(true)
+  
+        const renderer = new RenderElement(element, this.scope, {
+          [LOOP_INDEX]: i,
+          [this.keyName]: key,
+          [this.valueName]: collection[key]
+        })
+
+        this.parent.insertBefore(element, this.endAnchor)
+
+        renderer.render(state)
       }
+    }
+  }
+
+  purge ({ track, startIndex, endIndex }) {
+    for (let i = startIndex; i < endIndex; i++) {
+      const renderer = track[i]
+      if (renderer) renderer.element.remove()
     }
   }
 
@@ -87,51 +107,95 @@ export default class RenderLoop {
     const collection = this.getter(state, isolated)
     const keys = Object.keys(collection)
 
-    // TODO: Maybe check arrayLike?
-    const keyName = this.keyName || (Array.isArray(collection) ? '$index' : '$key')
+    const rendersTracker = new Tracker(this.renders)
+    const keysTracker = new Tracker(keys)
 
-    const parent = this.endAnchor.parentNode
+    const getIsolated = key => ({
+      [LOOP_INDEX]: index,
+      [this.keyName]: key,
+      [this.valueName]: collection[key]
+    })
 
-    this.purge(keys.length)
+    const renderIsolated = (renderer, key) => {
+      // Merge isolated
+      Object.assign(renderer.isolated, getIsolated(key))
 
-    for (const key of keys) {
-      const value = collection[key]
+      // Go to rendering phase
+      renderer.render(state)
+    }
 
-      const isolated = {
-        [keyName]: key,
-        [this.valueName]: value
-      }
+    let indexMap
 
-      let renderer
-      let rendererIndex = this.getIndex(value)
+    while (
+      rendersTracker.startIndex <= rendersTracker.endIndex &&
+      keysTracker.startIndex <= keysTracker.endIndex
+    ) {
+      if (!isDefined(rendersTracker.start)) {
+        rendersTracker.nextStart()
+      } else if (!isDefined(rendersTracker.end)) {
+        rendersTracker.nextEnd()
 
-      if (rendererIndex > -1) {
-        renderer = this.tracker[rendererIndex]
+        // Renders: [-> A, B, C]
+        // Keys:    [-> 1, 2, 3]
+      } else if (this.same(rendersTracker.start, keysTracker.start)) {
+        renderIsolated(rendersTracker.start, keysTracker.start)
 
-        if (rendererIndex !== index) {
-          const actual = this.tracker[index]
-          const before = actual.element.nextSibling
+        rendersTracker.nextStart()
+        keysTracker.nextStart()
 
-          this.tracker[rendererIndex] = actual
-          this.tracker[index] = renderer
+      // Renders: [A, B, C <-]
+      // Keys:    [1, 2, 3 <-]
+      } else if (this.same(rendersTracker.end, keysTracker.end)) {
+        renderIsolated(rendersTracker.end, keysTracker.end)
 
-          this.parent.replaceChild(renderer.element, actual.element)
-          this.parent.insertBefore()
+        rendersTracker.nextEnd()
+        keysTracker.nextEnd()
+
+      // Renders: [-> A, B, C]
+      // Keys:    [1, 2, 3 <-]
+      } else if (this.same(rendersTracker.start, keysTracker.end)) {
+        this.parent.insertBefore(rendersTracker.start.element, rendersTracker.end.element.nextSibling)
+
+        renderIsolated(renderIsolated.start, keysTracker.end)
+
+        rendersTracker.nextStart()
+        keysTracker.nextEnd()
+
+      // Renders: [A, B, C <-]
+      // Keys:    [-> 1, 2, 3]
+      } else if (this.same(rendersTracker.end, keysTracker.start)) {
+        this.parent.insertBefore(rendersTracker.end.element, rendersTracker.start.element)
+
+        renderIsolated(renderIsolated.end, keysTracker.start)
+
+        rendersTracker.nextEnd()
+        keysTracker.nextStart()
+      } else {
+        if (!isDefined(indexMap)) indexMap = this.getMap()
+
+        const key = keysTracker.start
+        const actualIndex = indexMap.get(collection[key])
+
+        let renderer
+
+        if (!isDefined(actualIndex)) {
+          renderer = new RenderElement(this.template.cloneNode(true), this.scope, isolated)
+        } else {
+          renderer = this.renders[actualIndex]
+          this.renders[actualIndex] = undefined
         }
 
-        Object.assign(renderer.isolated, isolated)
-      } else {
-        const element = this.template.cloneNode(true)
+        this.parent.insertBefore(renderer.element, rendersTracker.start.element)
+        renderIsolated(renderer, key)
 
-        renderer = new RenderElement(element, this.scope, isolated)
-
-        parent.insertBefore(element, this.endAnchor)
-        this.tracker.push(renderer)
+        keysTracker.nextStart()
       }
+    }
 
-      renderer.render(state)
-
-      index += 1
+    if (rendersTracker.startIndex > rendersTracker.endIndex) {
+      this.attach(collection, keysTracker, state)
+    } else {
+      this.purge(rendersTracker)
     }
   }
 }
