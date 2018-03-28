@@ -1,4 +1,5 @@
 import config from '../config.js'
+import { isObject } from './type-check.js'
 
 const same = value => value
 
@@ -12,4 +13,8 @@ export function digestData (element, name, conversor = same) {
   if (!config.debug) element.removeAttribute(name)
 
   return value
+}
+
+export function toString (value) {
+  return isObject(value) ? JSON.stringify(value) : String(value)
 }

@@ -1,4 +1,5 @@
-import { isDefined } from '../utils/type-check.js'
+import { toString } from '../utils/generic.js'
+import { isDefined, isObject } from '../utils/type-check.js'
 import { compileNestedGetter, diff } from '../utils/evaluation.js'
 
 const TEMPLATE_REGEX = /{{(.*?)}}/
@@ -11,7 +12,8 @@ export default class RenderTemplate {
   constructor (node) {
     this.node = node
 
-    this.getter = compileNestedGetter(RenderTemplate.getExpression(node))
+    this.expression = RenderTemplate.getExpression(node)
+    this.getter = compileNestedGetter(this.expression)
   }
 
   static getExpression (node) {
@@ -22,20 +24,29 @@ export default class RenderTemplate {
     let match
 
     while (match = template.match(TEMPLATE_REGEX)) {
-      // Push left context and the expression itself
-      expressions.push(`\`${RegExp['$`']}\``, `(${match[1].trim()})`)
+      const rawLeft = RegExp['$`']
+      const expression = match[1].trim()
+
+      // Push wrapped left context
+      if (rawLeft) expressions.push(`\`${rawLeft}\``)
+
+      // Push isolated expression itself
+      if (expression) expressions.push(`(${expression})`)
 
       template = RegExp["$'"] // .rightContext
     }
 
-    return expressions.join(' + ') + ` + \`${template}\``
+    // Push residual template expression
+    if (template) expressions.push(`\`${template}\``)
+
+    return expressions.join(' + ')
   }
 
   render (state, isolated) {
     const value = this.getter(state, isolated)
 
-    // TODO: Handle objects without __proto__
-    const normalized = isDefined(value) ? String(value) : ''
+    // Normalized value to avoid null or undefined
+    const normalized = isDefined(value) ? toString(value) : ''
 
     if (diff(this.node, normalized)) {
       this.node.nodeValue = normalized

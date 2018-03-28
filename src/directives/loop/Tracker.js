@@ -1,19 +1,37 @@
 export default class Tracker {
-  constructor (track) {
-    this.track = track
-
-    this.startIndex = 0
-    this.endIndex = track.length - 1
-
-    this.start = track[this.startIndex]
-    this.end = track[this.endIndex]
+  constructor (track, valueName) {
+    this.track = track.slice()
+    this.valueName = valueName
   }
 
-  nextStart () {
-    this.start = this.track[++this.startIndex]
+  get size () {
+    return this.track.length
   }
 
-  nextEnd () {
-    this.end = this.track[--this.endIndex]
+  index (value) {
+    for (let i = 0; i < this.track.length; ++i) {
+      const render = this.track[i]
+
+      if (render && render.isolated[this.valueName] === value) {
+        return i
+      }
+    }
+
+    return -1
+  }
+
+  get (index) {
+    return this.track[index]
+  }
+
+  each (fn) {
+    this.track.forEach(fn)
+  }
+
+  remove (index) {
+    const value = this.track[index]
+    this.track[index] = undefined
+
+    return value
   }
 }

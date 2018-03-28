@@ -17,16 +17,9 @@ const EVENT_TOKEN = '@'
 const EVENT_REGEX = /^([\w\d]+)(?:\(([^)]*)\))?$/
 
 export default class RenderElement {
-  constructor (element, scope, isolated = {}) {
+  constructor (element, scope) {
     this.element = element
     this.scope = scope
-
-    // Isolated scope
-    /**
-     * We need an isolated scope which contains
-     * individually data taken from RenderLoop
-     */
-    this.isolated = Object.assign({}, isolated)
 
     /**
      * Hold directives to digest
@@ -125,7 +118,7 @@ export default class RenderElement {
         if (needLoop(child)) {
           this.addChild(new RenderLoop(child, this.scope))
         } else {
-          const element = new RenderElement(child, this.scope, this.isolated)
+          const element = new RenderElement(child, this.scope)
 
           // Only consider a render element if its childs
           // or attributes has something to bind/update
@@ -155,14 +148,14 @@ export default class RenderElement {
     const $el = this.element
 
     for (const directive of this.directives) {
-      directive.render(state, this.isolated)
+      directive.render(state)
     }
 
     // Don't perform updates on disconnected element
     if ($el.isConnected) {
       if ('attributes' in $el) {
         for (const binding of this.bindings) {
-          binding.render(state, this.isolated)
+          binding.render(state, this.scope.$isolated)
         }
 
         // We need to resolve the reference first
@@ -173,7 +166,8 @@ export default class RenderElement {
       }
 
       for (const child of this.children) {
-        child.render(state, this.isolated)
+        // Text nodes could contain 
+        child.render(state, this.scope.$isolated)
       }
     }
   }

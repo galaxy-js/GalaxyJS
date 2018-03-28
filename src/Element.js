@@ -6,6 +6,8 @@ import { isObject, isFunction, isReserved } from './utils/type-check.js'
 
 import GalaxyError from './errors/GalaxyError.js'
 
+const ISOLATED_VALUES_SYMBOL = Symbol('Galaxy.ValuesIsolated')
+
 export default class Element extends HTMLElement {
   constructor () {
     super()
@@ -19,6 +21,9 @@ export default class Element extends HTMLElement {
 
     // Hold element references
     this.$refs = {}
+
+    // Isolated values
+    this.$isolated = Object.create(null)
 
     this.$root = this.attachShadow({ mode: 'open' })
 
@@ -38,6 +43,10 @@ export default class Element extends HTMLElement {
     // Defer state observation
     nextTick.afterFlush(() => {
       this._initState()
+
+      // First render call
+      this.$render()
+
       console.dir(this)
     })
   }
@@ -46,13 +55,11 @@ export default class Element extends HTMLElement {
     // Reassign state as proxy
     this.state = this.$observer.observe(this.state)
 
-    this.$render()
-
     // Init state observation
     this.$onChange((target, property, value, receiver) => {
       Reflect.set(target, property, isObject(value) ? this.$observer.observe(value) : value, receiver)
 
-      // Pass to rendering phase
+      // Compile and render new changes
       this.$render()
     })
   }
@@ -80,7 +87,14 @@ export default class Element extends HTMLElement {
       this.$rendering = true
 
       nextTick(() => {
-        this.$renderer.render(this.state)
+        try {
+          this.$renderer.render(this.state)
+        } catch (e) {
+          nextTick(() => {
+            throw e
+          })
+        }
+
         this.$rendering = false
       })
     }
