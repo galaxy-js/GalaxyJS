@@ -20,6 +20,12 @@
     <li>Wrapped (End)</li>
   </ul>
 
+  <h2>Letters</h2>
+
+  <ul>
+    <li g-for="letter in letters">{{ letter }}</li>
+  </ul>
+
   <div>
     <input type="text" g-bind="todo.name">
     <button @click="addTodo()">Add TODO</button>
@@ -44,12 +50,24 @@
             name: 'Make good things',
             done: false
           }
+        ],
+
+        letters: [
+          'c', 'z', 'w',
+          'j', 'b', 'a',
+          'k', 'x', 'y'
         ]
       }
     }
 
     static get is () {
       return 'todo-app'
+    }
+
+    connectedCallback () {
+      setTimeout(() => {
+        this.state.letters.sort()
+      }, 5000)
     }
 
     addTodo ({ todos, todo }) {

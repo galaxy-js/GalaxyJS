@@ -23,7 +23,7 @@ export function compileNestedSetter (expression) {
  * @return {Function}
  */
 export function compileNestedEvaluator (body) {
-  return new Function('outer', 'inner', 'value' /* Used only on setters */, 
+  return new Function('outer', 'inner', 'value' /* Used only on setters */,
     'with (outer) {' +
       'with (inner) {' +
         body +
@@ -34,4 +34,12 @@ export function compileNestedEvaluator (body) {
 
 export function diff ({ nodeValue }, newValue) {
   return nodeValue !== newValue
+}
+
+/**
+ *
+ * @param {*} merges
+ */
+export function newIsolated (...merges) {
+  return Object.assign(Object.create(null), ...merges)
 }

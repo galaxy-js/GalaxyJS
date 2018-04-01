@@ -1,4 +1,4 @@
-import { digestData } from '../utils/generic.js'
+import { digestData, toString } from '../utils/generic.js'
 import { compileNestedSetter, compileNestedGetter, diff } from '../utils/evaluation.js'
 
 const BIND_ATTRIBUTE = 'g-bind'
@@ -23,8 +23,13 @@ export function needBind (element) {
  *   - Number
  */
 export default class RenderBind {
-  constructor (input) {
+  constructor (input, scope, isolated) {
     this.input = input
+    this.scope = scope
+
+    // Inherit isolated scope
+    this.isolated = isolated
+
     this.path = digestData(input, BIND_ATTRIBUTE)
 
     this.setting = false
@@ -37,25 +42,19 @@ export default class RenderBind {
 
     this.conversor = input.type === 'number' ? Number : String
 
-    // Hold previous state
-    this.__prev = null
+    this._onInput()
   }
 
   // Change state (Input -> State)
-  onInput (state, isolated) {
-    this._onInput = ({ target }) => {
+  _onInput () {
+    this.input.addEventListener('input', ({ target }) => {
       this.setting = true
-      this.setter(state, isolated, this.conversor(target.value))
-    }
-
-    this.input.addEventListener('input', this._onInput)
+      this.setter(this.scope.state, this.isolated, this.conversor(target.value))
+    })
   }
 
   // Change input (State -> Input)
-  render (state, isolated) {
-    this.input.removeEventListener('input', this._onInput)
-    this.onInput(state, isolated)
-
+  render () {
     // Avoid re-dispatching on flush cycle
     // for an already assigned value
     if (this.setting) {
@@ -63,7 +62,7 @@ export default class RenderBind {
       return
     }
 
-    const value = String(this.getter(state, isolated))
+    const value = toString(this.getter(this.scope.state, this.isolated))
 
     if (diff(this.input, value)) {
       this.input.value = value

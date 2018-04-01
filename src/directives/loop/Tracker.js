@@ -1,18 +1,18 @@
 export default class Tracker {
-  constructor (track, valueName) {
-    this.track = track.slice()
-    this.valueName = valueName
+  constructor (track, cursor) {
+    this.track = Tracker.toDescriptors(track)
+    this.cursor = cursor
   }
 
-  get size () {
-    return this.track.length
+  static toDescriptors (track) {
+    return track.map(render => ({ render, removed: false }))
   }
 
   index (value) {
     for (let i = 0; i < this.track.length; ++i) {
-      const render = this.track[i]
+      const { removed, render } = this.track[i]
 
-      if (render && render.isolated[this.valueName] === value) {
+      if (!removed && render.isolated[this.cursor] === value) {
         return i
       }
     }
@@ -20,18 +20,18 @@ export default class Tracker {
     return -1
   }
 
-  get (index) {
-    return this.track[index]
+  swap (from, to) {
+    const toDescriptor = this.track[to]
+    this.track[to] = this.track[from]
+    this.track[from] = toDescriptor
+
+    return toDescriptor.render
   }
 
-  each (fn) {
-    this.track.forEach(fn)
-  }
+  exclude (index) {
+    const descriptor = this.track[index]
+    descriptor.removed = true
 
-  remove (index) {
-    const value = this.track[index]
-    this.track[index] = undefined
-
-    return value
+    return descriptor.render
   }
 }

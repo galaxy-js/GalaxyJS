@@ -10,8 +10,13 @@ export function needConditional ({ attributes }) {
 }
 
 export default class RenderConditional {
-  constructor (element) {
+  constructor (element, scope, isolated) {
     this.element = element
+    this.scope = scope
+
+    // Inherit isolated scope
+    this.isolated = isolated
+
     this.condition = digestData(element, CONDITIONAL_ATTRIBUTE)
 
     this.anchor = createAnchor(`gIf: ${this.condition}`)
@@ -19,8 +24,8 @@ export default class RenderConditional {
     this.getter = compileNestedGetter(this.condition)
   }
 
-  render (state, isolated) {
-    if (this.getter(state, isolated)) {
+  render () {
+    if (this.getter(this.scope.state, this.isolated)) {
       if (!this.element.isConnected) {
         this.anchor.parentNode.replaceChild(this.element, this.anchor)
       }

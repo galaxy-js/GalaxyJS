@@ -9,8 +9,12 @@ export function needBinding ({ name }) {
 }
 
 export default class RenderBinding {
-  constructor (attribute) {
+  constructor (attribute, scope, isolated) {
     this.attribute = RenderBinding.getObserved(attribute)
+    this.scope = scope
+
+    // Inherit isolated scope
+    this.isolated = isolated
 
     this.getter = compileNestedGetter(attribute.value)
   }
@@ -31,8 +35,8 @@ export default class RenderBinding {
     return observed
   }
 
-  render (state, isolated) {
-    const value = this.getter(state, isolated)
+  render () {
+    const value = this.getter(this.scope.state, this.isolated)
 
     if (diff(this.attribute, value)) {
       this.attribute.value = value

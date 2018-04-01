@@ -10,14 +10,14 @@ import RenderBind, { needBind } from '../directives/RenderBind.js'
 import RenderConditional, { needConditional } from '../directives/RenderConditional.js'
 
 import { isTextNode, isElementNode } from '../utils/type-check.js'
-import { compileNestedEvaluator } from '../utils/evaluation.js'
+import { compileNestedEvaluator, newIsolated } from '../utils/evaluation.js'
 import { digestData } from '../utils/generic.js'
 
 const EVENT_TOKEN = '@'
 const EVENT_REGEX = /^([\w\d]+)(?:\(([^)]*)\))?$/
 
 export default class RenderElement {
-  constructor (element, scope) {
+  constructor (element, scope, isolated) {
     this.element = element
     this.scope = scope
 
@@ -36,6 +36,15 @@ export default class RenderElement {
      */
     this.children = []
 
+    /**
+     * Loop elements need an isolated scope
+     *
+     * Note: We need to create a shallow copy
+     * to avoid overrides a parent isolated scope
+     */
+    this.isolated = newIsolated(isolated)
+
+    // Attach bindings, directives and chilren
     this._init()
   }
 
@@ -61,11 +70,11 @@ export default class RenderElement {
 
   _initDirectives ($el) {
     if (needConditional($el)) {
-      this.addDirective(new RenderConditional($el))
+      this.addDirective(new RenderConditional($el, this.scope, this.isolated))
     }
 
     if (needBind($el)) {
-      this.addDirective(new RenderBind($el))
+      this.addDirective(new RenderBind($el, this.scope, this.isolated))
     }
   }
 
@@ -99,11 +108,11 @@ export default class RenderElement {
 
       // 2. Check :binding
       } else if (needBinding(attribute)) {
-        this.addBinding(new RenderBinding(attribute))
+        this.addBinding(new RenderBinding(attribute, this.scope, this.isolated))
 
       // 3. Check {{ binding }}
       } else if (needTemplate(attribute)) {
-        this.addBinding(new RenderTemplate(attribute))
+        this.addBinding(new RenderTemplate(attribute, this.scope, this.isolated))
       }
     }
   }
@@ -111,14 +120,14 @@ export default class RenderElement {
   _initChildren ($el) {
     for (const child of $el.childNodes) {
       if (isTextNode(child) && needTemplate(child)) {
-        this.addChild(new RenderTemplate(child))
+        this.addChild(new RenderTemplate(child, this.scope, this.isolated))
       } else if (isElementNode(child)) {
         // The loop directive is resolved as a child
         // to avoid some errors (TODO: Clarify 'errors')
         if (needLoop(child)) {
-          this.addChild(new RenderLoop(child, this.scope))
+          this.addChild(new RenderLoop(child, this.scope, this.isolated))
         } else {
-          const element = new RenderElement(child, this.scope)
+          const element = new RenderElement(child, this.scope, this.isolated)
 
           // Only consider a render element if its childs
           // or attributes has something to bind/update
@@ -144,18 +153,18 @@ export default class RenderElement {
     this.bindings.push(binding)
   }
 
-  render (state) {
+  render () {
     const $el = this.element
 
     for (const directive of this.directives) {
-      directive.render(state)
+      directive.render()
     }
 
     // Don't perform updates on disconnected element
     if ($el.isConnected) {
       if ('attributes' in $el) {
         for (const binding of this.bindings) {
-          binding.render(state, this.scope.$isolated)
+          binding.render()
         }
 
         // We need to resolve the reference first
@@ -166,8 +175,8 @@ export default class RenderElement {
       }
 
       for (const child of this.children) {
-        // Text nodes could contain 
-        child.render(state, this.scope.$isolated)
+        // Text nodes could contain
+        child.render()
       }
     }
   }

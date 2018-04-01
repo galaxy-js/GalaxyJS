@@ -9,8 +9,12 @@ export function needTemplate ({ nodeValue }) {
 }
 
 export default class RenderTemplate {
-  constructor (node) {
+  constructor (node, scope, isolated) {
     this.node = node
+    this.scope = scope
+
+    // Inherit isolated scope
+    this.isolated = isolated
 
     this.expression = RenderTemplate.getExpression(node)
     this.getter = compileNestedGetter(this.expression)
@@ -42,8 +46,8 @@ export default class RenderTemplate {
     return expressions.join(' + ')
   }
 
-  render (state, isolated) {
-    const value = this.getter(state, isolated)
+  render () {
+    const value = this.getter(this.scope.state, this.isolated)
 
     // Normalized value to avoid null or undefined
     const normalized = isDefined(value) ? toString(value) : ''
