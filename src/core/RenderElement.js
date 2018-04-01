@@ -70,11 +70,11 @@ export default class RenderElement {
 
   _initDirectives ($el) {
     if (needConditional($el)) {
-      this.addDirective(new RenderConditional($el, this.scope, this.isolated))
+      this.directives.push(new RenderConditional($el, this.scope, this.isolated))
     }
 
     if (needBind($el)) {
-      this.addDirective(new RenderBind($el, this.scope, this.isolated))
+      this.directives.push(new RenderBind($el, this.scope, this.isolated))
     }
   }
 
@@ -89,7 +89,6 @@ export default class RenderElement {
         // Externalize event
         this.scope.$event = event
 
-        // TODO: Check for async evaluation
         evaluate(this.scope, this.isolated)
 
         this.scope.$event = null
@@ -108,11 +107,11 @@ export default class RenderElement {
 
       // 2. Check :binding
       } else if (needBinding(attribute)) {
-        this.addBinding(new RenderBinding(attribute, this.scope, this.isolated))
+        this.bindings.push(new RenderBinding(attribute, this.scope, this.isolated))
 
       // 3. Check {{ binding }}
       } else if (needTemplate(attribute)) {
-        this.addBinding(new RenderTemplate(attribute, this.scope, this.isolated))
+        this.bindings.push(new RenderTemplate(attribute, this.scope, this.isolated))
       }
     }
   }
@@ -120,37 +119,22 @@ export default class RenderElement {
   _initChildren ($el) {
     for (const child of $el.childNodes) {
       if (isTextNode(child) && needTemplate(child)) {
-        this.addChild(new RenderTemplate(child, this.scope, this.isolated))
+        this.children.push(new RenderTemplate(child, this.scope, this.isolated))
       } else if (isElementNode(child)) {
         // The loop directive is resolved as a child
-        // to avoid some errors (TODO: Clarify 'errors')
         if (needLoop(child)) {
-          this.addChild(new RenderLoop(child, this.scope, this.isolated))
+          this.children.push(new RenderLoop(child, this.scope, this.isolated))
         } else {
           const element = new RenderElement(child, this.scope, this.isolated)
 
           // Only consider a render element if its childs
           // or attributes has something to bind/update
-          if (element.isRenderable) {
-            this.addChild(element)
-          }
+          if (element.isRenderable) this.children.push(element)
         }
       }
 
       // ... ignore comment nodes
     }
-  }
-
-  addChild (child) {
-    this.children.push(child)
-  }
-
-  addDirective (directive) {
-    this.directives.push(directive)
-  }
-
-  addBinding (binding) {
-    this.bindings.push(binding)
   }
 
   render () {
@@ -175,7 +159,6 @@ export default class RenderElement {
       }
 
       for (const child of this.children) {
-        // Text nodes could contain
         child.render()
       }
     }

@@ -1,7 +1,7 @@
 import { digestData, toString } from '../utils/generic.js'
 import { compileNestedSetter, compileNestedGetter, diff } from '../utils/evaluation.js'
 
-const BIND_ATTRIBUTE = 'g-bind'
+const BIND_ATTRIBUTE = '*bind'
 
 export const BIND_TOKEN = ':'
 

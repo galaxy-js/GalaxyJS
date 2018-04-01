@@ -82,10 +82,6 @@ export default class Element extends HTMLElement {
     }
   }
 
-  $extend (...merges) {
-    Object.assign(this.$isolated, ...merges)
-  }
-
   $render () {
     if (!this.$rendering) {
       this.$rendering = true

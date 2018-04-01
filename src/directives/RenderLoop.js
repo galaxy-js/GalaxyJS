@@ -10,7 +10,7 @@ import { isDefined } from '../utils/type-check.js'
 
 // TODO: Add anchor delimiters
 
-const LOOP_ATTRIBUTE = 'g-for'
+const LOOP_ATTRIBUTE = '*for'
 
 /**
  * Captures:
@@ -51,8 +51,8 @@ export default class RenderLoop {
 
     this.getter = compileNestedGetter(expression)
 
-    this.startAnchor = createAnchor(`Start gFor: ${expression}`)
-    this.endAnchor = createAnchor(`End gFor: ${expression}`)
+    this.startAnchor = createAnchor(`start for: ${expression}`)
+    this.endAnchor = createAnchor(`end for: ${expression}`)
 
     const parent =
     this.parent = template.parentNode
@@ -72,6 +72,7 @@ export default class RenderLoop {
     const tracker = new Tracker(this.renders, this.valueName)
 
     // TODO: Add sort of track-by
+    // TODO: Check for a better diffing algorithm
 
     // 1. Moving & Adding
     keys.forEach((key, index) => {
