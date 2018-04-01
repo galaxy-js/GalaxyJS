@@ -16,7 +16,9 @@ export default class RenderBinding {
     // Inherit isolated scope
     this.isolated = isolated
 
-    this.getter = compileNestedGetter(attribute.value)
+    this.expression = attribute.value
+
+    this.getter = compileNestedGetter(this.expression)
   }
 
   static getObserved (attribute) {

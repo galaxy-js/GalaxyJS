@@ -25,7 +25,7 @@ const LOOP_ATTRIBUTE = '*for'
  *   [item], [key|index] in [expression]
  *   ([item], [key|index]) in [expression]
  */
-const LOOP_REGEX = /^\(?(\w+)(?:\s*,\s*(\w+))?\)?\s+in\s+(.+)$/
+const LOOP_REGEX = /^\(?(?<value>\w+)(?:\s*,\s*(?<key>\w+))?\)?\s+in\s+(?<expression>.+)$/
 
 const LOOP_INDEX = '$index'
 const LOOP_KEY_NAME = '$key'
@@ -44,15 +44,15 @@ export default class RenderLoop {
 
     this.renders = []
 
-    const [, value, keyOrIndex, expression] = digestData(template, LOOP_ATTRIBUTE).match(LOOP_REGEX)
+    const { groups } = digestData(template, LOOP_ATTRIBUTE).match(LOOP_REGEX)
 
-    this.keyName = keyOrIndex || LOOP_KEY_NAME
-    this.valueName = value
+    this.keyName = groups.key || LOOP_KEY_NAME
+    this.valueName = groups.value
 
-    this.getter = compileNestedGetter(expression)
+    this.getter = compileNestedGetter(groups.expression)
 
-    this.startAnchor = createAnchor(`start for: ${expression}`)
-    this.endAnchor = createAnchor(`end for: ${expression}`)
+    this.startAnchor = createAnchor(`start for: ${groups.expression}`)
+    this.endAnchor = createAnchor(`end for: ${groups.expression}`)
 
     const parent =
     this.parent = template.parentNode
