@@ -2,6 +2,7 @@ import config from '../config.js'
 
 import RenderBinding, { needBinding } from '../core/RenderBinding.js'
 import RenderTemplate, { needTemplate } from '../core/RenderTemplate.js'
+import RenderHTML, { needHTML } from './RenderHTML.js'
 
 import reference, { needReference } from '../directives/reference.js'
 
@@ -118,8 +119,17 @@ export default class RenderElement {
 
   _initChildren ($el) {
     for (const child of $el.childNodes) {
-      if (isTextNode(child) && needTemplate(child)) {
+      const isText = isTextNode(child)
+
+      // 1. Check {{{ binding }}}
+      if (isText && needHTML(child)) {
+        this.children.push(new RenderHTML(child, this.scope, this.isolated))
+
+      // 2. Check {{ binding }}
+      } else if (isText && needTemplate(child)) {
         this.children.push(new RenderTemplate(child, this.scope, this.isolated))
+
+      // 3. Element binding
       } else if (isElementNode(child)) {
         // The loop directive is resolved as a child
         if (needLoop(child)) {

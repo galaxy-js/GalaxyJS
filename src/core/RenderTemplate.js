@@ -1,6 +1,6 @@
 import { toString } from '../utils/generic.js'
 import { isDefined, isObject } from '../utils/type-check.js'
-import { compileNestedGetter, diff } from '../utils/evaluation.js'
+import { compileNestedGetter, diff, getExpression } from '../utils/evaluation.js'
 
 const TEMPLATE_REGEX = /{{(.*?)}}/
 
@@ -16,34 +16,8 @@ export default class RenderTemplate {
     // Inherit isolated scope
     this.isolated = isolated
 
-    this.expression = RenderTemplate.getExpression(node)
+    this.expression = getExpression(node.nodeValue, TEMPLATE_REGEX)
     this.getter = compileNestedGetter(this.expression)
-  }
-
-  static getExpression (node) {
-    // Hold inlined expressions
-    const expressions = []
-
-    let template = node.nodeValue
-    let match
-
-    while (match = template.match(TEMPLATE_REGEX)) {
-      const rawLeft = RegExp['$`']
-      const expression = match[1].trim()
-
-      // Push wrapped left context
-      if (rawLeft) expressions.push(`\`${rawLeft}\``)
-
-      // Push isolated expression itself
-      if (expression) expressions.push(`(${expression})`)
-
-      template = RegExp["$'"] // .rightContext
-    }
-
-    // Push residual template expression
-    if (template) expressions.push(`\`${template}\``)
-
-    return expressions.join(' + ')
   }
 
   render () {

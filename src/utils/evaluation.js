@@ -43,3 +43,28 @@ export function diff ({ nodeValue }, newValue) {
 export function newIsolated (...merges) {
   return Object.assign(Object.create(null), ...merges)
 }
+
+export function getExpression (template, regex) {
+  // Hold inlined expressions
+  const expressions = []
+
+  let match
+
+  while (match = template.match(regex)) {
+    const rawLeft = RegExp['$`']
+    const expression = match[1].trim()
+
+    // Push wrapped left context
+    if (rawLeft) expressions.push(`\`${rawLeft}\``)
+
+    // Push isolated expression itself
+    if (expression) expressions.push(`(${expression})`)
+
+    template = RegExp["$'"] // .rightContext
+  }
+
+  // Push residual template expression
+  if (template) expressions.push(`\`${template}\``)
+
+  return expressions.join(' + ')
+}

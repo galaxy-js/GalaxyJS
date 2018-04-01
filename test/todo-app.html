@@ -30,6 +30,8 @@
     <input type="text" *bind="todo.name">
     <button @click="addTodo()">Add TODO</button>
   </div>
+
+  {{{ html }}}
 </template>
 
 <script>
@@ -56,7 +58,12 @@
           'c', 'b', 'w',
           'j', 'z', 'a',
           'k', 'x', 'y'
-        ]
+        ],
+
+        html: `
+          <h2>Dynamic</h2>
+          <p>Rendering HTML</p>
+        `
       }
     }
 
