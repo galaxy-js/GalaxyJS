@@ -23,7 +23,7 @@
   <h2>Letters</h2>
 
   <ul>
-    <li *for="letter in letters">{{ letter }}</li>
+    <li *for="letter in letters">{{ $index + 1 }}. {{ letter }}</li>
   </ul>
 
   <div>

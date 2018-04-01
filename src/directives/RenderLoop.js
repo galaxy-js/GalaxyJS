@@ -63,8 +63,6 @@ export default class RenderLoop {
   }
 
   render () {
-    let index = 0
-
     const collection = this.getter(this.scope.state, this.isolated)
     const keys = Object.keys(collection)
 
@@ -89,8 +87,13 @@ export default class RenderLoop {
           const toRender = tracker.swap(renderIndex, index)
           const fromNext = render.element.nextSibling
 
+          // to -> from
           render.isolated[LOOP_INDEX] = index
           render.isolated[this.keyName] = key
+
+          /// from -> to
+          toRender.isolated[LOOP_INDEX] = renderIndex
+          toRender.isolated[this.keyName] = keys[renderIndex]
 
           this.parent.replaceChild(render.element, toRender.element)
           this.parent.insertBefore(toRender.element, fromNext)
@@ -110,7 +113,7 @@ export default class RenderLoop {
       }
 
       // Push render on to the new queue
-      index = renders.push(render)
+      renders.push(render)
 
       render.render()
     })
