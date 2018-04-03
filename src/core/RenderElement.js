@@ -106,9 +106,9 @@ export default class RenderElement {
       if (attribute.name.startsWith(EVENT_TOKEN)) {
         this._attachEvent($el, attribute.name)
 
-      // 2. Check :binding
+      // 2. Check :attribute or ::attribute
       } else if (needBinding(attribute)) {
-        this.bindings.push(new RenderBinding(attribute, this.scope, this.isolated))
+        this.bindings.push(new RenderBinding(attribute, this))
 
       // 3. Check {{ binding }}
       } else if (needTemplate(attribute)) {
