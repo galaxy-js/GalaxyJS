@@ -3,6 +3,8 @@ import RenderElement from './RenderElement.js'
 
 const HTML_REGEX = /{{{(.*?)}}}/
 
+const parser = document.createElement('div')
+
 export function needHTML ({ data }) {
   return data.includes('{{{')
 }
@@ -15,36 +17,57 @@ export default class RenderHTML {
     // Inherit isolated scope
     this.isolated = isolated
 
+    this.expression = getExpression(anchor.data, HTML_REGEX)
+    this.getter = compileNestedGetter(this.expression)
+
     this.cache = new Map()
 
-    this.expression = getExpression(anchor.data, HTML_REGEX)
+    this.active = RenderHTML.EMPTY_ACTIVE
 
-    this.getter = compileNestedGetter(this.expression)
+    // Hide anchor
+    anchor.data = ''
+  }
+
+  static get EMPTY_ACTIVE () {
+    return {
+      nodes: [],
+      renders: []
+    }
   }
 
   render () {
-    // TODO: Found a way to avoid wrap children
-
     const html = this.getter(this.scope.state, this.isolated)
-    let renderer = this.cache.get(html)
+    let active = this.cache.get(html)
 
-    if (!renderer) {
-      const wrapper = document.createElement('div')
+    if (!active) {
+      parser.innerHTML = html
 
-      wrapper.innerHTML = html
-      renderer = new RenderElement(wrapper, this.scope, this.isolated)
+      active = {
+        nodes: Array.from(parser.childNodes),
+        renders: new RenderElement(parser, this.scope, this.isolated).children
+      }
 
-      // Persist renderer
-      this.cache.set(html, renderer)
+      // Persist active
+      this.cache.set(html, active)
     }
 
-    const { element } = renderer
+    if (this.active !== active) {
+      // 1. Remove active nodes
+      this.active.nodes.forEach(node => {
+        node.remove()
+      })
 
-    if (!element.isConnected) {
-      this.anchor.parentNode.replaceChild(element, this.anchor)
-      this.anchor = element
+      // 2. Append incoming nodes
+      active.nodes.forEach(node => {
+        this.anchor.parentNode.insertBefore(node, this.anchor)
+      })
+
+      // 3. Render phase
+      active.renders.forEach(render => {
+        render.render()
+      })
+
+      this.active = active
     }
-
-    renderer.render()
   }
 }
