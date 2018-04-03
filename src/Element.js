@@ -20,7 +20,7 @@ export default class Element extends HTMLElement {
     this.$event = null
 
     // Hold element references
-    this.$refs = {}
+    this.$refs = new Map()
 
     // Isolated values
     this.$isolated = Object.create(null)
@@ -94,7 +94,7 @@ export default class Element extends HTMLElement {
             throw e
           })
         }
-
+        
         this.$rendering = false
       })
     }

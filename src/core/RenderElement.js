@@ -15,7 +15,7 @@ import { compileNestedEvaluator, newIsolated } from '../utils/evaluation.js'
 import { digestData } from '../utils/generic.js'
 
 const EVENT_TOKEN = '@'
-const EVENT_REGEX = /^([\w\d]+)(?:\(([^)]*)\))?$/
+const EVENT_REGEX = /^([\w\d]+)(?:\((.*)\))?$/
 
 export default class RenderElement {
   constructor (element, scope, isolated) {

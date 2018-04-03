@@ -1,4 +1,4 @@
-import { camelize, digestData } from '../utils/generic.js'
+import { digestData } from '../utils/generic.js'
 
 /**
  * ref: It's a special directive which holds
@@ -11,5 +11,5 @@ export function needReference ({ attributes }) {
 }
 
 export default function reference (node, scope) {
-  scope.$refs[camelize(digestData(node, REFERENCE_ATTRIBUTE))] = node
+  scope.$refs.set(digestData(node, REFERENCE_ATTRIBUTE), node)
 }

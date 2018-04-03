@@ -14,7 +14,7 @@
     <li>Wrapped (Start)</li>
     <li *for="todo in todos">
       {{ todo.name }}
-      <input ::ref="'done' + $index" id="done-{{ $index }}" type="checkbox" @change="setTodoStatus(todo, $refs['done' + $index])">
+      <input ::ref="'done' + $index" id="done-{{ $index }}" type="checkbox" @change="setTodoStatus(todo, $refs.get('done' + $index))">
       <button @click="removeTodo(todo)">&times;</button>
     </li>
     <li>Wrapped (End)</li>
@@ -88,6 +88,9 @@
     }
 
     setTodoStatus (_, todo, done) {
+      console.log(done)
+      console.log(this.$refs)
+
       todo.done = done.checked
     }
   }
