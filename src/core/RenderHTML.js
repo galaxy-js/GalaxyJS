@@ -20,54 +20,42 @@ export default class RenderHTML {
     this.expression = getExpression(anchor.data, HTML_REGEX)
     this.getter = compileNestedGetter(this.expression)
 
+    // Save parsed nodes
     this.cache = new Map()
 
-    this.active = RenderHTML.EMPTY_ACTIVE
+    // Hold active nodes
+    this.nodes = []
 
     // Hide anchor
     anchor.data = ''
   }
 
-  static get EMPTY_ACTIVE () {
-    return {
-      nodes: [],
-      renders: []
-    }
-  }
-
   render () {
+    // TODO: Maybe we can cache nodes individually
+
     const html = this.getter(this.scope.state, this.isolated)
-    let active = this.cache.get(html)
+    let nodes = this.cache.get(html)
 
-    if (!active) {
+    if (!nodes) {
       parser.innerHTML = html
-
-      active = {
-        nodes: Array.from(parser.childNodes),
-        renders: new RenderElement(parser, this.scope, this.isolated).children
-      }
+      nodes = Array.from(parser.childNodes)
 
       // Persist active
-      this.cache.set(html, active)
+      this.cache.set(html, nodes)
     }
 
-    if (this.active !== active) {
+    if (this.nodes !== nodes) {
       // 1. Remove active nodes
-      this.active.nodes.forEach(node => {
+      this.nodes.forEach(node => {
         node.remove()
       })
 
       // 2. Append incoming nodes
-      active.nodes.forEach(node => {
+      nodes.forEach(node => {
         this.anchor.parentNode.insertBefore(node, this.anchor)
       })
 
-      // 3. Render phase
-      active.renders.forEach(render => {
-        render.render()
-      })
-
-      this.active = active
+      this.nodes = nodes
     }
   }
 }
