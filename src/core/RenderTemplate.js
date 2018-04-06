@@ -1,32 +1,27 @@
 import { toString } from '../utils/generic.js'
 import { isDefined, isObject } from '../utils/type-check.js'
-import { compileNestedGetter, diff, getExpression } from '../utils/evaluation.js'
-
-const TEMPLATE_REGEX = /{{(.*?)}}/
-
-export function needTemplate ({ nodeValue }) {
-  return nodeValue.includes('{{')
-}
+import { compileScopedGetter, differ, getExpression } from '../utils/compiler.js'
 
 export default class RenderTemplate {
-  constructor (node, scope, isolated) {
+  constructor (node, context) {
     this.node = node
-    this.scope = scope
+    this.context = context
 
-    // Inherit isolated scope
-    this.isolated = isolated
+    this.expression = getExpression(node.nodeValue)
+    this.getter = compileScopedGetter(this.expression, context)
+  }
 
-    this.expression = getExpression(node.nodeValue, TEMPLATE_REGEX)
-    this.getter = compileNestedGetter(this.expression)
+  static is ({ nodeValue }) {
+    return nodeValue.includes('{{')
   }
 
   render () {
-    const value = this.getter(this.scope.state, this.isolated)
+    const value = this.getter()
 
     // Normalized value to avoid null or undefined
     const normalized = isDefined(value) ? toString(value) : ''
 
-    if (diff(this.node, normalized)) {
+    if (differ(this.node, normalized)) {
       this.node.nodeValue = normalized
     }
   }

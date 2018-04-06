@@ -1,50 +1,48 @@
 import config from '../config.js'
 
-import nextTick from '../utils/next-tick.js'
-import { compileNestedGetter, diff } from '../utils/evaluation.js'
+import nextTick from 'https://cdn.rawgit.com/LosMaquios/next-tick/5d167294/index.js'
+import { compileScopedGetter, differ } from '../utils/compiler.js'
 
 const BIND_TOKEN = ':'
 const BIND_ONE_TIME_TOKEN = BIND_TOKEN.repeat(2)
 
-export function needBinding ({ name }) {
-  return name.startsWith(BIND_TOKEN)
-}
-
 export default class RenderBinding {
-  constructor (attribute, element) {
+  constructor (attribute, context) {
+    this.context = context
+
     this.oneTime = attribute.name.startsWith(BIND_ONE_TIME_TOKEN)
 
-    this.attribute = RenderBinding.getObserved(attribute, this.oneTime)
-    this.scope = element.scope
-
-    // Inherit isolated scope
-    this.isolated = element.isolated
+    this.attribute = this._getObserved(attribute)
 
     this.expression = attribute.value
 
-    this.getter = compileNestedGetter(this.expression)
+    this.getter = compileScopedGetter(this.expression, context)
 
     if (this.oneTime) {
       const render = this.render
 
       this.render = () => {
-        const { bindings } = element
+        const { bindings } = context
 
         // Schedule remove to queue end
         nextTick(() => {
           bindings.splice(bindings.indexOf(this), 1)
         })
-        
+
         render.call(this)
       }
     }
   }
 
-  static getObserved (attribute, oneTime) {
+  static is ({ name }) {
+    return name.startsWith(BIND_TOKEN)
+  }
+
+  _getObserved (attribute) {
     const { name } = attribute
     const { attributes } = attribute.ownerElement
 
-    const observed = document.createAttribute(name.slice(oneTime ? 2 : 1))
+    const observed = document.createAttribute(name.slice(this.oneTime ? 2 : 1))
     observed.value = attribute.value
 
     attributes.setNamedItem(observed)
@@ -57,9 +55,9 @@ export default class RenderBinding {
   }
 
   render () {
-    const value = this.getter(this.scope.state, this.isolated)
+    const value = this.getter()
 
-    if (diff(this.attribute, value)) {
+    if (differ(this.attribute, value)) {
       this.attribute.value = value
     }
   }

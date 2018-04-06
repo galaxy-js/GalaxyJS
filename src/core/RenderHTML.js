@@ -1,24 +1,14 @@
-import { compileNestedGetter, getExpression } from '../utils/evaluation.js'
-import RenderElement from './RenderElement.js'
-
-const HTML_REGEX = /{{{(.*?)}}}/
+import { compileScopedGetter, getExpression } from '../utils/compiler.js'
 
 const parser = document.createElement('div')
 
-export function needHTML ({ data }) {
-  return data.includes('{{{')
-}
-
 export default class RenderHTML {
-  constructor (anchor, scope, isolated) {
+  constructor (anchor, context) {
     this.anchor = anchor
-    this.scope = scope
+    this.context = context
 
-    // Inherit isolated scope
-    this.isolated = isolated
-
-    this.expression = getExpression(anchor.data, HTML_REGEX)
-    this.getter = compileNestedGetter(this.expression)
+    this.expression = getExpression(anchor.data, false)
+    this.getter = compileScopedGetter(this.expression, context)
 
     // Save parsed nodes
     this.cache = new Map()
@@ -30,10 +20,14 @@ export default class RenderHTML {
     anchor.data = ''
   }
 
+  static is ({ data }) {
+    return data.includes('{{{')
+  }
+
   render () {
     // TODO: Maybe we can cache nodes individually
 
-    const html = this.getter(this.scope.state, this.isolated)
+    const html = this.getter()
     let nodes = this.cache.get(html)
 
     if (!nodes) {

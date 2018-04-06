@@ -1,16 +1,9 @@
 import { digestData, toString } from '../utils/generic.js'
-import { compileNestedSetter, compileNestedGetter, diff } from '../utils/evaluation.js'
+import { compileScopedSetter, compileScopedGetter, differ } from '../utils/compiler.js'
 
 const BIND_ATTRIBUTE = '*bind'
 
 export const BIND_TOKEN = ':'
-
-export function needBind (element) {
-  return (
-    BIND_ATTRIBUTE in element.attributes &&
-    element instanceof HTMLInputElement
-  )
-}
 
 /**
  * With support just for input types:
@@ -23,33 +16,37 @@ export function needBind (element) {
  *   - Number
  */
 export default class RenderBind {
-  constructor (input, scope, isolated) {
+  constructor (input, context) {
     this.input = input
-    this.scope = scope
-
-    // Inherit isolated scope
-    this.isolated = isolated
+    this.context = context
 
     this.path = digestData(input, BIND_ATTRIBUTE)
 
     this.setting = false
 
     // Input -> State
-    this.setter = compileNestedSetter(this.path)
+    this.setter = compileScopedSetter(this.path, context)
 
     // State -> Input
-    this.getter = compileNestedGetter(this.path)
+    this.getter = compileScopedGetter(this.path, context)
 
     this.conversor = input.type === 'number' ? Number : String
 
     this._onInput()
   }
 
+  static is (element) {
+    return (
+      BIND_ATTRIBUTE in element.attributes &&
+      element instanceof HTMLInputElement
+    )
+  }
+
   // Change state (Input -> State)
   _onInput () {
     this.input.addEventListener('input', ({ target }) => {
       this.setting = true
-      this.setter(this.scope.state, this.isolated, this.conversor(target.value))
+      this.setter(this.conversor(target.value))
     })
   }
 
@@ -62,9 +59,9 @@ export default class RenderBind {
       return
     }
 
-    const value = toString(this.getter(this.scope.state, this.isolated))
+    const value = toString(this.getter())
 
-    if (diff(this.input, value)) {
+    if (differ(this.input, value)) {
       this.input.value = value
     }
   }

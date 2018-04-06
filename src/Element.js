@@ -1,12 +1,10 @@
 import Observer from './core/Observer.js'
 import RenderElement from './core/RenderElement.js'
 
-import nextTick from './utils/next-tick.js'
+import nextTick from 'https://cdn.rawgit.com/LosMaquios/next-tick/5d167294/index.js'
 import { isObject, isFunction, isReserved } from './utils/type-check.js'
 
 import GalaxyError from './errors/GalaxyError.js'
-
-const ISOLATED_VALUES_SYMBOL = Symbol('Galaxy.ValuesIsolated')
 
 export default class Element extends HTMLElement {
   constructor () {
@@ -94,7 +92,7 @@ export default class Element extends HTMLElement {
             throw e
           })
         }
-        
+
         this.$rendering = false
       })
     }

@@ -6,7 +6,7 @@ import { digestData } from '../utils/generic.js'
  */
 const REFERENCE_ATTRIBUTE = 'ref'
 
-export function needReference ({ attributes }) {
+export function hasReference ({ attributes }) {
   return REFERENCE_ATTRIBUTE in attributes
 }
 

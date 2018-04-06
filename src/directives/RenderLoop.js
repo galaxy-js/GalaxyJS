@@ -2,8 +2,8 @@ import RenderElement from '../core/RenderElement.js'
 
 import Tracker from './loop/Tracker.js'
 
-import { digestData } from '../utils/generic.js'
-import { compileNestedGetter, createAnchor, newIsolated } from '../utils/evaluation.js'
+import { compileScopedGetter } from '../utils/compiler.js'
+import { digestData, createAnchor, newIsolated } from '../utils/generic.js'
 import { isDefined } from '../utils/type-check.js'
 
 // Note: to maintain consistence avoid `of` reserved word on iterators.
@@ -30,17 +30,10 @@ const LOOP_REGEX = /^\(?(?<value>\w+)(?:\s*,\s*(?<key>\w+))?\)?\s+in\s+(?<expres
 const LOOP_INDEX = '$index'
 const LOOP_KEY_NAME = '$key'
 
-export function needLoop ({ attributes }) {
-  return LOOP_ATTRIBUTE in attributes
-}
-
 export default class RenderLoop {
-  constructor (template, scope, isolated) {
+  constructor (template, context) {
     this.template = template
-    this.scope = scope
-
-    // Inherit isolated scope
-    this.isolated = isolated
+    this.context = context
 
     this.renders = []
 
@@ -49,7 +42,7 @@ export default class RenderLoop {
     this.keyName = groups.key || LOOP_KEY_NAME
     this.valueName = groups.value
 
-    this.getter = compileNestedGetter(groups.expression)
+    this.getter = compileScopedGetter(groups.expression, context)
 
     this.startAnchor = createAnchor(`start for: ${groups.expression}`)
     this.endAnchor = createAnchor(`end for: ${groups.expression}`)
@@ -62,8 +55,12 @@ export default class RenderLoop {
     parent.insertBefore(this.endAnchor, this.startAnchor.nextSibling)
   }
 
+  static is ({ attributes }) {
+    return LOOP_ATTRIBUTE in attributes
+  }
+
   render () {
-    const collection = this.getter(this.scope.state, this.isolated)
+    const collection = this.getter()
     const keys = Object.keys(collection)
 
     const renders = []
@@ -101,8 +98,10 @@ export default class RenderLoop {
 
       // --> Adding
       } else {
-        render = new RenderElement(this.template.cloneNode(true), this.scope,
-          newIsolated(this.isolated, {
+        render = new RenderElement(this.template.cloneNode(true), this.context.scope,
+
+          // Isolated inheritance
+          newIsolated(this.context.isolated, {
             [LOOP_INDEX]: index,
             [this.keyName]: key,
             [this.valueName]: value

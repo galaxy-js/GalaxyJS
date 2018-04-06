@@ -14,3 +14,22 @@ export function digestData (element, name, conversor = same) {
 export function toString (value) {
   return isObject(value) ? JSON.stringify(value) : String(value)
 }
+
+export const createAnchor = config.debug
+  ? content => new Comment(` ${content} `)
+  : () => new Text() // Empty text node
+
+export function diff ({ nodeValue }, newValue) {
+  return nodeValue !== newValue
+}
+
+/**
+ * Creates a new child isolated
+ *
+ * @param {*} parents - Parents to inherit from
+ *
+ * @return {Object}
+ */
+export function newIsolated (...parents) {
+  return Object.assign(Object.create(null), ...parents)
+}

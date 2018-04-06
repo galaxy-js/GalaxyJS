@@ -1,21 +1,18 @@
 import config from '../config.js'
 
-import RenderBinding, { needBinding } from '../core/RenderBinding.js'
-import RenderTemplate, { needTemplate } from '../core/RenderTemplate.js'
-import RenderHTML, { needHTML } from './RenderHTML.js'
+import RenderBinding from '../core/RenderBinding.js'
+import RenderTemplate from '../core/RenderTemplate.js'
+import RenderHTML from './RenderHTML.js'
 
-import reference, { needReference } from '../directives/reference.js'
+import reference, { hasReference } from '../directives/reference.js'
+import event, { isEvent } from '../directives/event.js'
 
-import RenderLoop, { needLoop } from '../directives/RenderLoop.js'
-import RenderBind, { needBind } from '../directives/RenderBind.js'
-import RenderConditional, { needConditional } from '../directives/RenderConditional.js'
+import RenderLoop from '../directives/RenderLoop.js'
+import RenderBind from '../directives/RenderBind.js'
+import RenderConditional from '../directives/RenderConditional.js'
 
 import { isTextNode, isElementNode } from '../utils/type-check.js'
-import { compileNestedEvaluator, newIsolated } from '../utils/evaluation.js'
-import { digestData } from '../utils/generic.js'
-
-const EVENT_TOKEN = '@'
-const EVENT_REGEX = /^([\w\d]+)(?:\((.*)\))?$/
+import { newIsolated } from '../utils/generic.js'
 
 export default class RenderElement {
   constructor (element, scope, isolated) {
@@ -70,30 +67,12 @@ export default class RenderElement {
   }
 
   _initDirectives ($el) {
-    if (needConditional($el)) {
-      this.directives.push(new RenderConditional($el, this.scope, this.isolated))
+    if (RenderConditional.is($el)) {
+      this.directives.push(new RenderConditional($el, this))
     }
 
-    if (needBind($el)) {
-      this.directives.push(new RenderBind($el, this.scope, this.isolated))
-    }
-  }
-
-  _attachEvent ($el, name) {
-    let match
-
-    if (match = digestData($el, name).match(EVENT_REGEX)) {
-      const [, method, args] = match
-      const evaluate = compileNestedEvaluator(`$commit('${method}'${args ? `, ${args}` : ''})`)
-
-      $el.addEventListener(name.slice(1), event => {
-        // Externalize event
-        this.scope.$event = event
-
-        evaluate(this.scope, this.isolated)
-
-        this.scope.$event = null
-      })
+    if (RenderBind.is($el)) {
+      this.directives.push(new RenderBind($el, this))
     }
   }
 
@@ -103,37 +82,37 @@ export default class RenderElement {
 
     for (const attribute of attributes) {
       // 1. Check @binding
-      if (attribute.name.startsWith(EVENT_TOKEN)) {
-        this._attachEvent($el, attribute.name)
+      if (isEvent(attribute)) {
+        event(attribute, this)
 
       // 2. Check :attribute or ::attribute
-      } else if (needBinding(attribute)) {
+      } else if (RenderBinding.is(attribute)) {
         this.bindings.push(new RenderBinding(attribute, this))
 
       // 3. Check {{ binding }}
-      } else if (needTemplate(attribute)) {
-        this.bindings.push(new RenderTemplate(attribute, this.scope, this.isolated))
+      } else if (RenderTemplate.is(attribute)) {
+        this.bindings.push(new RenderTemplate(attribute, this))
       }
     }
   }
 
   _initChildren ($el) {
     for (const child of $el.childNodes) {
-      const isText = isTextNode(child)
+      if (isTextNode(child)) {
+        // 1. Check {{{ binding }}}
+        if (RenderHTML.is(child)) {
+          this.children.push(new RenderHTML(child, this))
 
-      // 1. Check {{{ binding }}}
-      if (isText && needHTML(child)) {
-        this.children.push(new RenderHTML(child, this.scope, this.isolated))
-
-      // 2. Check {{ binding }}
-      } else if (isText && needTemplate(child)) {
-        this.children.push(new RenderTemplate(child, this.scope, this.isolated))
+        // 2. Check {{ binding }}
+        } else if (RenderTemplate.is(child)) {
+          this.children.push(new RenderTemplate(child, this))
+        }
 
       // 3. Element binding
       } else if (isElementNode(child)) {
         // The loop directive is resolved as a child
-        if (needLoop(child)) {
-          this.children.push(new RenderLoop(child, this.scope, this.isolated))
+        if (RenderLoop.is(child)) {
+          this.children.push(new RenderLoop(child, this))
         } else {
           const element = new RenderElement(child, this.scope, this.isolated)
 
@@ -163,7 +142,7 @@ export default class RenderElement {
 
         // We need to resolve the reference first
         // since childs may need access to
-        if (needReference($el)) {
+        if (hasReference($el)) {
           reference($el, this.scope)
         }
       }
