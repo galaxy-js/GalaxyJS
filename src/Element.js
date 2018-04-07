@@ -1,4 +1,4 @@
-import Observer from './core/Observer.js'
+import ProxyObserver from 'https://cdn.jsdelivr.net/gh/LosMaquios/ProxyObserver/index.js'
 import RenderElement from './core/RenderElement.js'
 
 import nextTick from 'https://cdn.rawgit.com/LosMaquios/next-tick/5d167294/index.js'
@@ -20,9 +20,6 @@ export default class Element extends HTMLElement {
     // Hold element references
     this.$refs = new Map()
 
-    // Isolated values
-    this.$isolated = Object.create(null)
-
     this.$root = this.attachShadow({ mode: 'open' })
 
     this.$document = document.currentScript.ownerDocument
@@ -31,8 +28,7 @@ export default class Element extends HTMLElement {
     // We need to append content before setting up the main renderer
     this.$root.appendChild(this.$template.content.cloneNode(true))
 
-    // Setup core utilities
-    this.$observer = new Observer()
+    // Setup main renderer
     this.$renderer = new RenderElement(this.$root, this)
 
     // Flag whether we are in a rendering phase
@@ -40,30 +36,16 @@ export default class Element extends HTMLElement {
 
     // Defer state observation
     nextTick.afterFlush(() => {
-      this._initState()
+      // Reassign state as proxy
+      this.state = ProxyObserver.observe(this.state, true, () => {
+        this.$render()
+      })
 
       // First render call
       this.$render()
 
       console.dir(this)
     })
-  }
-
-  _initState () {
-    // Reassign state as proxy
-    this.state = this.$observer.observe(this.state)
-
-    // Init state observation
-    this.$onChange((target, property, value, receiver) => {
-      Reflect.set(target, property, isObject(value) ? this.$observer.observe(value) : value, receiver)
-
-      // Compile and render new changes
-      this.$render()
-    })
-  }
-
-  $onChange (callback) {
-    this.$observer.sub(callback.bind(this))
   }
 
   $commit (method, ...args) {
