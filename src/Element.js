@@ -37,7 +37,8 @@ export default class Element extends HTMLElement {
     // Defer state observation
     nextTick.afterFlush(() => {
       // Reassign state as proxy
-      this.state = ProxyObserver.observe(this.state, true, () => {
+      this.state = ProxyObserver.observe(this.state, {} /* takes default options */, () => {
+        // Perform render for incoming changes
         this.$render()
       })
 
