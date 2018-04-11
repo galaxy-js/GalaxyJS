@@ -1,5 +1,5 @@
-import { digestData, toString } from '../utils/generic.js'
-import { compileScopedSetter, compileScopedGetter, differ } from '../utils/compiler.js'
+import { digestData, toString, differ } from '../utils/generic.js'
+import { compileScopedSetter, compileScopedGetter } from '../compiler/index.js'
 
 const BIND_ATTRIBUTE = '*bind'
 

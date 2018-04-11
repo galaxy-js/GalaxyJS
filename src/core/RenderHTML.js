@@ -1,4 +1,4 @@
-import { compileScopedGetter, getExpression } from '../utils/compiler.js'
+import { compileScopedGetter, getExpression } from '../compiler/index.js'
 
 const parser = document.createElement('div')
 

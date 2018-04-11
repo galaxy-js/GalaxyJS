@@ -33,3 +33,16 @@ export function diff ({ nodeValue }, newValue) {
 export function newIsolated (...parents) {
   return Object.assign(Object.create(null), ...parents)
 }
+
+/**
+ * Check if the value of a given `node`
+ * differs againts the given `value`
+ *
+ * @param {Node} node - Node element to check
+ * @param {*} value - Value to compare with
+ *
+ * @return {boolean}
+ */
+export function differ (node, value) {
+  return node.nodeValue !== value
+}

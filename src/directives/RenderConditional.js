@@ -1,7 +1,7 @@
 import config from '../config.js'
 
 import { digestData, createAnchor } from '../utils/generic.js'
-import { compileScopedGetter } from '../utils/compiler.js'
+import { compileScopedGetter } from '../compiler/index.js'
 
 const CONDITIONAL_ATTRIBUTE = '*if'
 

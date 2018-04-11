@@ -1,6 +1,6 @@
-import { toString } from '../utils/generic.js'
+import { toString, differ } from '../utils/generic.js'
 import { isDefined, isObject } from '../utils/type-check.js'
-import { compileScopedGetter, differ, getExpression } from '../utils/compiler.js'
+import { compileScopedGetter, getExpression } from '../compiler/index.js'
 
 export default class RenderTemplate {
   constructor (node, context) {

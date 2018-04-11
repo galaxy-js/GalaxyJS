@@ -1,7 +1,8 @@
 import config from '../config.js'
 
-import nextTick from 'https://cdn.rawgit.com/LosMaquios/next-tick/5d167294/index.js'
-import { compileScopedGetter, differ } from '../utils/compiler.js'
+import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick/index.js'
+import { compileScopedGetter } from '../compiler/index.js'
+import { differ } from '../utils/generic.js'
 
 const BIND_TOKEN = ':'
 const BIND_ONE_TIME_TOKEN = BIND_TOKEN.repeat(2)

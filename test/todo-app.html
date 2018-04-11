@@ -7,7 +7,7 @@
     }
   </style>
 
-  <h1 :id="title" class="classes {{ title }}">{{ title }}</h1>
+  <h1 :id="title" class="classes {{ title }}">{{ title | reverse() }}</h1>
   <input type="text" *bind="title">
 
   <ul>
@@ -77,6 +77,10 @@
       }, 5000)
     }
 
+    reverse (value) {
+      return value.split('').reverse().join('')
+    }
+
     addTodo ({ todos, todo }) {
       todos.push(Object.assign({}, todo))
 
@@ -88,9 +92,6 @@
     }
 
     setTodoStatus (_, todo, done) {
-      console.log(done)
-      console.log(this.$refs)
-
       todo.done = done.checked
     }
   }

@@ -1,7 +1,7 @@
 import ProxyObserver from 'https://cdn.jsdelivr.net/gh/LosMaquios/ProxyObserver/index.js'
 import RenderElement from './core/RenderElement.js'
 
-import nextTick from 'https://cdn.rawgit.com/LosMaquios/next-tick/5d167294/index.js'
+import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick/index.js'
 import { isObject, isFunction, isReserved } from './utils/type-check.js'
 
 import GalaxyError from './errors/GalaxyError.js'
@@ -47,6 +47,10 @@ export default class Element extends HTMLElement {
 
       console.dir(this)
     })
+  }
+
+  $applyFilters (value, ...filters) {
+    return filters.reduce((result, filter) => filter(result), value)
   }
 
   $commit (method, ...args) {

@@ -2,7 +2,7 @@ import RenderElement from '../core/RenderElement.js'
 
 import Tracker from './loop/Tracker.js'
 
-import { compileScopedGetter } from '../utils/compiler.js'
+import { compileScopedGetter } from '../compiler/index.js'
 import { digestData, createAnchor, newIsolated } from '../utils/generic.js'
 import { isDefined } from '../utils/type-check.js'
 
