@@ -1,4 +1,4 @@
-import { getDescriptors, FILTER_SPLIT_REGEX } from './filter.js'
+import { getFilters, FILTER_SPLIT_REGEX } from './filter.js'
 
 /**
  * Match text template interpolation
@@ -22,8 +22,6 @@ const HTML_REGEX = /{{{(?<content>.*?)}}}/
  *
  * @return {string}
  */
-let logged = 0
-
 export function getExpression (template, escape = true) {
   let match
 
@@ -50,7 +48,7 @@ export function getExpression (template, escape = true) {
       expressions.push(
         parts.length < 2
           ? expression
-          : `$applyFilters(${expression}, ...[${getDescriptors(parts.slice(1)).join(',')}])`
+          : `$apply(${expression}, ...[${getFilters(parts.slice(1)).join(',')}])`
       )
     }
 

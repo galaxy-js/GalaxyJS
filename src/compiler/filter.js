@@ -8,16 +8,16 @@ export const FILTER_SPLIT_REGEX = /(?<!\|)\|(?!\|)/
 /**
  *
  */
-const FILTER_REGEX = /^(?<name>[\w\d]+)\(/
+const FILTER_REGEX = /^(?<name>\w+)(?<args>\()?/
 
 /**
  *
  * @param {*} filters
  *
- * @return {string}
+ * @return {Array.<Function>}
  */
-export function getDescriptors (filters) {
-  const descriptors = filters.map(filter => {
+export function getFilters (filters) {
+  return filters.map(filter => {
     filter = filter.trim()
 
     const match = FILTER_REGEX.exec(filter)
@@ -27,29 +27,31 @@ export function getDescriptors (filters) {
     let start = match[0].length
     let index = start
 
-    function pushArg () {
-      args.push(filter.slice(start, index - 1).trim())
-    }
+    if (match.groups.args) {
+      function pushArg () {
+        args.push(filter.slice(start, index - 1).trim())
+      }
 
-    // Get filter arguments
-    loop: while (depth) {
-      switch (filter.charAt(index++)) {
-        case '(': depth += 1; break
-        case ')': {
-          if (depth === 1) {
-            pushArg()
-            break loop
-          }
+      // Get filter arguments
+      loop: while (depth) {
+        switch (filter.charAt(index++)) {
+          case '(': depth += 1; break
+          case ')': {
+            if (depth === 1) {
+              pushArg()
+              break loop
+            }
 
-          depth -= 1
-        } break
-        case ',': {
-          if (depth === 1) {
-            pushArg()
-            start = index
-          }
-        } break
-        case '': break loop
+            depth -= 1
+          } break
+          case ',': {
+            if (depth === 1) {
+              pushArg()
+              start = index
+            }
+          } break
+          case '': break loop
+        }
       }
     }
 
@@ -57,13 +59,9 @@ export function getDescriptors (filters) {
 
     // We need to evaluate arguments before pass them
     return `
-      (() => {
-        const args = [${args.join(',')}]
-        const method = ${match.groups.name}
+      ((method, args) => {
         return value => method(value, ...args)
-      })()
+      })(${match.groups.name}, [${args.join(',')}])
     `
   })
-
-  return descriptors
 }

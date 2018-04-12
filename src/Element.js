@@ -49,7 +49,7 @@ export default class Element extends HTMLElement {
     })
   }
 
-  $applyFilters (value, ...filters) {
+  $apply (value, ...filters) {
     return filters.reduce((result, filter) => filter(result), value)
   }
 
