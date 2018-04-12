@@ -48,7 +48,7 @@ export function getExpression (template, escape = true) {
       expressions.push(
         parts.length < 2
           ? expression
-          : `$apply(${expression}, ...[${getFilters(parts.slice(1)).join(',')}])`
+          : `$apply(${expression}, [${getFilters(parts.slice(1)).join(',')}])`
       )
     }
 
