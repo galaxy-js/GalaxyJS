@@ -6,18 +6,19 @@
 export const FILTER_SPLIT_REGEX = /(?<!\|)\|(?!\|)/
 
 /**
- *
+ * @type {RegExp}
  */
 const FILTER_REGEX = /^(?<name>\w+)(?<args>\()?/
 
 /**
  *
- * @param {*} filters
+ * @param {string} expression
+ * @param {Array.<Function>} filters
  *
- * @return {Array.<Function>}
+ * @return {string}
  */
-export function getFilters (filters) {
-  return filters.map(filter => {
+export function getFiltered (expression, filters) {
+  filters = filters.map(filter => {
     filter = filter.trim()
 
     const match = FILTER_REGEX.exec(filter)
@@ -55,13 +56,9 @@ export function getFilters (filters) {
       }
     }
 
-    // TODO: Find a better arguments evaluation
-
-    // We need to evaluate arguments before pass them
-    return `
-      ((method, args) => {
-        return value => method(value, ...args)
-      })(${match.groups.name}, [${args.join(',')}])
-    `
+    // Compose filter applier
+    return `$value => ${match.groups.name}($value, ...[${args.join()}])`
   })
+
+  return `[${filters.join()}].reduce((result, filter) => filter(result), ${expression})`
 }

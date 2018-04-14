@@ -49,10 +49,6 @@ export default class Element extends HTMLElement {
     })
   }
 
-  $apply (value, filters) {
-    return filters.reduce((result, filter) => filter(result), value)
-  }
-
   $commit (method, ...args) {
     if (method in this) {
       if (!isFunction(this[method])) {

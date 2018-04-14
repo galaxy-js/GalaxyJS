@@ -1,18 +1,18 @@
-import { getFilters, FILTER_SPLIT_REGEX } from './filter.js'
+import { getFiltered, FILTER_SPLIT_REGEX } from './filter.js'
 
 /**
  * Match text template interpolation
  *
  * @type {RegExp}
  */
-const TEXT_REGEX = /{{(?<content>.*?)}}/
+const TEXT_REGEX = /{{(?<expression>.*?)}}/
 
 /**
  * Match html template interpolation
  *
  * @type {RegExp}
  */
-const HTML_REGEX = /{{{(?<content>.*?)}}}/
+const HTML_REGEX = /{{{(?<expression>.*?)}}}/
 
 /**
  * Get a JavaScript expression
@@ -33,7 +33,7 @@ export function getExpression (template, escape = true) {
 
   while (match = MATCH_REGEX.exec(template)) {
     const rawLeft = template.slice(0, match.index)
-    let expression = match.groups.content.trim()
+    let expression = match.groups.expression.trim()
 
     // Push wrapped left context
     if (rawLeft) expressions.push(`\`${rawLeft}\``)
@@ -41,12 +41,11 @@ export function getExpression (template, escape = true) {
     // Push isolated expression itself
     if (expression) {
       const parts = expression.split(FILTER_SPLIT_REGEX)
-      expression = `(${parts[0].trim()})`
 
       expressions.push(
-        parts.length < 2
-          ? expression
-          : `$apply(${expression}, [${getFilters(parts.slice(1)).join(',')}])`
+        parts.length > 1
+          ? getFiltered(parts[0], parts.slice(1))
+          : `(${expression})`
       )
     }
 

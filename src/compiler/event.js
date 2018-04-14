@@ -3,7 +3,7 @@
  *
  * @type {RegExp}
  */
-const METHOD_REGEX = /(?<=^|[*-+/%{(\s])(?<name>[\w\d]+)\(/g
+const METHOD_REGEX = /(?<prefix>\W)?(?<name>\w+)\(/g
 
 /**
  * Rewrite a given `expression` for event binding
@@ -18,6 +18,9 @@ export function getEvent (expression) {
 
   while (match = METHOD_REGEX.exec(expression)) {
     const { index, groups } = match
+
+    // In case we are in a sub path, skip
+    if (groups.prefix === '.') continue
 
     const start = index + match[0].length
 
@@ -38,7 +41,7 @@ export function getEvent (expression) {
     const args = expression.slice(start, cursor - 1 /* skip parenthesis */)
 
     rewrited = rewrited.replace(
-      expression.slice(index, cursor),
+      expression.slice(groups.prefix ? index + 1/* skip prefix */ : index, cursor),
 
       // Intercept with $commit call
       `$commit('${groups.name}'${args ? `, ${args}` : ''})`
