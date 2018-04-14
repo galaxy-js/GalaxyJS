@@ -31,8 +31,6 @@ export function getExpression (template, escape = true) {
   // Escape HTML tags?
   const MATCH_REGEX = escape ? TEXT_REGEX : HTML_REGEX
 
-  let start = 0
-
   while (match = MATCH_REGEX.exec(template)) {
     const rawLeft = template.slice(0, match.index)
     let expression = match.groups.content.trim()
