@@ -52,7 +52,7 @@ export function compileScopedEvaluator (body, context) {
    */
   return new Function('value' /* Used only on setters */, `
     with (this.scope) {
-      with (this.scope.state) {
+      with (state) {
         with (this.isolated) {
           ${body}
         }
