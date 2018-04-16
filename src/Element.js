@@ -11,8 +11,8 @@ export default class Element extends HTMLElement {
     super()
 
     // Default initial state
-    // Just an empty pointer
-    this.state = {}
+    // Just an empty proxy
+    this.__STATE__ = new Proxy({}, {})
 
     // Actual event being dispatched
     this.$event = null
@@ -34,19 +34,26 @@ export default class Element extends HTMLElement {
     // Flag whether we are in a rendering phase
     this.$rendering = false
 
-    // Defer state observation
-    nextTick.afterFlush(() => {
-      // Reassign state as proxy
-      this.state = ProxyObserver.observe(
-        this.state, {} /* takes default options */,
-        () => { this.$render() }// Perform render on changes
-      )
+    // Initial rendering
+    this.$render()
 
-      // First render call
-      this.$render()
+    console.dir(this) // For debugging purposes
+  }
 
-      console.dir(this)
-    })
+  get state () {
+    // Return proxified state
+    return this.__STATE__
+  }
+
+  set state (state) {
+    // Reassign state as proxy
+    this.__STATE__ = ProxyObserver.observe(
+      state, {} /* takes default options */,
+      () => { this.$render() } // Perform render on changes
+    )
+
+    // State change, so render...
+    this.$render()
   }
 
   $commit (method, ...args) {
@@ -69,7 +76,7 @@ export default class Element extends HTMLElement {
 
       nextTick(() => {
         try {
-          this.$renderer.render(this.state)
+          this.$renderer.render()
         } catch (e) {
           nextTick(() => {
             throw e
