@@ -27,7 +27,7 @@ export function compileScopedSetter (expression, context) {
    * Wrap the whole expression within parenthesis
    * to avoid statement declarations
    */
-  return compileScopedEvaluator(`(${expression} = value)`, context)
+  return compileScopedEvaluator(`(${expression} = arguments[0])`, context)
 }
 
 /**
@@ -50,7 +50,7 @@ export function compileScopedEvaluator (body, context) {
    * In that order, `isolated` overrides `scope.state` data,
    * and `scope` is going to be overriden by `scope.state` data.
    */
-  return new Function('value' /* Used only on setters */, `
+  const evaluator = new Function(`
     with (this.scope) {
       with (state) {
         with (this.isolated) {
@@ -58,5 +58,8 @@ export function compileScopedEvaluator (body, context) {
         }
       }
     }
-  `).bind(context)
+  `)
+
+  // Wrapper function to avoid `Function.prototype.bind`
+  return value => evaluator.call(context, value)
 }
