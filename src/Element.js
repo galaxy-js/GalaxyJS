@@ -6,13 +6,16 @@ import { isObject, isFunction, isReserved } from './utils/type-check.js'
 
 import GalaxyError from './errors/GalaxyError.js'
 
+const STATE_SYMBOL = Symbol('Galaxy.State')
+
 export default class Element extends HTMLElement {
   constructor () {
     super()
 
     // Default initial state
-    // Just an empty proxy
-    this.__STATE__ = new Proxy({}, {})
+    // Just an empty object
+    // Note: This also calls initial render
+    this.state = {}
 
     // Actual event being dispatched
     this.$event = null
@@ -34,20 +37,17 @@ export default class Element extends HTMLElement {
     // Flag whether we are in a rendering phase
     this.$rendering = false
 
-    // Initial rendering
-    this.$render()
-
     console.dir(this) // For debugging purposes
   }
 
   get state () {
     // Return proxified state
-    return this.__STATE__
+    return this[STATE_SYMBOL]
   }
 
   set state (state) {
     // Reassign state as proxy
-    this.__STATE__ = ProxyObserver.observe(
+    this[STATE_SYMBOL] = ProxyObserver.observe(
       state, {} /* takes default options */,
       () => { this.$render() } // Perform render on changes
     )
@@ -78,11 +78,13 @@ export default class Element extends HTMLElement {
         try {
           this.$renderer.render()
         } catch (e) {
+          // Avoid stack collapsing
           nextTick(() => {
             throw e
           })
         }
 
+        // Sleep after render new changes
         this.$rendering = false
       })
     }
