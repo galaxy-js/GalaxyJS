@@ -24,34 +24,38 @@ export function getFiltered (expression, filters) {
     const match = FILTER_REGEX.exec(filter)
     const args = []
 
-    let depth = 1
-    let start = match[0].length
-    let index = start
-
     if (match.groups.args) {
+      let depth = 1
+      let start = match[0].length
+      let index = start
+      let inDouble = false
+      let inSingle = false
+
       function pushArg () {
         args.push(filter.slice(start, index - 1).trim())
       }
 
       // Get filter arguments
       loop: while (depth) {
+        const inExpression = !inDouble && !inSingle
+
         switch (filter.charAt(index++)) {
-          case '(': depth += 1; break
+          case '(': inExpression && ++depth; break
+          case '"': !inSingle && (inDouble = !inDouble); break
+          case "'": !inDouble && (inSingle = !inSingle); break
+          case '': break loop
           case ')': {
-            if (depth === 1) {
+            if (inExpression && depth-- === 1) {
               pushArg()
               break loop
             }
-
-            depth -= 1
           } break
           case ',': {
-            if (depth === 1) {
+            if (inExpression && depth === 1) {
               pushArg()
               start = index
             }
           } break
-          case '': break loop
         }
       }
     }

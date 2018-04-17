@@ -27,12 +27,18 @@ export function getEvent (expression) {
     // Initial depth `(` = 1
     let depth = 1
     let cursor = start
+    let inDouble = false
+    let inSingle = false
 
     // Catch arguments
     loop: while (depth) {
+      const inExpression = !inDouble && !inSingle
+
       switch (expression.charAt(cursor++)) {
-        case ')': depth -= 1; break
-        case '(': depth += 1; break
+        case ')': inExpression && --depth; break
+        case '(': inExpression && ++depth; break
+        case '"': !inSingle && (inDouble = !inDouble); break
+        case "'": !inDouble && (inSingle = !inSingle); break
         case '': break loop
       }
     }
