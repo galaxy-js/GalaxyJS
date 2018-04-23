@@ -7,7 +7,7 @@ import RenderHTML from './RenderHTML.js'
 import reference, { hasReference } from '../directives/reference.js'
 import event, { isEvent } from '../directives/event.js'
 
-import RenderLoop from '../directives/RenderLoop.js'
+import RenderLoop from '../directives/loop/RenderLoop.js'
 import RenderBind from '../directives/RenderBind.js'
 import RenderConditional from '../directives/RenderConditional.js'
 
