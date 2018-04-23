@@ -25,7 +25,7 @@ export default class RenderConditional {
       if (!this.element.isConnected) {
         this.anchor.parentNode.replaceChild(this.element, this.anchor)
       }
-    } else if (element.isConnected) {
+    } else if (this.element.isConnected) {
       this.element.parentNode.replaceChild(this.anchor, this.element)
     }
   }
