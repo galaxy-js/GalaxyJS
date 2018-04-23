@@ -1,7 +1,7 @@
-import ProxyObserver from 'https://cdn.jsdelivr.net/gh/LosMaquios/ProxyObserver/index.js'
+import ProxyObserver from 'https://cdn.jsdelivr.net/gh/LosMaquios/ProxyObserver@v0.3.1/index.js'
 import RenderElement from './core/RenderElement.js'
 
-import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick/index.js'
+import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick@v0.1.0/index.js'
 import { isObject, isFunction, isReserved } from './utils/type-check.js'
 
 import GalaxyError from './errors/GalaxyError.js'
