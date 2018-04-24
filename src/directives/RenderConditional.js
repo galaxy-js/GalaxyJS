@@ -10,10 +10,10 @@ export default class RenderConditional {
     this.element = element
     this.context = context
 
-    this.anchor = createAnchor(`if: ${this.condition}`)
-
     this.condition = digestData(element, CONDITIONAL_ATTRIBUTE)
     this.getter = compileScopedGetter(this.condition, this.context)
+
+    this.anchor = createAnchor(`if: ${this.condition}`)
   }
 
   static is ({ attributes }) {
