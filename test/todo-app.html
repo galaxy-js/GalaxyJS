@@ -7,7 +7,7 @@
     }
   </style>
 
-  <h1 :id="title" class="classes {{ title }}">{{ title | reverse }}</h1>
+  <h1 :id="title" class="classes other-class" :class="{ someClass: showClass }">{{ title | reverse }}</h1>
   <input type="text" *bind="title">
 
   <ul>
@@ -40,6 +40,7 @@
       super()
 
       this.state = {
+        showClass: false,
         title: 'Galaxy TODO APP',
 
         todo: {
@@ -65,6 +66,10 @@
           <p>Rendering HTML</p>
         `
       }
+
+      setTimeout(() => {
+        this.state.showClass = true
+      }, 5000)
     }
 
     static get is () {

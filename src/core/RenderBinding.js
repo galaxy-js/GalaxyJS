@@ -43,9 +43,13 @@ export default class RenderBinding {
     const { name } = attribute
     const { attributes } = attribute.ownerElement
 
-    const observed = document.createAttribute(name.slice(this.oneTime ? 2 : 1))
-    observed.value = attribute.value
+    const normalizedName = name.slice(this.oneTime ? 2 : 1)
 
+    let observed = attributes.getNamedItem(normalizedName)
+
+    if (observed) return observed
+
+    observed = document.createAttribute(normalizedName)
     attributes.setNamedItem(observed)
 
     if (!config.debug) {

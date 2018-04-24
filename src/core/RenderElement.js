@@ -9,6 +9,7 @@ import event, { isEvent } from '../directives/event.js'
 
 import RenderLoop from '../directives/loop/RenderLoop.js'
 import RenderBind from '../directives/RenderBind.js'
+import RenderClass from '../directives/RenderClass.js'
 import RenderConditional from '../directives/RenderConditional.js'
 
 import { isTextNode, isElementNode } from '../utils/type-check.js'
@@ -87,7 +88,8 @@ export default class RenderElement {
 
       // 2. Check :attribute or ::attribute
       } else if (RenderBinding.is(attribute)) {
-        this.bindings.push(new RenderBinding(attribute, this))
+        const Render = RenderClass.is(attribute) ? RenderClass : RenderBinding
+        this.bindings.push(new Render(attribute, this))
 
       // 3. Check {{ binding }}
       } else if (RenderTemplate.is(attribute)) {
