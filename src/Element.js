@@ -35,7 +35,7 @@ export default class Element extends HTMLElement {
     this.$template = this.$document.querySelector('template')
 
     // We need to append content before setting up the main renderer
-    this.shadowRoot.appendChild(this.$template.content.cloneNode(true))
+    this.$root.appendChild(this.$template.content.cloneNode(true))
 
     // Setup main renderer
     this.$renderer = new RenderElement(this.$root, this)
