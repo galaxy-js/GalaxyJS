@@ -9,42 +9,39 @@ export default class RenderClass extends RenderBinding {
     super(...args)
   }
 
-  static is ({ name, value }) {
-    return (
-      CLASS_REGEX.test(name) &&
-
-      // TODO: Check edge cases
-      value.startsWith('{') ||
-      value.startsWith('[')
-    )
+  static is ({ name }) {
+    return CLASS_REGEX.test(name)
   }
 
   _getNormalized () {
-    let result = {}
     const value = this.getter()
 
-    if (!Array.isArray(value)) {
-      result = value
-    } else {
-      value.forEach(item => {
-        if (isObject(item)) {
-          Object.assign(result, item)
-        } else {
-          result[item] = 1
-        }
-      })
-    }
+    if (!Array.isArray(value)) return value
+
+    const result = {}
+
+    value.forEach(item => {
+      if (isObject(item)) {
+        Object.assign(result, item)
+      } else {
+        result[item] = 1
+      }
+    })
 
     return result
   }
 
   render () {
-    const object = this._getNormalized()
+    const value = this._getNormalized()
+
+    // Fallback to normal attribute rendering
+    if (!isObject(value)) return super.render()
+
     const { classList } = this.attribute.ownerElement
 
-    for (const key in object) {
-      if (object.hasOwnProperty(key)) {
-        classList[object[key] ? 'add' : 'remove'](key)
+    for (const key in value) {
+      if (value.hasOwnProperty(key)) {
+        classList[value[key] ? 'add' : 'remove'](key)
       }
     }
   }
