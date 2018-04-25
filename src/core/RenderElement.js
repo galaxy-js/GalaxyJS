@@ -12,7 +12,7 @@ import RenderBind from '../directives/RenderBind.js'
 import RenderClass from '../directives/RenderClass.js'
 import RenderConditional from '../directives/RenderConditional.js'
 
-import { isTextNode, isElementNode } from '../utils/type-check.js'
+import { isTextNode, isElementNode, isObject } from '../utils/type-check.js'
 import { newIsolated } from '../utils/generic.js'
 
 export default class RenderElement {
@@ -86,14 +86,41 @@ export default class RenderElement {
       if (isEvent(attribute)) {
         event(attribute, this)
 
-      // 2. Check :attribute or ::attribute
-      } else if (RenderBinding.is(attribute)) {
-        const Render = RenderClass.is(attribute) ? RenderClass : RenderBinding
-        this.bindings.push(new Render(attribute, this))
-
-      // 3. Check {{ binding }}
+      // 2. Check {{ binding }}
       } else if (RenderTemplate.is(attribute)) {
         this.bindings.push(new RenderTemplate(attribute, this))
+
+      // 3. Check :attribute or ::attribute
+      } else if (RenderBinding.is(attribute)) {
+        let binding
+
+        if (RenderClass.is(attribute)) {
+          binding = new RenderClass(attribute, this)
+        } else {
+          binding = new RenderBinding(attribute, this)
+
+          const props = $el.__galaxy__ && $el.props
+
+          // Ok, we are in a component, so update props
+          if (props && isObject(props)) {
+            const prop = binding.attribute.name
+
+            if (props.hasOwnProperty(prop)) {
+
+              // Immutable property
+              Object.defineProperty($el.props, prop, {
+                enumerable: true,
+                get () {
+
+                  // Get raw value (with references)
+                  return binding.value
+                }
+              })
+            }
+          }
+        }
+
+        this.bindings.push(binding)
       }
     }
   }

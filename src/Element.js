@@ -20,22 +20,31 @@ export default class Element extends HTMLElement {
     // Actual event being dispatched
     this.$event = null
 
+    // Hold component properties
+    // TODO: How to properly define properties?
+    // TODO: Reflect props to attributes?
+    this.props = this.constructor.properties
+
     // Hold element references
     this.$refs = new Map()
 
     this.$root = this.attachShadow({ mode: 'open' })
 
-    this.$document = document.currentScript.ownerDocument
+    // TODO: How to properly get context?
+    this.$document = this.constructor.__CONTEXT__
     this.$template = this.$document.querySelector('template')
 
     // We need to append content before setting up the main renderer
-    this.$root.appendChild(this.$template.content.cloneNode(true))
+    this.shadowRoot.appendChild(this.$template.content.cloneNode(true))
 
     // Setup main renderer
     this.$renderer = new RenderElement(this.$root, this)
 
     // Flag whether we are in a rendering phase
     this.$rendering = false
+
+    // TODO: Remove this flag
+    this.__galaxy__ = true
 
     console.dir(this) // For debugging purposes
   }

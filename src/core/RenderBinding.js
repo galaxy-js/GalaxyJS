@@ -19,6 +19,9 @@ export default class RenderBinding {
 
     this.getter = compileScopedGetter(this.expression, context)
 
+    // Attribute raw value (without any conversion) and holding reference
+    this.value = null
+
     if (this.oneTime) {
       const render = this.render
 
@@ -60,7 +63,7 @@ export default class RenderBinding {
   }
 
   render () {
-    const value = this.getter()
+    const value = this.value = this.getter()
 
     if (differ(this.attribute, value)) {
       this.attribute.value = value

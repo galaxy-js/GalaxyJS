@@ -14,6 +14,9 @@
   Galaxy.elements = new Map()
 
   Galaxy.register = async CustomElement => {
+    // Patial solution: https://stackoverflow.com/a/41409299
+    CustomElement.__CONTEXT__ = document.currentScript.ownerDocument
+
     if (typeof CustomElement.is === 'undefined') {
       throw new GalaxyError('Unknown element name')
     }

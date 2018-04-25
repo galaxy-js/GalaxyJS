@@ -1,0 +1,33 @@
+<link rel="import" href="../src/galaxy.html">
+
+<template>
+  <h2>Test props component</h2>
+</template>
+
+<script>
+  class TestProps extends Galaxy.Element {
+    static get is () {
+      return 'test-props'
+    }
+
+    static get properties () {
+      return {
+        object: { default: true }
+      }
+    }
+
+    constructor () {
+      super()
+    }
+
+    connectedCallback () {
+      console.log(this.props.object)
+
+      setTimeout(() => {
+       this.props.object.push('a')
+      }, 2000)
+    }
+  }
+
+  Galaxy.register(TestProps)
+</script>
