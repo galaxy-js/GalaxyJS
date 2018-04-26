@@ -1,52 +1,27 @@
-import config from '../config.js'
+import AbstractRender from './AbstractRender.js'
 
-import RenderBinding from '../core/RenderBinding.js'
+/**
+ * Import possible children
+ */
 import RenderTemplate from '../core/RenderTemplate.js'
 import RenderHTML from './RenderHTML.js'
-import RenderGalaxy from './RenderGalaxy.js'
-import resolveProp, { isProp } from './resolve-prop.js'
-
-import reference, { hasReference } from '../directives/reference.js'
-import event, { isEvent } from '../directives/event.js'
-
+import RenderCE from './RenderCE.js'
 import RenderLoop from '../directives/loop/RenderLoop.js'
-import RenderBind from '../directives/RenderBind.js'
-import RenderClass from '../directives/RenderClass.js'
-import RenderConditional from '../directives/RenderConditional.js'
 
-import { isTextNode, isElementNode, isObject } from '../utils/type-check.js'
-import { newIsolated, flatChildren } from '../utils/generic.js'
+import { isTextNode, isElementNode } from '../utils/type-check.js'
+import { flatChildren } from '../utils/generic.js'
 
-export default class RenderElement {
-  constructor (element, scope, isolated) {
-    this.element = element
-    this.scope = scope
-
-    /**
-     * Hold directives to digest
-     */
-    this.directives = []
-
-    /**
-     * Hold attribute and template bindings to digest
-     */
-    this.bindings = []
+export default class RenderElement extends AbstractRender {
+  constructor (...args) {
+    super(...args)
 
     /**
      * Resolve children renders
      */
     this.children = []
 
-    /**
-     * Loop elements need an isolated scope
-     *
-     * Note: We need to create a shallow copy
-     * to avoid overrides a parent isolated scope
-     */
-    this.isolated = newIsolated(isolated)
-
-    // Attach bindings, directives and chilren
-    this._init()
+    // Attach children
+    this._initChildren()
   }
 
   get isRenderable () {
@@ -65,62 +40,8 @@ export default class RenderElement {
     )
   }
 
-  _init () {
-    const $el = this.element
-
-    // Fragment (templates) has not attributes
-    if ('attributes' in $el) {
-      this._initDirectives($el)
-      this._initBindings($el)
-    }
-
-    if (!RenderGalaxy.is($el)) {
-      this._initChildren($el)
-    }
-  }
-
-  _initDirectives ($el) {
-    if (RenderConditional.is($el)) {
-      this.directives.push(new RenderConditional($el, this))
-    }
-
-    if (RenderBind.is($el)) {
-      this.directives.push(new RenderBind($el, this))
-    }
-  }
-
-  _initBindings ($el) {
-    // Avoid live list
-    const attributes = Array.from($el.attributes)
-
-    for (const attribute of attributes) {
-      let binding
-
-      // 1. Check @binding
-      if (isEvent(attribute)) {
-        event(attribute, this)
-
-      // 2. Check {{ binding }}
-      } else if (RenderTemplate.is(attribute)) {
-        this.bindings.push(binding = new RenderTemplate(attribute, this))
-
-      // 3. Check :attribute or ::attribute
-      } else if (RenderBinding.is(attribute)) {
-        this.bindings.push(binding = new (RenderClass.is(attribute) ? RenderClass : RenderBinding)(attribute, this))
-      }
-
-      // Check for property binding
-      if (binding && isProp(attribute)) {
-        // Don't reflect prop value
-        $el.removeAttribute((binding.node || binding.attribute).name)
-
-        resolveProp($el, binding)
-      }
-    }
-  }
-
-  _initChildren ($el) {
-    for (const child of $el.childNodes) {
+  _initChildren () {
+    for (const child of this.element.childNodes) {
       if (isTextNode(child)) {
         // 1. Check {{{ binding }}}
         if (RenderHTML.is(child)) {
@@ -136,15 +57,14 @@ export default class RenderElement {
         // The loop directive is resolved as a child
         if (RenderLoop.is(child)) {
           this.children.push(new RenderLoop(child, this))
-        } else {
+        } else if (RenderCE.is(child))  {
+          this.children.push(new RenderCE(child, this.scope, this.isolated))
+        } else {
           const element = new RenderElement(child, this.scope, this.isolated)
-
-          if (RenderGalaxy.is(child)) {
-            this.children.push(new RenderGalaxy(element))
 
           // Only consider a render element if its childs
           // or attributes has something to bind/update
-          } else if (element.isRenderable) {
+          if (element.isRenderable) {
             this.children.push(...(element.isFlattenable ? flatChildren(element) : [element]))
           }
         }
@@ -155,26 +75,11 @@ export default class RenderElement {
   }
 
   render () {
-    const $el = this.element
-
-    for (const directive of this.directives) {
-      directive.render()
-    }
+    // Resolve directives & attribute bindings
+    super.render()
 
     // Don't perform updates on disconnected element
-    if ($el.isConnected) {
-      if ('attributes' in $el) {
-        for (const binding of this.bindings) {
-          binding.render()
-        }
-
-        // We need to resolve the reference first
-        // since childs may need access to
-        if (hasReference($el)) {
-          reference($el, this.scope)
-        }
-      }
-
+    if (this.element.isConnected) {
       for (const child of this.children) {
         child.render()
       }

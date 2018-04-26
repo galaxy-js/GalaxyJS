@@ -2,6 +2,7 @@
   import config from './config.js'
 
   import Element from './Element.js'
+  import { registry } from './registry.js'
 
   const Galaxy = {}
 
@@ -11,7 +12,7 @@
   Galaxy.Element = Element
 
   // Element registry
-  Galaxy.elements = new Map()
+  Galaxy.elements = registry
 
   Galaxy.register = async CustomElement => {
     // Patial solution: https://stackoverflow.com/a/41409299
