@@ -46,3 +46,20 @@ export function newIsolated (...parents) {
 export function differ (node, value) {
   return node.nodeValue !== value
 }
+
+/**
+ * Flat children from a given `element`
+ *
+ * @param {RenderElement} element
+ *
+ * @return {Array.<RenderElement|RenderTemplate|RenderHTML|RenderGalaxy>}
+ */
+export function flatChildren (element) {
+  const flat = []
+
+  element.children.forEach(child => {
+    flat.push(...(child.isFlatteable ? flatChildren(child) : [child]))
+  })
+
+  return flat
+}

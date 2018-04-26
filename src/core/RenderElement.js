@@ -3,6 +3,7 @@ import config from '../config.js'
 import RenderBinding from '../core/RenderBinding.js'
 import RenderTemplate from '../core/RenderTemplate.js'
 import RenderHTML from './RenderHTML.js'
+import RenderGalaxy from './RenderGalaxy.js'
 import resolveProp, { isProp } from './resolve-prop.js'
 
 import reference, { hasReference } from '../directives/reference.js'
@@ -14,7 +15,7 @@ import RenderClass from '../directives/RenderClass.js'
 import RenderConditional from '../directives/RenderConditional.js'
 
 import { isTextNode, isElementNode, isObject } from '../utils/type-check.js'
-import { newIsolated } from '../utils/generic.js'
+import { newIsolated, flatChildren } from '../utils/generic.js'
 
 export default class RenderElement {
   constructor (element, scope, isolated) {
@@ -56,6 +57,14 @@ export default class RenderElement {
     )
   }
 
+  get isFlattenable () {
+    return (
+      this.children.length > 0 &&
+      !this.directives.length &&
+      !this.bindings.length
+    )
+  }
+
   _init () {
     const $el = this.element
 
@@ -65,7 +74,9 @@ export default class RenderElement {
       this._initBindings($el)
     }
 
-    this._initChildren($el)
+    if (!RenderGalaxy.is($el)) {
+      this._initChildren($el)
+    }
   }
 
   _initDirectives ($el) {
@@ -125,16 +136,16 @@ export default class RenderElement {
         // The loop directive is resolved as a child
         if (RenderLoop.is(child)) {
           this.children.push(new RenderLoop(child, this))
-        } else {
+        } else {
           const element = new RenderElement(child, this.scope, this.isolated)
+
+          if (RenderGalaxy.is(child)) {
+            this.children.push(new RenderGalaxy(element))
 
           // Only consider a render element if its childs
           // or attributes has something to bind/update
-          if (element.isRenderable) this.children.push(element)
-
-          // Render component
-          if (child.__galaxy__) {
-            this.children.push({ render: () => child.$render() })
+          } else if (element.isRenderable) {
+            this.children.push(...(element.isFlattenable ? flatChildren(element) : [element]))
           }
         }
       }
