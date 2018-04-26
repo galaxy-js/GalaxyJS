@@ -3,6 +3,7 @@ import config from '../config.js'
 import RenderBinding from '../core/RenderBinding.js'
 import RenderTemplate from '../core/RenderTemplate.js'
 import RenderHTML from './RenderHTML.js'
+import resolveProp, { isProp } from './resolve-prop.js'
 
 import reference, { hasReference } from '../directives/reference.js'
 import event, { isEvent } from '../directives/event.js'
@@ -82,45 +83,27 @@ export default class RenderElement {
     const attributes = Array.from($el.attributes)
 
     for (const attribute of attributes) {
+      let binding
+
       // 1. Check @binding
       if (isEvent(attribute)) {
         event(attribute, this)
 
       // 2. Check {{ binding }}
       } else if (RenderTemplate.is(attribute)) {
-        this.bindings.push(new RenderTemplate(attribute, this))
+        this.bindings.push(binding = new RenderTemplate(attribute, this))
 
       // 3. Check :attribute or ::attribute
       } else if (RenderBinding.is(attribute)) {
-        let binding
+        this.bindings.push(binding = new (RenderClass.is(attribute) ? RenderClass : RenderBinding)(attribute, this))
+      }
 
-        if (RenderClass.is(attribute)) {
-          binding = new RenderClass(attribute, this)
-        } else {
-          binding = new RenderBinding(attribute, this)
+      // Check for property binding
+      if (binding && isProp(attribute)) {
+        // Don't reflect prop value
+        $el.removeAttribute((binding.node || binding.attribute).name)
 
-          const props = $el.__galaxy__ && $el.props
-
-          // Ok, we are in a component, so update props
-          if (props && isObject(props)) {
-            const prop = binding.attribute.name
-
-            if (props.hasOwnProperty(prop)) {
-
-              // Immutable property
-              Object.defineProperty($el.props, prop, {
-                enumerable: true,
-                get () {
-
-                  // Get raw value (with references)
-                  return binding.value
-                }
-              })
-            }
-          }
-        }
-
-        this.bindings.push(binding)
+        resolveProp($el, binding)
       }
     }
   }
@@ -148,6 +131,11 @@ export default class RenderElement {
           // Only consider a render element if its childs
           // or attributes has something to bind/update
           if (element.isRenderable) this.children.push(element)
+
+          // Render component
+          if (child.__galaxy__) {
+            this.children.push({ render: () => child.$render() })
+          }
         }
       }
 

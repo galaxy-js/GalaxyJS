@@ -9,6 +9,8 @@ export default class RenderTemplate {
 
     this.expression = getExpression(node.nodeValue)
     this.getter = compileScopedGetter(this.expression, context)
+
+    this.value = null
   }
 
   static is ({ nodeValue }) {
@@ -19,7 +21,7 @@ export default class RenderTemplate {
     const value = this.getter()
 
     // Normalized value to avoid null or undefined
-    const normalized = isDefined(value) ? toString(value) : ''
+    const normalized = this.value = isDefined(value) ? toString(value) : ''
 
     if (differ(this.node, normalized)) {
       this.node.nodeValue = normalized

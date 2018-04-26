@@ -1,7 +1,7 @@
 <link rel="import" href="../src/galaxy.html">
 
 <template>
-  <h2>Test props component</h2>
+  <h2>{{ props.string }}</h2>
 </template>
 
 <script>
@@ -12,7 +12,8 @@
 
     static get properties () {
       return {
-        object: { default: true }
+        object: { default: true },
+        string: 'Hello World!!!'
       }
     }
 
