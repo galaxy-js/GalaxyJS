@@ -85,6 +85,10 @@ export default class Element extends HTMLElement {
 
       nextTick(() => {
         try {
+          // References are cleared before each render phase
+          // then they going to be filled up
+          this.$refs.clear()
+
           this.$renderer.render()
         } catch (e) {
           // Avoid stack collapsing
