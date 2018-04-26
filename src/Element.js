@@ -43,9 +43,6 @@ export default class Element extends HTMLElement {
     // Flag whether we are in a rendering phase
     this.$rendering = false
 
-    // TODO: Remove this flag
-    this.__galaxy__ = true
-
     console.dir(this) // For debugging purposes
   }
 
