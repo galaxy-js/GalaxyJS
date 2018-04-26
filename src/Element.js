@@ -17,13 +17,16 @@ export default class Element extends HTMLElement {
     // Note: This also calls initial render
     this.state = {}
 
-    // Actual event being dispatched
-    this.$event = null
-
     // Hold component properties
     // TODO: How to properly define properties?
     // TODO: Reflect props to attributes?
     this.props = this.constructor.properties
+
+    // Actual event being dispatched
+    this.$event = null
+
+    // For parent communication
+    this.$parent = null
 
     // Hold element references
     this.$refs = new Map()

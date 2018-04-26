@@ -58,6 +58,10 @@ export default class RenderElement extends AbstractRender {
         if (RenderLoop.is(child)) {
           this.children.push(new RenderLoop(child, this))
         } else if (RenderCE.is(child))  {
+          // Set parent communication
+          // TODO: Logic within RenderCE?
+          child.$parent = this.scope
+
           this.children.push(new RenderCE(child, this.scope, this.isolated))
         } else {
           const element = new RenderElement(child, this.scope, this.isolated)
