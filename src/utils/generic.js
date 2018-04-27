@@ -1,5 +1,8 @@
 import config from '../config.js'
-import { isObject } from './type-check.js'
+
+import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick@v0.1.0/index.js'
+
+import { isObject, isFunction } from './type-check.js'
 
 const same = value => value
 
@@ -62,4 +65,17 @@ export function flatChildren (element) {
   })
 
   return flat
+}
+
+export function callHook (ce, hook, ...args) {
+  hook = ce[
+    // Camelize given hook name
+    `on${hook.charAt(0).toUpperCase() + hook.slice(1)}`
+  ]
+
+  if (isFunction(hook)) {
+    nextTick.afterFlush(() => {
+      hook.call(ce, ...args)
+    })
+  }
 }

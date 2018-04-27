@@ -21,18 +21,17 @@
       super()
     }
 
-    connectedCallback () {
+    onCreated () {
       console.log(this.props.object)
-
       console.log(this.$parent)
-
-      setTimeout(() => {
-        console.log(this.$parent)
-      })
 
       setTimeout(() => {
        this.props.object.push('a')
       }, 2000)
+    }
+
+    onAttached () {
+      console.log('Attached')
     }
   }
 

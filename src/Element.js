@@ -3,6 +3,7 @@ import RenderElement from './core/RenderElement.js'
 
 import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick@v0.1.0/index.js'
 import { isObject, isFunction, isReserved } from './utils/type-check.js'
+import { callHook } from './utils/generic.js'
 
 import GalaxyError from './errors/GalaxyError.js'
 
@@ -63,7 +64,30 @@ export default class Element extends HTMLElement {
 
     // State change, so render...
     this.$render()
+
+    callHook(this, 'created')
   }
+
+  /**
+   * Lifecycle hooks
+   *
+   * Hooks that catch changes properly
+   */
+  connectedCallback () {
+    callHook(this, 'attached')
+  }
+
+  disconnectedCallback () {
+    callHook(this, 'detached')
+  }
+
+  /**
+   *  NOTE: This hook needs some revision
+   *
+   *  attributeChangedCallback (...args) {
+   *    callHook(this, 'attribute', ...args)
+   *  }
+   */
 
   $commit (method, ...args) {
     if (method in this) {
@@ -84,11 +108,12 @@ export default class Element extends HTMLElement {
       this.$rendering = true
 
       nextTick(() => {
-        try {
-          // References are cleared before each render phase
-          // then they going to be filled up
-          this.$refs.clear()
 
+        // References are cleared before each render phase
+        // then they going to be filled up
+        this.$refs.clear()
+
+        try {
           this.$renderer.render()
         } catch (e) {
           // Avoid stack collapsing
