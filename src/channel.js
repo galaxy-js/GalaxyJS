@@ -3,7 +3,7 @@
  */
 class GalaxyChannel {
   constructor () {
-    this.ports = {}
+    this.ports = Object.create(null)
   }
 
   _getListeners (port) {
