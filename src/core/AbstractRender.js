@@ -4,6 +4,7 @@ import RenderBind from '../directives/RenderBind.js'
 import RenderTemplate from './RenderTemplate.js'
 import RenderBinding from './RenderBinding.js'
 import RenderClass from '../directives/RenderClass.js'
+import RenderStyle from '../directives/RenderStyle.js'
 
 import reference, { hasReference } from '../directives/reference.js'
 import event, { isEvent } from '../directives/event.js'
@@ -71,7 +72,12 @@ export default class AbstractRender {
 
       // 3. Check :attribute or ::attribute
       } else if (RenderBinding.is(attribute)) {
-        this.bindings.push(new (RenderClass.is(attribute) ? RenderClass : RenderBinding)(attribute, this))
+        this.bindings.push(new (
+          RenderClass.is(attribute)
+            ? RenderClass
+            : RenderStyle.is(attribute)
+              ? RenderStyle
+              : RenderBinding)(attribute, this))
       }
     }
   }

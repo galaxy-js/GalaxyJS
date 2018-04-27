@@ -9,6 +9,7 @@ const BIND_ONE_TIME_TOKEN = BIND_TOKEN.repeat(2)
 
 export default class RenderBinding {
   constructor (attribute, context) {
+    this.owner = attribute.ownerElement
     this.context = context
 
     this.oneTime = attribute.name.startsWith(BIND_ONE_TIME_TOKEN)

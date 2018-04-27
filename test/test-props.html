@@ -1,7 +1,7 @@
 <link rel="import" href="../src/galaxy.html">
 
 <template>
-  <h2>{{ props.string }}</h2>
+  <h2 :style="{ color: color }">{{ props.string }}</h2>
 </template>
 
 <script>
@@ -19,6 +19,10 @@
 
     constructor () {
       super()
+
+      this.colors = ['tomato', 'steelblue']
+      this.colorIndex = 0
+      this.state.color = this.colors[this.colorIndex]
     }
 
     onCreated () {
@@ -28,6 +32,10 @@
       setTimeout(() => {
        this.props.object.push('a')
       }, 2000)
+
+      setInterval(() => {
+        this.state.color = this.colors[this.colorIndex = (this.colorIndex + 1) % 2]
+      }, 1000)
     }
 
     onAttached () {

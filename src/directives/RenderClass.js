@@ -2,7 +2,7 @@ import RenderBinding from '../core/RenderBinding.js'
 
 import { isObject } from '../utils/type-check.js'
 
-const CLASS_REGEX = /^:{0,2}class$/
+const CLASS_REGEX = /^:{1,2}class$/
 
 export default class RenderClass extends RenderBinding {
   constructor (...args) {
