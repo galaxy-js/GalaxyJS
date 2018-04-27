@@ -79,7 +79,9 @@
       return 'todo-app'
     }
 
-    connectedCallback () {
+    onCreated () {
+      this.$channel.on('test-props', console.log)
+
       setTimeout(() => {
         this.state.letters.sort()
       }, 5000)

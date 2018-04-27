@@ -6,6 +6,7 @@ import { isObject, isFunction, isReserved } from './utils/type-check.js'
 import { callHook } from './utils/generic.js'
 
 import GalaxyError from './errors/GalaxyError.js'
+import { channel } from './channel.js'
 
 const STATE_SYMBOL = Symbol('Galaxy.State')
 
@@ -28,6 +29,9 @@ export default class Element extends HTMLElement {
 
     // For parent communication
     this.$parent = null
+
+    // For indirect galaxy elements communication
+    this.$channel = channel
 
     // Hold element references
     this.$refs = new Map()
