@@ -52,6 +52,8 @@ export default class Element extends HTMLElement {
     this.$rendering = false
 
     console.dir(this) // For debugging purposes
+
+    callHook(this, 'created')
   }
 
   get state () {
@@ -68,8 +70,6 @@ export default class Element extends HTMLElement {
 
     // State change, so render...
     this.$render()
-
-    callHook(this, 'created')
   }
 
   /**
