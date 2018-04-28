@@ -2,6 +2,11 @@ import { registry } from '../registry.js'
 
 import AbstractRender from './AbstractRender.js'
 
+import { compileScopedGetter } from '../compiler/index.js'
+import { camelize } from '../utils/generic.js'
+
+const PROP_TOKEN = '.'
+
 /**
  * Simple wrapper to handle
  * Galaxy elements digest cycle
@@ -19,25 +24,26 @@ export default class RenderCE extends AbstractRender {
   }
 
   _resolveProps () {
-    const { props } = this.element
+    const { props, attributes } = this.element
 
-    for (const binding of this.bindings) {
-      const prop = (binding.node || binding.attribute).name
+    for (const { name, value } of attributes) {
+      if (name.startsWith(PROP_TOKEN)) {
 
-      if (props.hasOwnProperty(prop)) {
+        // Normalize prop name
+        const prop = camelize(name.slice(1))
 
-        // Immutable property
-        Object.defineProperty(props, prop, {
-          enumerable: true,
-          get () {
+        if (props.hasOwnProperty(prop)) {
 
-            // Get raw value (with references)
-            return binding.value
-          }
-        })
+          // Get raw value (with references)
+          const get = compileScopedGetter(value, this)
+
+          // Immutable property
+          Object.defineProperty(props, prop, { enumerable: true, get })
+        }
+
+        // TODO: Warn unknown prop
 
         // Don't reflect prop value
-        // TODO: May stay in debug?
         this.element.removeAttribute(prop)
       }
     }

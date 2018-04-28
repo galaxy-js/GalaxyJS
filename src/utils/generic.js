@@ -6,6 +6,19 @@ import { isObject, isFunction } from './type-check.js'
 
 const same = value => value
 
+const HYPEN_REGEX = /-([a-z][0-9])/gi
+
+/**
+ * Converts hypenated string to camelized
+ *
+ * @param {string} hypenated
+ *
+ * @return {string}
+ */
+export function camelize (hypenated) {
+  return hypenated.replace(HYPEN_REGEX, (_, letter) => letter.toUpperCase())
+}
+
 export function digestData (element, name, conversor = same) {
   const value = conversor(element.getAttribute(name))
 
@@ -69,7 +82,7 @@ export function flatChildren (element) {
 
 export function callHook (ce, hook, ...args) {
   hook = ce[
-    // Camelize given hook name
+    // Capitalize given hook name
     `on${hook.charAt(0).toUpperCase() + hook.slice(1)}`
   ]
 
