@@ -5,14 +5,14 @@ import { getFiltered, FILTER_SPLIT_REGEX } from './filter.js'
  *
  * @type {RegExp}
  */
-const TEXT_REGEX = /{{(?<expression>.*?)}}/
+export const TEXT_TEMPLATE = /{{(?<expression>.*?)}}/
 
 /**
  * Match html template interpolation
  *
  * @type {RegExp}
  */
-const HTML_REGEX = /{{{(?<expression>.*?)}}}/
+export const HTML_TEMPLATE = /{{{(?<expression>.*?)}}}/
 
 /**
  * Get a JavaScript expression
@@ -29,7 +29,7 @@ export function getExpression (template, escape = true) {
   const expressions = []
 
   // Escape HTML tags?
-  const MATCH_REGEX = escape ? TEXT_REGEX : HTML_REGEX
+  const MATCH_REGEX = escape ? TEXT_TEMPLATE : HTML_TEMPLATE
 
   while (match = MATCH_REGEX.exec(template)) {
     const rawLeft = template.slice(0, match.index)

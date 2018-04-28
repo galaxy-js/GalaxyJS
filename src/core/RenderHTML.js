@@ -1,4 +1,4 @@
-import { compileScopedGetter, getExpression } from '../compiler/index.js'
+import { compileScopedGetter, getExpression, HTML_TEMPLATE } from '../compiler/index.js'
 
 const parser = document.createElement('div')
 
@@ -21,7 +21,7 @@ export default class RenderHTML {
   }
 
   static is ({ data }) {
-    return data.includes('{{{')
+    return HTML_TEMPLATE.test(data)
   }
 
   render () {

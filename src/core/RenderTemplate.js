@@ -1,6 +1,6 @@
 import { toString, differ } from '../utils/generic.js'
 import { isDefined, isObject } from '../utils/type-check.js'
-import { compileScopedGetter, getExpression } from '../compiler/index.js'
+import { compileScopedGetter, getExpression, TEXT_TEMPLATE } from '../compiler/index.js'
 
 export default class RenderTemplate {
   constructor (node, context) {
@@ -14,7 +14,7 @@ export default class RenderTemplate {
   }
 
   static is ({ nodeValue }) {
-    return nodeValue.includes('{{')
+    return TEXT_TEMPLATE.test(nodeValue)
   }
 
   render () {
