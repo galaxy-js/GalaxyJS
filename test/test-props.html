@@ -1,13 +1,17 @@
-<link rel="import" href="../src/galaxy.html">
+<script type="module">
+  import Galaxy, { html } from '../src/index.js'
 
-<template>
-  <h2 :style="{ color: color }">{{ props.string }}</h2>
-</template>
-
-<script>
   class TestProps extends Galaxy.Element {
     static get is () {
       return 'test-props'
+    }
+
+    static get template () {
+      return html`
+        <h2 :style="{ color: color }">
+          {{ props.string }}
+        </h2>
+      `
     }
 
     static get properties () {

@@ -1,4 +1,3 @@
-<link rel="import" href="../src/galaxy.html">
 <link rel="import" href="./test-props.html">
 
 <template>
@@ -38,6 +37,12 @@
 </template>
 
 <script>
+  window.todoAppTemplate = document.currentScript.ownerDocument.querySelector('template')
+</script>
+
+<script type="module">
+  import Galaxy from '../src/index.js'
+
   class TodoApp extends Galaxy.Element {
     constructor () {
       super()
@@ -77,6 +82,10 @@
 
     static get is () {
       return 'todo-app'
+    }
+
+    static get template () {
+      return window.todoAppTemplate
     }
 
     onCreated () {

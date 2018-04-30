@@ -25,7 +25,7 @@ export default class RenderCE extends AbstractRender {
   _resolveProps () {
     const { props, attributes } = this.element
 
-    for (const { name, value } of attributes) {
+    for (const { name, value } of Array.from(attributes)) {
       if (name.startsWith(PROP_TOKEN)) {
 
         // Normalize prop name
@@ -43,7 +43,7 @@ export default class RenderCE extends AbstractRender {
         // TODO: Warn unknown prop
 
         // Don't reflect prop value
-        this.element.removeAttribute(prop)
+        this.element.removeAttribute(name)
       }
     }
   }
