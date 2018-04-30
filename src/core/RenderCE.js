@@ -1,9 +1,9 @@
-import { registry } from '../registry.js'
-
 import AbstractRender from './AbstractRender.js'
 
 import { compileScopedGetter } from '../compiler/index.js'
 import { camelize } from '../utils/generic.js'
+
+import { ELEMENT_SYMBOL } from '../symbols.js'
 
 const PROP_TOKEN = '.'
 
@@ -19,8 +19,7 @@ export default class RenderCE extends AbstractRender {
   }
 
   static is (element) {
-    const name = element.constructor.is
-    return name && registry.has(name)
+    return element.hasOwnProperty(ELEMENT_SYMBOL)
   }
 
   _resolveProps () {

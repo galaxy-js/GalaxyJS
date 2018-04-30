@@ -8,7 +8,7 @@ import { callHook } from './utils/generic.js'
 import GalaxyError from './errors/GalaxyError.js'
 import { channel } from './channel.js'
 
-const STATE_SYMBOL = Symbol('Galaxy.State')
+import { ELEMENT_SYMBOL, STATE_SYMBOL } from './symbols.js'
 
 export default class Element extends HTMLElement {
   constructor () {
@@ -50,6 +50,9 @@ export default class Element extends HTMLElement {
 
     // Flag whether we are in a rendering phase
     this.$rendering = false
+
+    // This is a Galaxy Element
+    Object.defineProperty(this, ELEMENT_SYMBOL, { value: true })
 
     console.dir(this) // For debugging purposes
 
