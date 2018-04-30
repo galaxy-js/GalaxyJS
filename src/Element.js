@@ -10,7 +10,7 @@ import { channel } from './channel.js'
 
 import { ELEMENT_SYMBOL, STATE_SYMBOL } from './symbols.js'
 
-export default class Element extends HTMLElement {
+export class Element extends HTMLElement {
   constructor () {
     super()
 

@@ -1,6 +1,4 @@
-import config from './config.js'
-
-import Element from './Element.js'
+export { Element } from './Element.js'
 
 export function html (...args) {
   const template = document.createElement('template')
@@ -10,28 +8,16 @@ export function html (...args) {
   return template
 }
 
-const Galaxy = {}
+export async function register (...elements) {
+  for (const GalaxyElement of elements) {
+    if (typeof GalaxyElement.is === 'undefined') {
+      throw new GalaxyError('Unknown element name')
+    }
 
-// Setup configuration
-Galaxy.config = config
-
-Galaxy.Element = Element
-
-Galaxy.register = async CustomElement => {
-  if (typeof CustomElement.is === 'undefined') {
-    throw new GalaxyError('Unknown element name')
+    try {
+      customElements.define(GalaxyElement.is, GalaxyElement)
+    } catch (e) {
+      throw new GalaxyError(e.message)
+    }
   }
-
-  try {
-    customElements.define(CustomElement.is, CustomElement)
-  } catch (e) {
-    throw new GalaxyError(e.message)
-  }
-
-  // Await CE definition
-  await customElements.whenDefined(CustomElement.is)
-
-  return CustomElement
 }
-
-export default Galaxy
