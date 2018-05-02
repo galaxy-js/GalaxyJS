@@ -51,14 +51,12 @@ export default class RenderBinding {
 
     let observed = attributes.getNamedItem(normalizedName)
 
+    if (!config.debug) attributes.removeNamedItem(name)
+
     if (observed) return observed
 
     observed = document.createAttribute(normalizedName)
     attributes.setNamedItem(observed)
-
-    if (!config.debug) {
-      attributes.removeNamedItem(name)
-    }
 
     return observed
   }
