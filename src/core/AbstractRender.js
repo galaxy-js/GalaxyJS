@@ -6,7 +6,6 @@ import RenderBinding from './RenderBinding.js'
 import RenderClass from '../directives/RenderClass.js'
 import RenderStyle from '../directives/RenderStyle.js'
 
-import reference, { hasReference } from '../directives/reference.js'
 import event, { isEvent } from '../directives/event.js'
 
 import { newIsolated } from '../utils/generic.js'
@@ -95,10 +94,18 @@ export default class AbstractRender {
         binding.render()
       }
 
+      /**
+       * ref: It's a special directive/attribute which holds
+       * native elements instantiation within the scope
+       */
+      const ref = $el.getAttribute('ref')
+
       // We need to resolve the reference first
-      // since childs may need access to
-      if (hasReference($el)) {
-        reference($el, this.scope)
+      // since possible childs may need access to
+      if (ref) {
+
+        // Reference isn't removed
+        this.scope.$refs.set(ref, $el)
       }
     }
   }
