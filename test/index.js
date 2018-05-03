@@ -1,9 +1,18 @@
-import { register } from '../src/index.js'
+import * as Galaxy from '../src/index.js'
 
-import TodoApp from './todo-app/definition.js'
 import TestProps from './test-props.js'
+import TodoApp from './todo-app/definition.js'
 
-register(
-  TestProps,
-  TodoApp
-)
+Galaxy.setup({
+
+  // Ready for prod
+  debug: false,
+
+  elements: [
+
+    // Correct elements registration
+    // From childs -> parents
+    TestProps,
+    TodoApp
+  ]
+})

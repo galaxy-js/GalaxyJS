@@ -1,3 +1,6 @@
+import config from './config.js'
+
+export { config }
 export { Element } from './Element.js'
 
 export function html (...args) {
@@ -8,7 +11,22 @@ export function html (...args) {
   return template
 }
 
-export async function register (...elements) {
+export function setup (options) {
+  options = Object.assign({}, options)
+
+  const elements = options.elements
+
+  // Remove registered elements
+  delete options.elements
+
+  // Merge rest options with default configuration
+  Object.assign(config, options)
+
+  // Register elements
+  register(elements)
+}
+
+export function register (elements) {
   for (const GalaxyElement of elements) {
     if (typeof GalaxyElement.is === 'undefined') {
       throw new GalaxyError('Unknown element name')
