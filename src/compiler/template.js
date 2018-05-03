@@ -22,7 +22,7 @@ const FILTER_SPLIT_REGEX = /(?<!\|)\|(?!\|)/
 /**
  * @type {RegExp}
  */
-const FILTER_REGEX = /^(?<name>\w+)(?:\((?<args>.*)\))?/
+const FILTER_REGEX = /^(?<name>\w+)(?:\((?<args>.*)\))?$/
 
 /**
  * Get a JavaScript expression
