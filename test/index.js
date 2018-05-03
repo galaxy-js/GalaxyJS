@@ -1,4 +1,4 @@
-import * as Galaxy from '../src/index.js'
+import * as Galaxy from '../dist/galaxy.js'
 
 import TestProps from './test-props.js'
 import TodoApp from './todo-app/definition.js'

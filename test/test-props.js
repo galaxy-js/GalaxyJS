@@ -1,4 +1,4 @@
-import { GalaxyElement, html } from '../src/index.js'
+import { GalaxyElement, html } from '../dist/galaxy.js'
 
 export default class TestProps extends GalaxyElement {
   static get is () {

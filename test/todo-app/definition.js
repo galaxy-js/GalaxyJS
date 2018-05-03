@@ -1,4 +1,4 @@
-import { GalaxyElement } from '../../src/index.js'
+import { GalaxyElement } from '../../dist/galaxy.js'
 import template from './template.js'
 
 export default class TodoApp extends GalaxyElement {

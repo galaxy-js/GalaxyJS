@@ -1,10 +1,10 @@
-import { html } from '../../src/index.js'
+import { html } from '../../dist/galaxy.js'
 
 export default html`
   <style>
   :host .tomato {
-    background: tomato;
-  }
+      background: tomato;
+    }
   </style>
 
   <h1 :id="title" class="classes other-class" :class="{ someClass: showClass }">{{ title | reverse }}</h1>
