@@ -1,9 +1,7 @@
-import { digestData, toString, differ } from '../utils/generic.js'
-import { compileScopedSetter, compileScopedGetter } from '../compiler/index.js'
+import { digestData, toString, differ } from '../../utils/generic.js'
+import { compileScopedSetter, compileScopedGetter } from '../../compiler/index.js'
 
 const BIND_ATTRIBUTE = '*bind'
-
-export const BIND_TOKEN = ':'
 
 /**
  * With support just for input types:
@@ -15,7 +13,7 @@ export const BIND_TOKEN = ':'
  *   - URL
  *   - Number
  */
-export default class RenderBind {
+export default class BindRenderer {
   constructor (input, context) {
     this.input = input
     this.context = context

@@ -66,9 +66,9 @@ export function differ (node, value) {
 /**
  * Flat children from a given `element`
  *
- * @param {RenderElement} element
+ * @param {ElementRenderer} element
  *
- * @return {Array.<RenderElement|RenderTemplate|RenderHTML|RenderGalaxy>}
+ * @return {Array.<*>}
  */
 export function flatChildren (element) {
   const flat = []

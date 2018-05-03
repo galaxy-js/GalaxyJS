@@ -2,7 +2,12 @@ import { compileScopedGetter, getExpression, HTML_TEMPLATE } from '../compiler/i
 
 const parser = document.createElement('div')
 
-export default class RenderHTML {
+/**
+ * Renderer for unescaped HTML:
+ *
+ *   {{{ '<h1>' + hello + '</h1>' }}}
+ */
+export default class HTMLRenderer {
   constructor (anchor, context) {
     this.anchor = anchor
     this.context = context

@@ -1,6 +1,6 @@
-import { Element, html } from '../src/index.js'
+import { GalaxyElement, html } from '../src/index.js'
 
-export default class TestProps extends Element {
+export default class TestProps extends GalaxyElement {
   static get is () {
     return 'test-props'
   }

@@ -1,5 +1,5 @@
-import { digestData } from '../utils/generic.js'
-import { compileScopedEvaluator, getEvent } from '../compiler/index.js'
+import { digestData } from '../../utils/generic.js'
+import { compileScopedEvaluator, getEvent } from '../../compiler/index.js'
 
 const EVENT_TOKEN = '@'
 

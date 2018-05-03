@@ -1,17 +1,18 @@
-import AbstractRender from './AbstractRender.js'
+import BaseRenderer from './Base.js'
 
 /**
  * Import possible children
  */
-import RenderTemplate from '../core/RenderTemplate.js'
-import RenderHTML from './RenderHTML.js'
-import RenderCE from './RenderCE.js'
-import RenderLoop from '../directives/loop/RenderLoop.js'
+import TemplateRenderer from '../Template.js'
+import HTMLRenderer from '../HTML.js'
+import CustomRenderer from './Custom.js'
 
-import { isTextNode, isElementNode } from '../utils/type-check.js'
-import { flatChildren } from '../utils/generic.js'
+import LoopRenderer from '../directives/loop/Loop.js'
 
-export default class RenderElement extends AbstractRender {
+import { isTextNode, isElementNode } from '../../utils/type-check.js'
+import { flatChildren } from '../../utils/generic.js'
+
+export default class ElementRenderer extends BaseRenderer {
   constructor (...args) {
     super(...args)
 
@@ -44,27 +45,27 @@ export default class RenderElement extends AbstractRender {
     for (const child of this.element.childNodes) {
       if (isTextNode(child)) {
         // 1. Check {{{ binding }}}
-        if (RenderHTML.is(child)) {
-          this.children.push(new RenderHTML(child, this))
+        if (HTMLRenderer.is(child)) {
+          this.children.push(new HTMLRenderer(child, this))
 
         // 2. Check {{ binding }}
-        } else if (RenderTemplate.is(child)) {
-          this.children.push(new RenderTemplate(child, this))
+        } else if (TemplateRenderer.is(child)) {
+          this.children.push(new TemplateRenderer(child, this))
         }
 
       // 3. Element binding
       } else if (isElementNode(child)) {
         // The loop directive is resolved as a child
-        if (RenderLoop.is(child)) {
-          this.children.push(new RenderLoop(child, this))
-        } else if (RenderCE.is(child))  {
+        if (LoopRenderer.is(child)) {
+          this.children.push(new LoopRenderer(child, this))
+        } else if (CustomRenderer.is(child))  {
           // Set parent communication
           // TODO: Logic within RenderCE?
           child.$parent = this.scope
 
-          this.children.push(new RenderCE(child, this.scope, this.isolated))
+          this.children.push(new CustomRenderer(child, this.scope, this.isolated))
         } else {
-          const element = new RenderElement(child, this.scope, this.isolated)
+          const element = new ElementRenderer(child, this.scope, this.isolated)
 
           // Only consider a render element if its childs
           // or attributes has something to bind/update

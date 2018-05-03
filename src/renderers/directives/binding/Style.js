@@ -1,11 +1,11 @@
-import RenderBinding from '../core/RenderBinding.js'
+import BindingRenderer from './Binding.js'
 
-import { isObject } from '../utils/type-check.js'
+import { isObject } from '../../../utils/type-check.js'
 
 const STYLE_REGEX = /^:{1,2}style$/
 const UNIT_SEPARATOR = '.'
 
-export default class RenderStyle extends RenderBinding {
+export default class StyleRenderer extends BindingRenderer {
   constructor (...args) {
     super(...args)
 

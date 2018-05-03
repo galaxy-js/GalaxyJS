@@ -1,10 +1,10 @@
-import RenderElement from '../../core/RenderElement.js'
+import ElementRenderer from '../../element/Element.js'
 
-import { newIsolated } from '../../utils/generic.js'
+import { newIsolated } from '../../../utils/generic.js'
 
-export default class RenderItem {
+export default class ItemRenderer {
   constructor (template, context, isolated) {
-    this.child = new RenderElement(
+    this.child = new ElementRenderer(
       template.cloneNode(true),
       context.scope,
       newIsolated(context.isolated, isolated)

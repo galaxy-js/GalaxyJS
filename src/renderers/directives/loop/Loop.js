@@ -1,8 +1,8 @@
-import RenderItem from './RenderItem.js'
+import ItemRenderer from './Item.js'
 
-import { compileScopedGetter } from '../../compiler/index.js'
-import { digestData, createAnchor, newIsolated } from '../../utils/generic.js'
-import { isDefined } from '../../utils/type-check.js'
+import { compileScopedGetter } from '../../../compiler/index.js'
+import { digestData, createAnchor, newIsolated } from '../../../utils/generic.js'
+import { isDefined } from '../../../utils/type-check.js'
 
 // Note: to maintain consistence avoid `of` reserved word on iterators.
 
@@ -28,7 +28,7 @@ const LOOP_REGEX = /^\(?(?<value>\w+)(?:\s*,\s*(?<key>\w+))?\)?\s+in\s+(?<expres
 const LOOP_INDEX = '$index'
 const LOOP_KEY_NAME = '$key'
 
-export default class RenderLoop {
+export default class LoopRenderer {
   constructor (template, context) {
     this.template = template
     this.context = context
@@ -80,7 +80,7 @@ export default class RenderLoop {
       if (item) {
         item.update(isolated)
       } else {
-        item = new RenderItem(this.template, this.context, isolated)
+        item = new ItemRenderer(this.template, this.context, isolated)
 
         // Insert before end anchor
         item.insert(this.endAnchor)

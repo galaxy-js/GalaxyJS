@@ -1,11 +1,9 @@
-import config from '../config.js'
-
-import { digestData, createAnchor } from '../utils/generic.js'
-import { compileScopedGetter } from '../compiler/index.js'
+import { digestData, createAnchor } from '../../utils/generic.js'
+import { compileScopedGetter } from '../../compiler/index.js'
 
 const CONDITIONAL_ATTRIBUTE = '*if'
 
-export default class RenderConditional {
+export default class ConditionalRenderer {
   constructor (element, context) {
     this.element = element
     this.context = context

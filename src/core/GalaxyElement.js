@@ -1,16 +1,16 @@
 import ProxyObserver from 'https://cdn.jsdelivr.net/gh/LosMaquios/ProxyObserver@v0.3.2/index.js'
-import RenderElement from './core/RenderElement.js'
+import ElementRenderer from '../renderers/element/Element.js'
 
 import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick@v0.1.0/index.js'
-import { isObject, isFunction, isReserved } from './utils/type-check.js'
-import { callHook } from './utils/generic.js'
+import { isObject, isFunction, isReserved } from '../utils/type-check.js'
+import { callHook } from '../utils/generic.js'
 
-import GalaxyError from './errors/GalaxyError.js'
+import GalaxyError from '../errors/GalaxyError.js'
+
 import { channel } from './channel.js'
-
 import { ELEMENT_SYMBOL, STATE_SYMBOL } from './symbols.js'
 
-export class Element extends HTMLElement {
+export default class GalaxyElement extends HTMLElement {
   constructor () {
     super()
 
@@ -41,7 +41,7 @@ export class Element extends HTMLElement {
       .appendChild(this.constructor.template.content.cloneNode(true))
 
     // Setup main renderer
-    this.$renderer = new RenderElement(this.shadowRoot, this)
+    this.$renderer = new ElementRenderer(this.shadowRoot, this)
 
     // Flag whether we are in a rendering phase
     this.$rendering = false

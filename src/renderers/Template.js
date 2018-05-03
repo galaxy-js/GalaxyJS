@@ -2,7 +2,13 @@ import { toString, differ } from '../utils/generic.js'
 import { isDefined, isObject } from '../utils/type-check.js'
 import { compileScopedGetter, getExpression, TEXT_TEMPLATE } from '../compiler/index.js'
 
-export default class RenderTemplate {
+/**
+ * Renderer for inline tag template binding:
+ *
+ *   1. Within text node: <h1>Hello {{ world }}</h1>
+ *   2. As attribute interpolation: <input class="some-class {{ klass }}"/>
+ */
+export default class TemplateRenderer {
   constructor (node, context) {
     this.node = node
     this.context = context

@@ -1,7 +1,7 @@
-import { Element } from '../../src/index.js'
+import { GalaxyElement } from '../../src/index.js'
 import template from './template.js'
 
-export default class TodoApp extends Element {
+export default class TodoApp extends GalaxyElement {
   constructor () {
     super()
 

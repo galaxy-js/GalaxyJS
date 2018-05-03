@@ -1,17 +1,16 @@
-import AbstractRender from './AbstractRender.js'
+import BaseRenderer from './Base.js'
 
-import { compileScopedGetter } from '../compiler/index.js'
-import { camelize } from '../utils/generic.js'
+import { compileScopedGetter } from '../../compiler/index.js'
+import { camelize } from '../../utils/generic.js'
 
-import { ELEMENT_SYMBOL } from '../symbols.js'
+import { ELEMENT_SYMBOL } from '../../core/symbols.js'
 
 const PROP_TOKEN = '.'
 
 /**
- * Simple wrapper to handle
- * Galaxy elements digest cycle
+ * Renderer for custom elements resolving props
  */
-export default class RenderCE extends AbstractRender {
+export default class CustomRenderer extends BaseRenderer {
   constructor (...args) {
     super(...args)
 

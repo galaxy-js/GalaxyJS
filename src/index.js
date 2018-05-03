@@ -1,7 +1,7 @@
 import config from './config.js'
 
 export { config }
-export { Element } from './Element.js'
+export { default as GalaxyElement } from './core/GalaxyElement.js'
 
 export function html (...args) {
   const template = document.createElement('template')

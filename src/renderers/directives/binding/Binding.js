@@ -1,13 +1,19 @@
-import config from '../config.js'
+import config from '../../../config.js'
 
 import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick@v0.1.0/index.js'
-import { compileScopedGetter } from '../compiler/index.js'
-import { differ } from '../utils/generic.js'
+import { compileScopedGetter } from '../../../compiler/index.js'
+import { differ } from '../../../utils/generic.js'
 
 const BIND_TOKEN = ':'
 const BIND_ONE_TIME_TOKEN = BIND_TOKEN.repeat(2)
 
-export default class RenderBinding {
+/**
+ * Renderer for bindings:
+ *
+ *   1. :attribute
+ *   2. ::attribute (one time)
+ */
+export default class BindingRenderer {
   constructor (attribute, context) {
     this.owner = attribute.ownerElement
     this.context = context

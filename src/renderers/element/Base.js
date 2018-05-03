@@ -1,16 +1,22 @@
-import RenderConditional from '../directives/RenderConditional.js'
-import RenderBind from '../directives/RenderBind.js'
+import ConditionalRenderer from '../directives/Conditional.js'
+import BindRenderer from '../directives/Bind.js'
 
-import RenderTemplate from './RenderTemplate.js'
-import RenderBinding from './RenderBinding.js'
-import RenderClass from '../directives/RenderClass.js'
-import RenderStyle from '../directives/RenderStyle.js'
+import TemplateRenderer from '../Template.js'
+import BindingRenderer from '../directives/binding/Binding.js'
+import ClassRenderer from '../directives/binding/Class.js'
+import StyleRenderer from '../directives/binding/Style.js'
 
 import event, { isEvent } from '../directives/event.js'
 
-import { newIsolated } from '../utils/generic.js'
+import { newIsolated } from '../../utils/generic.js'
 
-export default class AbstractRender {
+/**
+ * Base renderer which resolves:
+ *
+ *   1. Directive bindings
+ *   2. Template and attribute bindings
+ */
+export default class BaseRenderer {
   constructor (element, scope, isolated) {
     this.element = element
     this.scope = scope
@@ -47,12 +53,12 @@ export default class AbstractRender {
   }
 
   _initDirectives ($el) {
-    if (RenderConditional.is($el)) {
-      this.directives.push(new RenderConditional($el, this))
+    if (ConditionalRenderer.is($el)) {
+      this.directives.push(new ConditionalRenderer($el, this))
     }
 
-    if (RenderBind.is($el)) {
-      this.directives.push(new RenderBind($el, this))
+    if (BindRenderer.is($el)) {
+      this.directives.push(new BindRenderer($el, this))
     }
   }
 
@@ -66,17 +72,17 @@ export default class AbstractRender {
         event(attribute, this)
 
       // 2. Check {{ binding }}
-      } else if (RenderTemplate.is(attribute)) {
-        this.bindings.push(new RenderTemplate(attribute, this))
+      } else if (TemplateRenderer.is(attribute)) {
+        this.bindings.push(new TemplateRenderer(attribute, this))
 
       // 3. Check :attribute or ::attribute
-      } else if (RenderBinding.is(attribute)) {
+      } else if (BindingRenderer.is(attribute)) {
         this.bindings.push(new (
-          RenderClass.is(attribute)
-            ? RenderClass
-            : RenderStyle.is(attribute)
-              ? RenderStyle
-              : RenderBinding)(attribute, this))
+          ClassRenderer.is(attribute)
+            ? ClassRenderer
+            : StyleRenderer.is(attribute)
+              ? StyleRenderer
+              : BindingRenderer)(attribute, this))
       }
     }
   }
