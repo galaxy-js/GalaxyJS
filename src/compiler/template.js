@@ -1,5 +1,3 @@
-import { getFiltered, FILTER_SPLIT_REGEX } from './filter.js'
-
 /**
  * Match text template interpolation
  *
@@ -13,6 +11,18 @@ export const TEXT_TEMPLATE = /{{(?<expression>.*?)}}/
  * @type {RegExp}
  */
 export const HTML_TEMPLATE = /{{{(?<expression>.*?)}}}/
+
+/**
+ * Match filters to split within a template interpolation
+ *
+ * @type {RegExp}
+ */
+const FILTER_SPLIT_REGEX = /(?<!\|)\|(?!\|)/
+
+/**
+ * @type {RegExp}
+ */
+const FILTER_REGEX = /^(?<name>\w+)(?:\((?<args>.*)\))?/
 
 /**
  * Get a JavaScript expression
@@ -56,4 +66,22 @@ export function getExpression (template, escape = true) {
   if (template) expressions.push(`\`${template}\``)
 
   return expressions.join(' + ')
+}
+
+/**
+ *
+ * @param {string} expression
+ * @param {Array.<Function>} filters
+ *
+ * @return {string}
+ */
+export function getFiltered (expression, filters) {
+  filters = filters.map(filter => {
+    const { groups } = FILTER_REGEX.exec(filter.trim())
+
+    // Compose filter applier
+    return `$value => ${groups.name}($value, ${groups.args})`
+  })
+
+  return `[${filters.join()}].reduce((result, filter) => filter(result), ${expression})`
 }
