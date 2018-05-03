@@ -10,13 +10,11 @@ export default class RenderItem {
       newIsolated(context.isolated, isolated)
     )
 
-    this.fresh = true
     this.reused = false
   }
 
   update (isolated) {
     this.reused = true
-    this.fresh = false
 
     Object.assign(this.child.isolated, isolated)
   }
