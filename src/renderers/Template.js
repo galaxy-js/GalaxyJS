@@ -1,6 +1,6 @@
 import { toString, differ } from '../utils/generic.js'
 import { isDefined, isObject } from '../utils/type-check.js'
-import { compileScopedGetter, getExpression, TEXT_TEMPLATE } from '../compiler/index.js'
+import { compileScopedGetter, getExpression, TEXT_TEMPLATE_REGEX } from '../compiler/index.js'
 
 /**
  * Renderer for inline tag template binding:
@@ -20,7 +20,7 @@ export default class TemplateRenderer {
   }
 
   static is ({ nodeValue }) {
-    return TEXT_TEMPLATE.test(nodeValue)
+    return TEXT_TEMPLATE_REGEX.test(nodeValue)
   }
 
   render () {

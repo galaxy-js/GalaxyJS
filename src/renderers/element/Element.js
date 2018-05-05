@@ -4,7 +4,6 @@ import BaseRenderer from './Base.js'
  * Import possible children
  */
 import TemplateRenderer from '../Template.js'
-import HTMLRenderer from '../HTML.js'
 import CustomRenderer from './Custom.js'
 
 import LoopRenderer from '../directives/loop/Loop.js'
@@ -43,22 +42,19 @@ export default class ElementRenderer extends BaseRenderer {
 
   _initChildren () {
     for (const child of this.element.childNodes) {
-      if (isTextNode(child)) {
-        // 1. Check {{{ binding }}}
-        if (HTMLRenderer.is(child)) {
-          this.children.push(new HTMLRenderer(child, this))
 
-        // 2. Check {{ binding }}
-        } else if (TemplateRenderer.is(child)) {
-          this.children.push(new TemplateRenderer(child, this))
-        }
+      // 1. Check {{ interpolation }}
+      if (isTextNode(child) && TemplateRenderer.is(child)) {
+        this.children.push(new TemplateRenderer(child, this))
 
-      // 3. Element binding
+      // 2. Element binding
       } else if (isElementNode(child)) {
+
         // The loop directive is resolved as a child
         if (LoopRenderer.is(child)) {
           this.children.push(new LoopRenderer(child, this))
         } else if (CustomRenderer.is(child))  {
+
           // Set parent communication
           // TODO: Logic within RenderCE?
           child.$parent = this.scope

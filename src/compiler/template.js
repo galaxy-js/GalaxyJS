@@ -3,14 +3,7 @@
  *
  * @type {RegExp}
  */
-export const TEXT_TEMPLATE = /{{(?<expression>.*?)}}/
-
-/**
- * Match html template interpolation
- *
- * @type {RegExp}
- */
-export const HTML_TEMPLATE = /{{{(?<expression>.*?)}}}/
+export const TEXT_TEMPLATE_REGEX = /{{(?<expression>.*?)}}/
 
 /**
  * Match filters to split within a template interpolation
@@ -24,24 +17,22 @@ const FILTER_SPLIT_REGEX = /(?<!\|)\|(?!\|)/
  */
 const FILTER_REGEX = /^(?<name>\w+)(?:\((?<args>.*)\))?$/
 
+// TODO: Check for invalid expressions like {{{ html }}}
+
 /**
- * Get a JavaScript expression
+ * Get an inlined JavaScript expression
  *
  * @param {string} template - String with interpolation tags
- * @param {boolean} escape - Whether escape HTML or not
  *
  * @return {string}
  */
-export function getExpression (template, escape = true) {
+export function getExpression (template) {
   let match
 
   // Hold inlined expressions
   const expressions = []
 
-  // Escape HTML tags?
-  const MATCH_REGEX = escape ? TEXT_TEMPLATE : HTML_TEMPLATE
-
-  while (match = MATCH_REGEX.exec(template)) {
+  while (match = TEXT_TEMPLATE_REGEX.exec(template)) {
     const rawLeft = template.slice(0, match.index)
     let expression = match.groups.expression.trim()
 
@@ -69,6 +60,7 @@ export function getExpression (template, escape = true) {
 }
 
 /**
+ * Get filter chain applier
  *
  * @param {string} expression
  * @param {Array.<Function>} filters

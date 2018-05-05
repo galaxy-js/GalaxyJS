@@ -31,7 +31,8 @@ export default html`
     <button @click="console.log('Adding todo') || addTodo()">Add TODO</button>
   </div>
 
-  {{{ html }}}
+  <!-- Escaped -->
+  {{ html }}
 
   <test-props .object="letters" .string="'Hello ' + title"></test-props>
 `

@@ -1,5 +1,5 @@
 export { getEvent } from './event.js'
-export { getExpression, TEXT_TEMPLATE, HTML_TEMPLATE } from './template.js'
+export { getExpression, TEXT_TEMPLATE_REGEX } from './template.js'
 
 /**
  * Compile an scoped getter with given `expression`

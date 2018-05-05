@@ -178,14 +178,7 @@ function getEvent (expression) {
  *
  * @type {RegExp}
  */
-const TEXT_TEMPLATE = /{{(?<expression>.*?)}}/;
-
-/**
- * Match html template interpolation
- *
- * @type {RegExp}
- */
-const HTML_TEMPLATE = /{{{(?<expression>.*?)}}}/;
+const TEXT_TEMPLATE_REGEX = /{{(?<expression>.*?)}}/;
 
 /**
  * Match filters to split within a template interpolation
@@ -199,24 +192,22 @@ const FILTER_SPLIT_REGEX = /(?<!\|)\|(?!\|)/;
  */
 const FILTER_REGEX = /^(?<name>\w+)(?:\((?<args>.*)\))?$/;
 
+// TODO: Check for invalid expressions like {{{ html }}}
+
 /**
- * Get a JavaScript expression
+ * Get an inlined JavaScript expression
  *
  * @param {string} template - String with interpolation tags
- * @param {boolean} escape - Whether escape HTML or not
  *
  * @return {string}
  */
-function getExpression (template, escape = true) {
+function getExpression (template) {
   let match;
 
   // Hold inlined expressions
   const expressions = [];
 
-  // Escape HTML tags?
-  const MATCH_REGEX = escape ? TEXT_TEMPLATE : HTML_TEMPLATE;
-
-  while (match = MATCH_REGEX.exec(template)) {
+  while (match = TEXT_TEMPLATE_REGEX.exec(template)) {
     const rawLeft = template.slice(0, match.index);
     let expression = match.groups.expression.trim();
 
@@ -244,6 +235,7 @@ function getExpression (template, escape = true) {
 }
 
 /**
+ * Get filter chain applier
  *
  * @param {string} expression
  * @param {Array.<Function>} filters
@@ -434,7 +426,7 @@ class TemplateRenderer {
   }
 
   static is ({ nodeValue }) {
-    return TEXT_TEMPLATE.test(nodeValue)
+    return TEXT_TEMPLATE_REGEX.test(nodeValue)
   }
 
   render () {
@@ -736,65 +728,6 @@ class BaseRenderer {
   }
 }
 
-const parser = document.createElement('div');
-
-/**
- * Renderer for unescaped HTML:
- *
- *   {{{ '<h1>' + hello + '</h1>' }}}
- */
-class HTMLRenderer {
-  constructor (anchor, context) {
-    this.anchor = anchor;
-    this.context = context;
-
-    this.expression = getExpression(anchor.data, false);
-    this.getter = compileScopedGetter(this.expression, context);
-
-    // Save parsed nodes
-    this.cache = new Map();
-
-    // Hold active nodes
-    this.nodes = [];
-
-    // Hide anchor
-    anchor.data = '';
-  }
-
-  static is ({ data }) {
-    return HTML_TEMPLATE.test(data)
-  }
-
-  render () {
-    // TODO: Maybe we can cache nodes individually
-
-    const html = this.getter();
-    let nodes = this.cache.get(html);
-
-    if (!nodes) {
-      parser.innerHTML = html;
-      nodes = Array.from(parser.childNodes);
-
-      // Persist active
-      this.cache.set(html, nodes);
-    }
-
-    if (this.nodes !== nodes) {
-      // 1. Remove active nodes
-      this.nodes.forEach(node => {
-        node.remove();
-      });
-
-      // 2. Append incoming nodes
-      nodes.forEach(node => {
-        this.anchor.parentNode.insertBefore(node, this.anchor);
-      });
-
-      this.nodes = nodes;
-    }
-  }
-}
-
 /**
  * @type {Symbol}
  */
@@ -1015,22 +948,19 @@ class ElementRenderer extends BaseRenderer {
 
   _initChildren () {
     for (const child of this.element.childNodes) {
-      if (isTextNode(child)) {
-        // 1. Check {{{ binding }}}
-        if (HTMLRenderer.is(child)) {
-          this.children.push(new HTMLRenderer(child, this));
 
-        // 2. Check {{ binding }}
-        } else if (TemplateRenderer.is(child)) {
-          this.children.push(new TemplateRenderer(child, this));
-        }
+      // 1. Check {{ interpolation }}
+      if (isTextNode(child) && TemplateRenderer.is(child)) {
+        this.children.push(new TemplateRenderer(child, this));
 
-      // 3. Element binding
+      // 2. Element binding
       } else if (isElementNode(child)) {
+
         // The loop directive is resolved as a child
         if (LoopRenderer.is(child)) {
           this.children.push(new LoopRenderer(child, this));
         } else if (CustomRenderer.is(child))  {
+
           // Set parent communication
           // TODO: Logic within RenderCE?
           child.$parent = this.scope;
