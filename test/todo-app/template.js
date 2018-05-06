@@ -34,5 +34,5 @@ export default html`
   <!-- Escaped -->
   {{ html }}
 
-  <test-props .object="letters" .string="'Hello ' + title"></test-props>
+  <test-props @click="console.log($event)" .object="letters" .string="'Hello ' + title"></test-props>
 `

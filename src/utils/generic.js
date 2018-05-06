@@ -92,3 +92,7 @@ export function callHook (ce, hook, ...args) {
     })
   }
 }
+
+export function ensureListeners (events, event) {
+  return events[event] || []
+}

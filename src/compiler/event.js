@@ -34,6 +34,8 @@ export function getEvent (expression) {
     loop: while (depth) {
       const inExpression = !inDouble && !inSingle
 
+      // TODO: Check edge cases like 'literal template expressions'
+
       switch (expression.charAt(cursor++)) {
         case ')': inExpression && --depth; break
         case '(': inExpression && ++depth; break

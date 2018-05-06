@@ -5,6 +5,16 @@ var config = {
   debug: true
 }
 
+/**
+ * @type {Symbol}
+ */
+const ELEMENT_SYMBOL = Symbol('Galaxy.Element');
+
+/**
+ * @type {Symbol}
+ */
+const STATE_SYMBOL = Symbol('Galaxy.State');
+
 function isObject (value) {
   return value !== null && typeof value === 'object'
 }
@@ -27,6 +37,10 @@ function isDefined (value) {
 
 function isReserved (name) {
   return name.startsWith('$') || name.startsWith('_')
+}
+
+function isGalaxyElement (element) {
+  return element.hasOwnProperty(ELEMENT_SYMBOL)
 }
 
 const same = value => value;
@@ -114,6 +128,10 @@ function callHook (ce, hook, ...args) {
   }
 }
 
+function ensureListeners (events, event) {
+  return events[event] || []
+}
+
 /**
  * For event call rewriting
  *
@@ -149,6 +167,8 @@ function getEvent (expression) {
     // Catch arguments
     loop: while (depth) {
       const inExpression = !inDouble && !inSingle;
+
+      // TODO: Check edge cases like 'literal template expressions'
 
       switch (expression.charAt(cursor++)) {
         case ')': inExpression && --depth; break
@@ -611,7 +631,11 @@ function event ({ name }, context) {
   const expression = digestData($el, name);
   const evaluator = compileScopedEvaluator(getEvent(expression), context);
 
-  $el.addEventListener(name.slice(1), event => {
+  $el[
+    isGalaxyElement($el)
+      ? '$on' // Attach using internal events API
+      : 'addEventListener'
+  ](name.slice(1), event => {
     // Externalize event
     context.scope.$event = event;
 
@@ -728,16 +752,6 @@ class BaseRenderer {
   }
 }
 
-/**
- * @type {Symbol}
- */
-const ELEMENT_SYMBOL = Symbol('Galaxy.Element');
-
-/**
- * @type {Symbol}
- */
-const STATE_SYMBOL = Symbol('Galaxy.State');
-
 const PROP_TOKEN = '.';
 
 /**
@@ -751,7 +765,7 @@ class CustomRenderer extends BaseRenderer {
   }
 
   static is (element) {
-    return element.hasOwnProperty(ELEMENT_SYMBOL)
+    return isGalaxyElement(element)
   }
 
   _resolveProps () {
@@ -1001,39 +1015,6 @@ class GalaxyError$1 {
   }
 }
 
-/**
- * Better `EventTarget` implementation
- */
-class GalaxyChannel {
-  constructor () {
-    this.ports = Object.create(null);
-  }
-
-  _getListeners (port) {
-    return this.ports[port] || []
-  }
-
-  on (port, callback) {
-    (this.ports[port] = this._getListeners(port)).push(callback);
-  }
-
-  off (port, callback) {
-    const alive = this._getListeners(port).filter(_ => _ !== callback);
-
-    if (alive.length) {
-      this.ports[port] = alive;
-    } else {
-      delete this.ports[port];
-    }
-  }
-
-  emit (port, payload) {
-    this._getListeners(port).forEach(callback => callback(payload));
-  }
-}
-
-const channel = new GalaxyChannel();
-
 class GalaxyElement extends HTMLElement {
   constructor () {
     super();
@@ -1048,14 +1029,14 @@ class GalaxyElement extends HTMLElement {
     // TODO: Reflect props to attributes?
     this.props = this.constructor.properties;
 
-    // Actual event being dispatched
+    // Actual DOM event being dispatched
     this.$event = null;
+
+    // Attached events
+    this.$events = {};
 
     // For parent communication
     this.$parent = null;
-
-    // For indirect galaxy elements communication
-    this.$channel = channel;
 
     // Hold element references
     this.$refs = new Map();
@@ -1070,7 +1051,7 @@ class GalaxyElement extends HTMLElement {
     // Flag whether we are in a rendering phase
     this.$rendering = false;
 
-    // This is a Galaxy Element
+    // Is this a Galaxy Element?
     Object.defineProperty(this, ELEMENT_SYMBOL, { value: true });
 
     console.dir(this); // For debugging purposes
@@ -1104,6 +1085,8 @@ class GalaxyElement extends HTMLElement {
   }
 
   disconnectedCallback () {
+    // TODO: Maybe detach all listeners?
+
     callHook(this, 'detached');
   }
 
@@ -1115,6 +1098,73 @@ class GalaxyElement extends HTMLElement {
    *  }
    */
 
+  /**
+   * Events
+   *
+   * Custom and native events API
+   */
+  $on (event, listener, useCapture) {
+    (this.$events[event] = ensureListeners(this.$events, event)).push(listener);
+
+    this.addEventListener(event, listener, useCapture);
+  }
+
+  $once (event, listener, useCapture) {
+
+    // Once called wrapper
+    const onceCalled = event => {
+      this.$off(event, onceCalled);
+      listener(event);
+    };
+
+    // Reference to original listener
+    onceCalled.listener = listener;
+
+    this.$on(event, onceCalled, useCapture);
+  }
+
+  $off (event, listener) {
+    switch (arguments.length) {
+
+      // .$off()
+      case 0: for (event in this.$events) {
+        this.$off(event);
+      } break
+
+      // .$off('event')
+      case 1: for (const listener of Array.from(ensureListeners(this.$events, event))) {
+        this.$off(event, listener);
+      } break
+
+      // .$off('event', listener)
+      default: {
+        const alive = ensureListeners(this.$events, event).filter(_ => _ !== listener);
+
+        if (alive.length) {
+          this.$events[event] = alive;
+        } else {
+          delete this.$events[event];
+        }
+
+        this.removeEventListener(event, listener);
+      }
+    }
+  }
+
+  $emit (event, detail) {
+    this.dispatchEvent(event instanceof Event ? event : new CustomEvent(event, { detail }));
+  }
+
+  /**
+   * Intercept given method call by passing the state
+   *
+   * @param {string} method - Method name
+   * @param {*...} [args] - Arguments to pass in
+   *
+   * @throws {GalaxyError}
+   *
+   * @return void
+   */
   $commit (method, ...args) {
     if (method in this) {
       if (!isFunction(this[method])) {
@@ -1129,11 +1179,19 @@ class GalaxyElement extends HTMLElement {
     }
   }
 
+  /**
+   * Reflect state changes to the DOM
+   *
+   * @return void
+   */
   $render () {
     if (!this.$rendering) {
       this.$rendering = true;
 
       nextTick(() => {
+
+        // Takes render error
+        let renderError;
 
         // References are cleared before each render phase
         // then they going to be filled up
@@ -1142,14 +1200,21 @@ class GalaxyElement extends HTMLElement {
         try {
           this.$renderer.render();
         } catch (e) {
-          // Avoid stack collapsing
-          nextTick(() => {
-            throw e
-          });
+
+          // Don't handle the error in debug mode
+          if (config.debug) throw e
+
+          renderError = e;
         }
 
         // Sleep after render new changes
         this.$rendering = false;
+
+        if (renderError) {
+
+          // Event syntax: {phase}:{subject}
+          this.$emit('$render:error', renderError);
+        }
       });
     }
   }

@@ -1,13 +1,14 @@
+import config from '../config.js'
+
 import ProxyObserver from 'https://cdn.jsdelivr.net/gh/LosMaquios/ProxyObserver@v0.3.2/index.js'
 import ElementRenderer from '../renderers/element/Element.js'
 
 import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick@v0.1.0/index.js'
 import { isObject, isFunction, isReserved } from '../utils/type-check.js'
-import { callHook } from '../utils/generic.js'
+import { callHook, ensureListeners } from '../utils/generic.js'
 
 import GalaxyError from '../errors/GalaxyError.js'
 
-import { channel } from './channel.js'
 import { ELEMENT_SYMBOL, STATE_SYMBOL } from './symbols.js'
 
 export default class GalaxyElement extends HTMLElement {
@@ -24,14 +25,14 @@ export default class GalaxyElement extends HTMLElement {
     // TODO: Reflect props to attributes?
     this.props = this.constructor.properties
 
-    // Actual event being dispatched
+    // Actual DOM event being dispatched
     this.$event = null
+
+    // Attached events
+    this.$events = {}
 
     // For parent communication
     this.$parent = null
-
-    // For indirect galaxy elements communication
-    this.$channel = channel
 
     // Hold element references
     this.$refs = new Map()
@@ -46,7 +47,7 @@ export default class GalaxyElement extends HTMLElement {
     // Flag whether we are in a rendering phase
     this.$rendering = false
 
-    // This is a Galaxy Element
+    // Is this a Galaxy Element?
     Object.defineProperty(this, ELEMENT_SYMBOL, { value: true })
 
     console.dir(this) // For debugging purposes
@@ -80,6 +81,8 @@ export default class GalaxyElement extends HTMLElement {
   }
 
   disconnectedCallback () {
+    // TODO: Maybe detach all listeners?
+
     callHook(this, 'detached')
   }
 
@@ -91,6 +94,73 @@ export default class GalaxyElement extends HTMLElement {
    *  }
    */
 
+  /**
+   * Events
+   *
+   * Custom and native events API
+   */
+  $on (event, listener, useCapture) {
+    (this.$events[event] = ensureListeners(this.$events, event)).push(listener)
+
+    this.addEventListener(event, listener, useCapture)
+  }
+
+  $once (event, listener, useCapture) {
+
+    // Once called wrapper
+    const onceCalled = event => {
+      this.$off(event, onceCalled)
+      listener(event)
+    }
+
+    // Reference to original listener
+    onceCalled.listener = listener
+
+    this.$on(event, onceCalled, useCapture)
+  }
+
+  $off (event, listener) {
+    switch (arguments.length) {
+
+      // .$off()
+      case 0: for (event in this.$events) {
+        this.$off(event)
+      } break
+
+      // .$off('event')
+      case 1: for (const listener of Array.from(ensureListeners(this.$events, event))) {
+        this.$off(event, listener)
+      } break
+
+      // .$off('event', listener)
+      default: {
+        const alive = ensureListeners(this.$events, event).filter(_ => _ !== listener)
+
+        if (alive.length) {
+          this.$events[event] = alive
+        } else {
+          delete this.$events[event]
+        }
+
+        this.removeEventListener(event, listener)
+      }
+    }
+  }
+
+  $emit (event, detail) {
+    this.dispatchEvent(event instanceof Event ? event : new CustomEvent(event, { detail }))
+  }
+
+  /**
+   * Intercept given method call by passing the state
+   *
+   * @param {string} method - Method name
+   * @param {*...} [args] - Arguments to pass in
+   *
+   * @throws {GalaxyError}
+   *
+   * @return void
+   */
   $commit (method, ...args) {
     if (method in this) {
       if (!isFunction(this[method])) {
@@ -105,11 +175,19 @@ export default class GalaxyElement extends HTMLElement {
     }
   }
 
+  /**
+   * Reflect state changes to the DOM
+   *
+   * @return void
+   */
   $render () {
     if (!this.$rendering) {
       this.$rendering = true
 
       nextTick(() => {
+
+        // Takes render error
+        let renderError
 
         // References are cleared before each render phase
         // then they going to be filled up
@@ -118,14 +196,21 @@ export default class GalaxyElement extends HTMLElement {
         try {
           this.$renderer.render()
         } catch (e) {
-          // Avoid stack collapsing
-          nextTick(() => {
-            throw e
-          })
+
+          // Don't handle the error in debug mode
+          if (config.debug) throw e
+
+          renderError = e
         }
 
         // Sleep after render new changes
         this.$rendering = false
+
+        if (renderError) {
+
+          // Event syntax: {phase}:{subject}
+          this.$emit('$render:error', renderError)
+        }
       })
     }
   }

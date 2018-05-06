@@ -1,3 +1,5 @@
+import { ELEMENT_SYMBOL } from '../core/symbols.js'
+
 export function isObject (value) {
   return value !== null && typeof value === 'object'
 }
@@ -20,4 +22,8 @@ export function isDefined (value) {
 
 export function isReserved (name) {
   return name.startsWith('$') || name.startsWith('_')
+}
+
+export function isGalaxyElement (element) {
+  return element.hasOwnProperty(ELEMENT_SYMBOL)
 }

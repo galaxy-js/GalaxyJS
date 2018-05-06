@@ -43,8 +43,6 @@ export default class TodoApp extends GalaxyElement {
   }
 
   onCreated () {
-    this.$channel.on('test-props', console.log)
-
     setTimeout(() => {
       this.state.letters.sort()
     }, 5000)

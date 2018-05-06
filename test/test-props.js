@@ -42,7 +42,6 @@ export default class TestProps extends GalaxyElement {
   }
 
   onAttached () {
-    this.$channel.emit('test-props', { created: true })
     console.log('Attached')
   }
 }

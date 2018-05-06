@@ -2,8 +2,7 @@ import BaseRenderer from './Base.js'
 
 import { compileScopedGetter } from '../../compiler/index.js'
 import { camelize } from '../../utils/generic.js'
-
-import { ELEMENT_SYMBOL } from '../../core/symbols.js'
+import { isGalaxyElement } from '../../utils/type-check.js'
 
 const PROP_TOKEN = '.'
 
@@ -18,7 +17,7 @@ export default class CustomRenderer extends BaseRenderer {
   }
 
   static is (element) {
-    return element.hasOwnProperty(ELEMENT_SYMBOL)
+    return isGalaxyElement(element)
   }
 
   _resolveProps () {
