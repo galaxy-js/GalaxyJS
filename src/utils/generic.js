@@ -27,10 +27,6 @@ export function digestData (element, name, conversor = same) {
   return value
 }
 
-export function toString (value) {
-  return isObject(value) ? JSON.stringify(value) : String(value)
-}
-
 export const createAnchor = config.debug
   ? content => new Comment(` ${content} `)
   : () => new Text() // Empty text node

@@ -1,4 +1,4 @@
-import { digestData, toString, differ } from '../../utils/generic.js'
+import { digestData, differ } from '../../utils/generic.js'
 import { compileScopedSetter, compileScopedGetter } from '../../compiler/index.js'
 
 const BIND_ATTRIBUTE = '*bind'
@@ -57,7 +57,7 @@ export default class BindRenderer {
       return
     }
 
-    const value = toString(this.getter())
+    const value = String(this.getter())
 
     if (differ(this.input, value)) {
       this.input.value = value

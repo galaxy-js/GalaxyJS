@@ -86,10 +86,6 @@ function digestData (element, name, conversor = same) {
   return value
 }
 
-function toString (value) {
-  return isObject(value) ? JSON.stringify(value) : String(value)
-}
-
 const createAnchor = config.debug
   ? content => new Comment(` ${content} `)
   : () => new Text(); // Empty text node
@@ -465,7 +461,7 @@ class BindRenderer {
       return
     }
 
-    const value = toString(this.getter());
+    const value = String(this.getter());
 
     if (differ(this.input, value)) {
       this.input.value = value;
@@ -498,7 +494,7 @@ class TemplateRenderer {
     const value = this.getter();
 
     // Normalized value to avoid null or undefined
-    const normalized = this.value = isDefined(value) ? toString(value) : '';
+    const normalized = this.value = isDefined(value) ? String(value) : '';
 
     if (differ(this.node, normalized)) {
       this.node.nodeValue = normalized;
