@@ -48,10 +48,6 @@ export default class TodoApp extends GalaxyElement {
     }, 5000)
   }
 
-  reverse (value) {
-    return value.split('').reverse().join('')
-  }
-
   addTodo ({ todos, todo }) {
     todos.push(Object.assign({}, todo))
 
