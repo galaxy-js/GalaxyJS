@@ -22,7 +22,6 @@ export default class GalaxyElement extends HTMLElement {
 
     // Hold component properties
     // TODO: How to properly define properties?
-    // TODO: Reflect props to attributes?
     this.props = this.constructor.properties
 
     // Actual DOM event being dispatched
@@ -50,9 +49,9 @@ export default class GalaxyElement extends HTMLElement {
     // Is this a Galaxy Element?
     Object.defineProperty(this, ELEMENT_SYMBOL, { value: true })
 
-    console.dir(this) // For debugging purposes
-
     callHook(this, 'created')
+
+    console.dir(this) // For debugging purposes
   }
 
   get state () {
@@ -128,7 +127,7 @@ export default class GalaxyElement extends HTMLElement {
       } break
 
       // .$off('event')
-      case 1: for (const listener of Array.from(ensureListeners(this.$events, event))) {
+      case 1: for (const listener of ensureListeners(this.$events, event)) {
         this.$off(event, listener)
       } break
 
@@ -148,7 +147,11 @@ export default class GalaxyElement extends HTMLElement {
   }
 
   $emit (event, detail) {
-    this.dispatchEvent(event instanceof Event ? event : new CustomEvent(event, { detail }))
+    this.dispatchEvent(
+      event instanceof Event
+        ? event
+        : new CustomEvent(event, { detail })
+    )
   }
 
   /**
@@ -196,6 +199,7 @@ export default class GalaxyElement extends HTMLElement {
         try {
           this.$renderer.render()
         } catch (e) {
+          e = new GalaxyError(e.message)
 
           // Don't handle the error in debug mode
           if (config.debug) throw e

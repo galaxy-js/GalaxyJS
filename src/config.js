@@ -1,3 +1,23 @@
 export default {
-  debug: true
+
+  /**
+   * Debug mode
+   *
+   * @type {boolean}
+   */
+  debug: true,
+
+  /**
+   * Filters holder
+   *
+   * @enum {Function}
+   */
+  filters: {},
+
+  /**
+   * Elements holder
+   *
+   * @type {Array.<GalaxyElement>}
+   */
+  elements: []
 }

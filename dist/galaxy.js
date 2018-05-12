@@ -2,7 +2,27 @@ import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick@v0.1.0/in
 import ProxyObserver from 'https://cdn.jsdelivr.net/gh/LosMaquios/ProxyObserver@v0.3.2/index.js';
 
 var config = {
-  debug: true
+
+  /**
+   * Debug mode
+   *
+   * @type {boolean}
+   */
+  debug: true,
+
+  /**
+   * Filters holder
+   *
+   * @enum {Function}
+   */
+  filters: {},
+
+  /**
+   * Elements holder
+   *
+   * @type {Array.<GalaxyElement>}
+   */
+  elements: []
 }
 
 /**
@@ -133,6 +153,29 @@ function ensureListeners (events, event) {
 }
 
 /**
+ * Exposed internally as Globals within the scope
+ */
+var global = {
+
+  /**
+   *
+   * @param {*} value
+   * @param {Array.<Object>} filters
+   *
+   * @return {*}
+   */
+  _$f (value, filters) {
+    return filters.reduce((result, filter) => {
+      const applier = config.filters[filter.name];
+
+      return filter.args
+        ? applier(result, ...args)
+        : applier(result)
+    }, value)
+  }
+}
+
+/**
  * For event call rewriting
  *
  * @type {RegExp}
@@ -170,11 +213,11 @@ function getEvent (expression) {
 
       // TODO: Check edge cases like 'literal template expressions'
 
-      switch (expression.charAt(cursor++)) {
-        case ')': inExpression && --depth; break
-        case '(': inExpression && ++depth; break
-        case '"': !inSingle && (inDouble = !inDouble); break
-        case "'": !inDouble && (inSingle = !inSingle); break
+      switch (expression.charCodeAt(cursor++)) {
+        case 0x28/* ( */: inExpression && ++depth; break
+        case 0x29/* ) */: inExpression && --depth; break
+        case 0x22/* " */: !inSingle && (inDouble = !inDouble); break
+        case 0x27/* ' */: !inDouble && (inSingle = !inSingle); break
         case '': break loop
       }
     }
@@ -240,7 +283,7 @@ function getExpression (template) {
 
       expressions.push(
         parts.length > 1
-          ? getFiltered(parts[0], parts.slice(1))
+          ? `_$f(${parts[0]}, [${getDescriptors(parts.slice(1)).join()}])`
           : `(${expression})`
       );
     }
@@ -255,22 +298,22 @@ function getExpression (template) {
 }
 
 /**
- * Get filter chain applier
+ * Get filter descriptors
  *
- * @param {string} expression
- * @param {Array.<Function>} filters
+ * @param {Array.<string>} filters
  *
- * @return {string}
+ * @return {Array.<string>}
  */
-function getFiltered (expression, filters) {
-  filters = filters.map(filter => {
+function getDescriptors (filters) {
+  return filters.map(filter => {
     const { groups } = FILTER_REGEX.exec(filter.trim());
 
     // Compose filter applier
-    return `$value => ${groups.name}($value, ${groups.args})`
-  });
-
-  return `[${filters.join()}].reduce((result, filter) => filter(result), ${expression})`
+    return `{
+      name: '${groups.name}',
+      args: ${groups.args ? `[${groups.args}]` : 'null'}
+    }`
+  })
 }
 
 /**
@@ -299,7 +342,7 @@ function compileScopedSetter (expression, context) {
    * Wrap the whole expression within parenthesis
    * to avoid statement declarations
    */
-  return compileScopedEvaluator(`(${expression} = arguments[0])`, context)
+  return compileScopedEvaluator(`(${expression} = arguments[1])`, context)
 }
 
 /**
@@ -323,17 +366,19 @@ function compileScopedEvaluator (body, context) {
    * and `scope` is going to be overriden by `scope.state` data.
    */
   const evaluator = new Function(`
-    with (this.scope) {
-      with (state) {
-        with (this.isolated) {
-          ${body}
+    with (arguments[0]) {
+      with (this.scope) {
+        with (state) {
+          with (this.isolated) {
+            ${body}
+          }
         }
       }
     }
   `);
 
   // Wrapper function to avoid `Function.prototype.bind`
-  return value => evaluator.call(context, value)
+  return value => evaluator.call(context, global, value)
 }
 
 const CONDITIONAL_ATTRIBUTE = '*if';
@@ -1026,7 +1071,6 @@ class GalaxyElement extends HTMLElement {
 
     // Hold component properties
     // TODO: How to properly define properties?
-    // TODO: Reflect props to attributes?
     this.props = this.constructor.properties;
 
     // Actual DOM event being dispatched
@@ -1054,9 +1098,9 @@ class GalaxyElement extends HTMLElement {
     // Is this a Galaxy Element?
     Object.defineProperty(this, ELEMENT_SYMBOL, { value: true });
 
-    console.dir(this); // For debugging purposes
-
     callHook(this, 'created');
+
+    console.dir(this); // For debugging purposes
   }
 
   get state () {
@@ -1132,7 +1176,7 @@ class GalaxyElement extends HTMLElement {
       } break
 
       // .$off('event')
-      case 1: for (const listener of Array.from(ensureListeners(this.$events, event))) {
+      case 1: for (const listener of ensureListeners(this.$events, event)) {
         this.$off(event, listener);
       } break
 
@@ -1152,7 +1196,11 @@ class GalaxyElement extends HTMLElement {
   }
 
   $emit (event, detail) {
-    this.dispatchEvent(event instanceof Event ? event : new CustomEvent(event, { detail }));
+    this.dispatchEvent(
+      event instanceof Event
+        ? event
+        : new CustomEvent(event, { detail })
+    );
   }
 
   /**
@@ -1200,6 +1248,7 @@ class GalaxyElement extends HTMLElement {
         try {
           this.$renderer.render();
         } catch (e) {
+          e = new GalaxyError$1(e.message);
 
           // Don't handle the error in debug mode
           if (config.debug) throw e
@@ -1231,20 +1280,11 @@ function html (...args) {
 function setup (options) {
   options = Object.assign({}, options);
 
-  const elements = options.elements;
-
-  // Remove registered elements
-  delete options.elements;
-
   // Merge rest options with default configuration
   Object.assign(config, options);
 
-  // Register elements
-  register(elements);
-}
-
-function register (elements) {
-  for (const GalaxyElement of elements) {
+  // Register element classes
+  for (const GalaxyElement of options.elements) {
     if (typeof GalaxyElement.is === 'undefined') {
       throw new GalaxyError('Unknown element name')
     }
@@ -1257,4 +1297,4 @@ function register (elements) {
   }
 }
 
-export { config, html, setup, register, GalaxyElement };
+export { config, html, setup, GalaxyElement };

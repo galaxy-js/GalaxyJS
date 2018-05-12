@@ -45,7 +45,7 @@ export function getExpression (template) {
 
       expressions.push(
         parts.length > 1
-          ? getFiltered(parts[0], parts.slice(1))
+          ? `_$f(${parts[0]}, [${getDescriptors(parts.slice(1)).join()}])`
           : `(${expression})`
       )
     }
@@ -60,20 +60,20 @@ export function getExpression (template) {
 }
 
 /**
- * Get filter chain applier
+ * Get filter descriptors
  *
- * @param {string} expression
- * @param {Array.<Function>} filters
+ * @param {Array.<string>} filters
  *
- * @return {string}
+ * @return {Array.<string>}
  */
-export function getFiltered (expression, filters) {
-  filters = filters.map(filter => {
+export function getDescriptors (filters) {
+  return filters.map(filter => {
     const { groups } = FILTER_REGEX.exec(filter.trim())
 
     // Compose filter applier
-    return `$value => ${groups.name}($value, ${groups.args})`
+    return `{
+      name: '${groups.name}',
+      args: ${groups.args ? `[${groups.args}]` : 'null'}
+    }`
   })
-
-  return `[${filters.join()}].reduce((result, filter) => filter(result), ${expression})`
 }

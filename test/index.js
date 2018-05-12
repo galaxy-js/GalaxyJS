@@ -8,6 +8,12 @@ Galaxy.setup({
   // Ready for prod
   debug: false,
 
+  filters: {
+    reverse (value, ...args) {
+      return value.split('').reverse().join('')
+    }
+  },
+
   elements: [
 
     // Correct elements registration

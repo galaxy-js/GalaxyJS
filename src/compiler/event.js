@@ -36,11 +36,11 @@ export function getEvent (expression) {
 
       // TODO: Check edge cases like 'literal template expressions'
 
-      switch (expression.charAt(cursor++)) {
-        case ')': inExpression && --depth; break
-        case '(': inExpression && ++depth; break
-        case '"': !inSingle && (inDouble = !inDouble); break
-        case "'": !inDouble && (inSingle = !inSingle); break
+      switch (expression.charCodeAt(cursor++)) {
+        case 0x28/* ( */: inExpression && ++depth; break
+        case 0x29/* ) */: inExpression && --depth; break
+        case 0x22/* " */: !inSingle && (inDouble = !inDouble); break
+        case 0x27/* ' */: !inDouble && (inSingle = !inSingle); break
         case '': break loop
       }
     }

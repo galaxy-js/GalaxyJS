@@ -1,3 +1,5 @@
+import global from '../core/global.js'
+
 export { getEvent } from './event.js'
 export { getExpression, TEXT_TEMPLATE_REGEX } from './template.js'
 
@@ -27,7 +29,7 @@ export function compileScopedSetter (expression, context) {
    * Wrap the whole expression within parenthesis
    * to avoid statement declarations
    */
-  return compileScopedEvaluator(`(${expression} = arguments[0])`, context)
+  return compileScopedEvaluator(`(${expression} = arguments[1])`, context)
 }
 
 /**
@@ -51,15 +53,17 @@ export function compileScopedEvaluator (body, context) {
    * and `scope` is going to be overriden by `scope.state` data.
    */
   const evaluator = new Function(`
-    with (this.scope) {
-      with (state) {
-        with (this.isolated) {
-          ${body}
+    with (arguments[0]) {
+      with (this.scope) {
+        with (state) {
+          with (this.isolated) {
+            ${body}
+          }
         }
       }
     }
   `)
 
   // Wrapper function to avoid `Function.prototype.bind`
-  return value => evaluator.call(context, value)
+  return value => evaluator.call(context, global, value)
 }
