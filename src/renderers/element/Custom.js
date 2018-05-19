@@ -1,4 +1,4 @@
-import BaseRenderer from './Base.js'
+import ElementRenderer from './Element.js'
 
 import { compileScopedGetter } from '../../compiler/index.js'
 import { camelize } from '../../utils/generic.js'
@@ -7,9 +7,9 @@ import { isGalaxyElement } from '../../utils/type-check.js'
 const PROP_TOKEN = '.'
 
 /**
- * Renderer for custom elements resolving props
+ * Renderer for custom elements (resolve props)
  */
-export default class CustomRenderer extends BaseRenderer {
+export default class CustomRenderer extends ElementRenderer {
   constructor (...args) {
     super(...args)
 
@@ -47,10 +47,13 @@ export default class CustomRenderer extends BaseRenderer {
   }
 
   render () {
-    // Resolve directive, props & attribute bindings
+    // Resolve element bindings
     super.render()
 
-    // Re-render (digest props)
-    this.element.$render()
+    if (this.element.isConnected) {
+
+      // Re-render (digest props)
+      this.element.$render()
+    }
   }
 }

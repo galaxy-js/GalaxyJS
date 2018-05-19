@@ -124,8 +124,8 @@ function differ (node, value) {
 function flatChildren (element) {
   const flat = [];
 
-  element.children.forEach(child => {
-    flat.push(...(child.isFlatteable ? flatChildren(child) : [child]));
+  element.childrenRenderer.renderers.forEach(renderer => {
+    flat.push(...(renderer.isFlattenable ? flatChildren(renderer) : [renderer]));
   });
 
   return flat
@@ -377,6 +377,39 @@ function compileScopedEvaluator (body, context) {
   return value => evaluator.call(context, global, value)
 }
 
+/**
+ * Renderer for inline tag template binding:
+ *
+ *   1. Within text node: <h1>Hello {{ world }}</h1>
+ *   2. As attribute interpolation: <input class="some-class {{ klass }}"/>
+ */
+class TemplateRenderer {
+  constructor (node, context) {
+    this.node = node;
+    this.context = context;
+
+    this.expression = getExpression(node.nodeValue);
+    this.getter = compileScopedGetter(this.expression, context);
+
+    this.value = null;
+  }
+
+  static is ({ nodeValue }) {
+    return TEXT_TEMPLATE_REGEX.test(nodeValue)
+  }
+
+  render () {
+    const value = this.getter();
+
+    // Normalized value to avoid null or undefined
+    const normalized = this.value = isDefined(value) ? String(value) : '';
+
+    if (differ(this.node, normalized)) {
+      this.node.nodeValue = normalized;
+    }
+  }
+}
+
 const CONDITIONAL_ATTRIBUTE = '*if';
 
 class ConditionalRenderer {
@@ -465,39 +498,6 @@ class BindRenderer {
 
     if (differ(this.input, value)) {
       this.input.value = value;
-    }
-  }
-}
-
-/**
- * Renderer for inline tag template binding:
- *
- *   1. Within text node: <h1>Hello {{ world }}</h1>
- *   2. As attribute interpolation: <input class="some-class {{ klass }}"/>
- */
-class TemplateRenderer {
-  constructor (node, context) {
-    this.node = node;
-    this.context = context;
-
-    this.expression = getExpression(node.nodeValue);
-    this.getter = compileScopedGetter(this.expression, context);
-
-    this.value = null;
-  }
-
-  static is ({ nodeValue }) {
-    return TEXT_TEMPLATE_REGEX.test(nodeValue)
-  }
-
-  render () {
-    const value = this.getter();
-
-    // Normalized value to avoid null or undefined
-    const normalized = this.value = isDefined(value) ? String(value) : '';
-
-    if (differ(this.node, normalized)) {
-      this.node.nodeValue = normalized;
     }
   }
 }
@@ -686,16 +686,18 @@ function event ({ name }, context) {
   });
 }
 
-/**
- * Base renderer which resolves:
- *
- *   1. Directive bindings
- *   2. Template and attribute bindings
- */
-class BaseRenderer {
+class ElementRenderer {
   constructor (element, scope, isolated) {
     this.element = element;
     this.scope = scope;
+
+    /**
+     * Loop elements need an isolated scope
+     *
+     * Note: We need to create a shallow copy
+     * to avoid overrides a parent isolated scope
+     */
+    this.isolated = newIsolated(isolated);
 
     /**
      * Hold directives to digest
@@ -708,24 +710,29 @@ class BaseRenderer {
     this.bindings = [];
 
     /**
-     * Loop elements need an isolated scope
-     *
-     * Note: We need to create a shallow copy
-     * to avoid overrides a parent isolated scope
+     * Resolve children rendering
      */
-    this.isolated = newIsolated(isolated);
+    this.childrenRenderer = new ChildrenRenderer(element.childNodes, scope, this.isolated);
 
-    this._init();
+    // Attach children
+    this._initDirectives(element);
+    this._initBindings(element);
   }
 
-  _init () {
-    const $el = this.element;
+  get isRenderable () {
+    return (
+      this.directives.length > 0 ||
+      this.bindings.length > 0 ||
+      this.childrenRenderer.renderers.length > 0
+    )
+  }
 
-    // Fragment (templates) has not attributes
-    if ('attributes' in $el) {
-      this._initDirectives($el);
-      this._initBindings($el);
-    }
+  get isFlattenable () {
+    return (
+      this.childrenRenderer.renderers.length > 0 &&
+      !this.directives.length &&
+      !this.bindings.length
+    )
   }
 
   _initDirectives ($el) {
@@ -771,7 +778,7 @@ class BaseRenderer {
     }
 
     // Don't perform updates on disconnected element
-    if ($el.isConnected && 'attributes' in $el) {
+    if ($el.isConnected) {
       for (const binding of this.bindings) {
         binding.render();
       }
@@ -786,9 +793,12 @@ class BaseRenderer {
       // since possible childs may need access to
       if (ref) {
 
-        // Reference isn't removed
+        // Reference attribute isn't removed
         this.scope.$refs.set(ref, $el);
       }
+
+      // Render children
+      this.childrenRenderer.render();
     }
   }
 }
@@ -796,9 +806,9 @@ class BaseRenderer {
 const PROP_TOKEN = '.';
 
 /**
- * Renderer for custom elements resolving props
+ * Renderer for custom elements (resolve props)
  */
-class CustomRenderer extends BaseRenderer {
+class CustomRenderer extends ElementRenderer {
   constructor (...args) {
     super(...args);
 
@@ -836,11 +846,14 @@ class CustomRenderer extends BaseRenderer {
   }
 
   render () {
-    // Resolve directive, props & attribute bindings
+    // Resolve element bindings
     super.render();
 
-    // Re-render (digest props)
-    this.element.$render();
+    if (this.element.isConnected) {
+
+      // Re-render (digest props)
+      this.element.$render();
+    }
   }
 }
 
@@ -972,62 +985,48 @@ class LoopRenderer {
   }
 }
 
-class ElementRenderer extends BaseRenderer {
-  constructor (...args) {
-    super(...args);
+class ChildrenRenderer {
+  constructor (children, scope, isolated) {
+    this.children = Array.from(children);
+    this.scope = scope;
+    this.isolated = isolated;
 
     /**
-     * Resolve children renders
+     * Resolve children renderers
      */
-    this.children = [];
+    this.renderers = [];
 
     // Attach children
     this._initChildren();
   }
 
-  get isRenderable () {
-    return (
-      this.directives.length > 0 ||
-      this.bindings.length > 0 ||
-      this.children.length > 0
-    )
-  }
-
-  get isFlattenable () {
-    return (
-      this.children.length > 0 &&
-      !this.directives.length &&
-      !this.bindings.length
-    )
-  }
-
   _initChildren () {
-    for (const child of this.element.childNodes) {
+    for (const child of this.children) {
 
       // 1. Check {{ interpolation }}
       if (isTextNode(child) && TemplateRenderer.is(child)) {
-        this.children.push(new TemplateRenderer(child, this));
+        this.renderers.push(new TemplateRenderer(child, this));
 
       // 2. Element binding
       } else if (isElementNode(child)) {
 
         // The loop directive is resolved as a child
         if (LoopRenderer.is(child)) {
-          this.children.push(new LoopRenderer(child, this));
+          this.renderers.push(new LoopRenderer(child, this));
         } else if (CustomRenderer.is(child))  {
 
           // Set parent communication
           // TODO: Logic within RenderCE?
           child.$parent = this.scope;
 
-          this.children.push(new CustomRenderer(child, this.scope, this.isolated));
+          this.renderers.push(new CustomRenderer(child, this.scope, this.isolated));
         } else {
           const element = new ElementRenderer(child, this.scope, this.isolated);
 
           // Only consider a render element if its childs
           // or attributes has something to bind/update
           if (element.isRenderable) {
-            this.children.push(...(element.isFlattenable ? flatChildren(element) : [element]));
+            this.renderers.push(...(element.isFlattenable ? flatChildren(element) : [element]));
           }
         }
       }
@@ -1037,14 +1036,8 @@ class ElementRenderer extends BaseRenderer {
   }
 
   render () {
-    // Resolve directives & attribute bindings
-    super.render();
-
-    // Don't perform updates on disconnected element
-    if (this.element.isConnected) {
-      for (const child of this.children) {
-        child.render();
-      }
+    for (const renderer of this.renderers) {
+      renderer.render();
     }
   }
 }
@@ -1086,7 +1079,7 @@ class GalaxyElement extends HTMLElement {
       .appendChild(this.constructor.template.content.cloneNode(true));
 
     // Setup main renderer
-    this.$renderer = new ElementRenderer(this.shadowRoot, this);
+    this.$renderer = new ChildrenRenderer(this.shadowRoot.childNodes, this, {});
 
     // Flag whether we are in a rendering phase
     this.$rendering = false;

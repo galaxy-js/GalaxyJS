@@ -7,6 +7,8 @@ export default class TestProps extends GalaxyElement {
 
   static get template () {
     return html`
+      <slot name="title"></slot>
+
       <h2 :style="{ color: color }">
         {{ props.string }}
       </h2>

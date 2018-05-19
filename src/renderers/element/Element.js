@@ -1,89 +1,135 @@
-import BaseRenderer from './Base.js'
+import ChildrenRenderer from './Children.js'
 
 /**
- * Import possible children
+ * Directives
+ */
+import ConditionalRenderer from '../directives/Conditional.js'
+import BindRenderer from '../directives/Bind.js'
+
+/**
+ * Bindings
  */
 import TemplateRenderer from '../Template.js'
-import CustomRenderer from './Custom.js'
+import BindingRenderer from '../directives/binding/Binding.js'
+import ClassRenderer from '../directives/binding/Class.js'
+import StyleRenderer from '../directives/binding/Style.js'
+import event, { isEvent } from '../directives/event.js'
 
-import LoopRenderer from '../directives/loop/Loop.js'
+import { newIsolated } from '../../utils/generic.js'
 
-import { isTextNode, isElementNode } from '../../utils/type-check.js'
-import { flatChildren } from '../../utils/generic.js'
-
-export default class ElementRenderer extends BaseRenderer {
-  constructor (...args) {
-    super(...args)
+export default class ElementRenderer {
+  constructor (element, scope, isolated) {
+    this.element = element
+    this.scope = scope
 
     /**
-     * Resolve children renders
+     * Loop elements need an isolated scope
+     *
+     * Note: We need to create a shallow copy
+     * to avoid overrides a parent isolated scope
      */
-    this.children = []
+    this.isolated = newIsolated(isolated)
+
+    /**
+     * Hold directives to digest
+     */
+    this.directives = []
+
+    /**
+     * Hold attribute and template bindings to digest
+     */
+    this.bindings = []
+
+    /**
+     * Resolve children rendering
+     */
+    this.childrenRenderer = new ChildrenRenderer(element.childNodes, scope, this.isolated)
 
     // Attach children
-    this._initChildren()
+    this._initDirectives(element)
+    this._initBindings(element)
   }
 
   get isRenderable () {
     return (
       this.directives.length > 0 ||
       this.bindings.length > 0 ||
-      this.children.length > 0
+      this.childrenRenderer.renderers.length > 0
     )
   }
 
   get isFlattenable () {
     return (
-      this.children.length > 0 &&
+      this.childrenRenderer.renderers.length > 0 &&
       !this.directives.length &&
       !this.bindings.length
     )
   }
 
-  _initChildren () {
-    for (const child of this.element.childNodes) {
+  _initDirectives ($el) {
+    if (ConditionalRenderer.is($el)) {
+      this.directives.push(new ConditionalRenderer($el, this))
+    }
 
-      // 1. Check {{ interpolation }}
-      if (isTextNode(child) && TemplateRenderer.is(child)) {
-        this.children.push(new TemplateRenderer(child, this))
+    if (BindRenderer.is($el)) {
+      this.directives.push(new BindRenderer($el, this))
+    }
+  }
 
-      // 2. Element binding
-      } else if (isElementNode(child)) {
+  _initBindings ($el) {
+    // Avoid live list
+    const attributes = Array.from($el.attributes)
 
-        // The loop directive is resolved as a child
-        if (LoopRenderer.is(child)) {
-          this.children.push(new LoopRenderer(child, this))
-        } else if (CustomRenderer.is(child))  {
+    for (const attribute of attributes) {
+      // 1. Check @binding
+      if (isEvent(attribute)) {
+        event(attribute, this)
 
-          // Set parent communication
-          // TODO: Logic within RenderCE?
-          child.$parent = this.scope
+      // 2. Check {{ binding }}
+      } else if (TemplateRenderer.is(attribute)) {
+        this.bindings.push(new TemplateRenderer(attribute, this))
 
-          this.children.push(new CustomRenderer(child, this.scope, this.isolated))
-        } else {
-          const element = new ElementRenderer(child, this.scope, this.isolated)
-
-          // Only consider a render element if its childs
-          // or attributes has something to bind/update
-          if (element.isRenderable) {
-            this.children.push(...(element.isFlattenable ? flatChildren(element) : [element]))
-          }
-        }
+      // 3. Check :attribute or ::attribute
+      } else if (BindingRenderer.is(attribute)) {
+        this.bindings.push(new (
+          ClassRenderer.is(attribute)
+            ? ClassRenderer
+            : StyleRenderer.is(attribute)
+              ? StyleRenderer
+              : BindingRenderer)(attribute, this))
       }
-
-      // ... ignore comment nodes
     }
   }
 
   render () {
-    // Resolve directives & attribute bindings
-    super.render()
+    const $el = this.element
+
+    for (const directive of this.directives) {
+      directive.render()
+    }
 
     // Don't perform updates on disconnected element
-    if (this.element.isConnected) {
-      for (const child of this.children) {
-        child.render()
+    if ($el.isConnected) {
+      for (const binding of this.bindings) {
+        binding.render()
       }
+
+      /**
+       * ref: It's a special directive/attribute which holds
+       * native elements instantiation within the scope
+       */
+      const ref = $el.getAttribute('ref')
+
+      // We need to resolve the reference first
+      // since possible childs may need access to
+      if (ref) {
+
+        // Reference attribute isn't removed
+        this.scope.$refs.set(ref, $el)
+      }
+
+      // Render children
+      this.childrenRenderer.render()
     }
   }
 }

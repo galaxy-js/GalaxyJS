@@ -69,8 +69,8 @@ export function differ (node, value) {
 export function flatChildren (element) {
   const flat = []
 
-  element.children.forEach(child => {
-    flat.push(...(child.isFlatteable ? flatChildren(child) : [child]))
+  element.childrenRenderer.renderers.forEach(renderer => {
+    flat.push(...(renderer.isFlattenable ? flatChildren(renderer) : [renderer]))
   })
 
   return flat

@@ -1,7 +1,7 @@
 import config from '../config.js'
 
 import ProxyObserver from 'https://cdn.jsdelivr.net/gh/LosMaquios/ProxyObserver@v0.3.2/index.js'
-import ElementRenderer from '../renderers/element/Element.js'
+import ChildrenRenderer from '../renderers/element/Children.js'
 
 import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick@v0.1.0/index.js'
 import { isObject, isFunction, isReserved } from '../utils/type-check.js'
@@ -41,7 +41,7 @@ export default class GalaxyElement extends HTMLElement {
       .appendChild(this.constructor.template.content.cloneNode(true))
 
     // Setup main renderer
-    this.$renderer = new ElementRenderer(this.shadowRoot, this)
+    this.$renderer = new ChildrenRenderer(this.shadowRoot.childNodes, this, {})
 
     // Flag whether we are in a rendering phase
     this.$rendering = false
