@@ -41,7 +41,7 @@ export function getEvent (expression) {
         case 0x29/* ) */: inExpression && --depth; break
         case 0x22/* " */: !inSingle && (inDouble = !inDouble); break
         case 0x27/* ' */: !inDouble && (inSingle = !inSingle); break
-        case '': break loop
+        case NaN: break loop
       }
     }
 
