@@ -36,11 +36,6 @@ export default class ChildrenRenderer {
         if (LoopRenderer.is(child)) {
           this.renderers.push(new LoopRenderer(child, this))
         } else if (CustomRenderer.is(child))  {
-
-          // Set parent communication
-          // TODO: Logic within RenderCE?
-          child.$parent = this.scope
-
           this.renderers.push(new CustomRenderer(child, this.scope, this.isolated))
         } else {
           const element = new ElementRenderer(child, this.scope, this.isolated)

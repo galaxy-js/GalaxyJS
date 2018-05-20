@@ -214,7 +214,7 @@ function getEvent (expression) {
         case 0x29/* ) */: inExpression && --depth; break
         case 0x22/* " */: !inSingle && (inDouble = !inDouble); break
         case 0x27/* ' */: !inDouble && (inSingle = !inSingle); break
-        case '': break loop
+        case NaN: break loop
       }
     }
 
@@ -809,8 +809,11 @@ const PROP_TOKEN = '.';
  * Renderer for custom elements (resolve props)
  */
 class CustomRenderer extends ElementRenderer {
-  constructor (...args) {
-    super(...args);
+  constructor (ce, scope, isolated) {
+    super(ce, scope, isolated);
+
+    // Set parent communication
+    ce.$parent = this.scope;
 
     this._resolveProps();
   }
@@ -1014,11 +1017,6 @@ class ChildrenRenderer {
         if (LoopRenderer.is(child)) {
           this.renderers.push(new LoopRenderer(child, this));
         } else if (CustomRenderer.is(child))  {
-
-          // Set parent communication
-          // TODO: Logic within RenderCE?
-          child.$parent = this.scope;
-
           this.renderers.push(new CustomRenderer(child, this.scope, this.isolated));
         } else {
           const element = new ElementRenderer(child, this.scope, this.isolated);

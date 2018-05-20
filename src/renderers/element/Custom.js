@@ -10,8 +10,11 @@ const PROP_TOKEN = '.'
  * Renderer for custom elements (resolve props)
  */
 export default class CustomRenderer extends ElementRenderer {
-  constructor (...args) {
-    super(...args)
+  constructor (ce, scope, isolated) {
+    super(ce, scope, isolated)
+
+    // Set parent communication
+    ce.$parent = this.scope
 
     this._resolveProps()
   }
