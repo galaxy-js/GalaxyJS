@@ -19,7 +19,7 @@ export function camelize (hypenated) {
   return hypenated.replace(HYPEN_REGEX, (_, letter) => letter.toUpperCase())
 }
 
-export function digestData (element, name, conversor = same) {
+export function getAttr (element, name, conversor = same) {
   const value = conversor(element.getAttribute(name))
 
   if (!config.debug) element.removeAttribute(name)

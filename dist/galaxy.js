@@ -78,7 +78,7 @@ function camelize (hypenated) {
   return hypenated.replace(HYPEN_REGEX, (_, letter) => letter.toUpperCase())
 }
 
-function digestData (element, name, conversor = same) {
+function getAttr (element, name, conversor = same) {
   const value = conversor(element.getAttribute(name));
 
   if (!config.debug) element.removeAttribute(name);
@@ -417,7 +417,7 @@ class ConditionalRenderer {
     this.element = element;
     this.context = context;
 
-    this.condition = digestData(element, CONDITIONAL_ATTRIBUTE);
+    this.condition = getAttr(element, CONDITIONAL_ATTRIBUTE);
     this.getter = compileScopedGetter(this.condition, this.context);
 
     this.anchor = createAnchor(`if: ${this.condition}`);
@@ -455,7 +455,7 @@ class BindRenderer {
     this.input = input;
     this.context = context;
 
-    this.path = digestData(input, BIND_ATTRIBUTE);
+    this.path = getAttr(input, BIND_ATTRIBUTE);
 
     this.setting = false;
 
@@ -669,7 +669,7 @@ function isEvent ({ name }) {
 function event ({ name }, context) {
   const $el = context.element;
 
-  const expression = digestData($el, name);
+  const expression = getAttr($el, name);
   const evaluator = compileScopedEvaluator(getEvent(expression), context);
 
   $el[
@@ -917,7 +917,7 @@ class LoopRenderer {
 
     this.items = [];
 
-    const { groups } = digestData(template, LOOP_ATTRIBUTE).match(LOOP_REGEX);
+    const { groups } = getAttr(template, LOOP_ATTRIBUTE).match(LOOP_REGEX);
 
     this.keyName = groups.key || LOOP_KEY_NAME;
     this.valueName = groups.value;

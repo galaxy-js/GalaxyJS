@@ -1,4 +1,4 @@
-import { digestData, differ } from '../../utils/generic.js'
+import { getAttr, differ } from '../../utils/generic.js'
 import { compileScopedSetter, compileScopedGetter } from '../../compiler/index.js'
 
 const BIND_ATTRIBUTE = '*bind'
@@ -18,7 +18,7 @@ export default class BindRenderer {
     this.input = input
     this.context = context
 
-    this.path = digestData(input, BIND_ATTRIBUTE)
+    this.path = getAttr(input, BIND_ATTRIBUTE)
 
     this.setting = false
 

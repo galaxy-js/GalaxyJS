@@ -1,6 +1,6 @@
 import { compileScopedEvaluator, getEvent } from '../../compiler/index.js'
 
-import { digestData } from '../../utils/generic.js'
+import { getAttr } from '../../utils/generic.js'
 import { isGalaxyElement } from '../../utils/type-check.js'
 
 const EVENT_TOKEN = '@'
@@ -12,7 +12,7 @@ export function isEvent ({ name }) {
 export default function event ({ name }, context) {
   const $el = context.element
 
-  const expression = digestData($el, name)
+  const expression = getAttr($el, name)
   const evaluator = compileScopedEvaluator(getEvent(expression), context)
 
   $el[

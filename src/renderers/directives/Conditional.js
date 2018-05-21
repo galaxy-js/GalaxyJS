@@ -1,4 +1,4 @@
-import { digestData, createAnchor } from '../../utils/generic.js'
+import { getAttr, createAnchor } from '../../utils/generic.js'
 import { compileScopedGetter } from '../../compiler/index.js'
 
 const CONDITIONAL_ATTRIBUTE = '*if'
@@ -8,7 +8,7 @@ export default class ConditionalRenderer {
     this.element = element
     this.context = context
 
-    this.condition = digestData(element, CONDITIONAL_ATTRIBUTE)
+    this.condition = getAttr(element, CONDITIONAL_ATTRIBUTE)
     this.getter = compileScopedGetter(this.condition, this.context)
 
     this.anchor = createAnchor(`if: ${this.condition}`)

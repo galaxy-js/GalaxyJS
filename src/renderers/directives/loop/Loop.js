@@ -1,7 +1,7 @@
 import ItemRenderer from './Item.js'
 
 import { compileScopedGetter } from '../../../compiler/index.js'
-import { digestData, createAnchor, newIsolated } from '../../../utils/generic.js'
+import { getAttr, createAnchor, newIsolated } from '../../../utils/generic.js'
 import { isDefined } from '../../../utils/type-check.js'
 
 // Note: to maintain consistence avoid `of` reserved word on iterators.
@@ -35,7 +35,7 @@ export default class LoopRenderer {
 
     this.items = []
 
-    const { groups } = digestData(template, LOOP_ATTRIBUTE).match(LOOP_REGEX)
+    const { groups } = getAttr(template, LOOP_ATTRIBUTE).match(LOOP_REGEX)
 
     this.keyName = groups.key || LOOP_KEY_NAME
     this.valueName = groups.value
