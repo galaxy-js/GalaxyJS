@@ -28,7 +28,7 @@ export default class GalaxyElement extends HTMLElement {
     this.$event = null
 
     // Attached events
-    this.$events = {}
+    this.$events = Object.create(null)
 
     // For parent communication
     this.$parent = null
