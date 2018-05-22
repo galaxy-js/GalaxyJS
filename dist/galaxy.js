@@ -1265,7 +1265,6 @@ function html (...args) {
 }
 
 function setup (options) {
-  options = Object.assign({}, options);
 
   // Merge rest options with default configuration
   Object.assign(config, options);
