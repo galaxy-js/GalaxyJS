@@ -16,26 +16,37 @@ export default class StyleRenderer extends BindingRenderer {
     return STYLE_REGEX.test(name)
   }
 
+  static parseRule (rule) {
+    const segments = rule.split(UNIT_SEPARATOR)
+
+    return {
+      prop: segments[0],
+      unit: segments[1]
+    }
+  }
+
   render () {
     const styles = this.getter()
 
     // Fallback to normal rendering
     if (!isObject(styles)) return super.render()
 
-    const $styles = this.owner.style
+    const $styles = this.owner.attributeStyleMap
 
     // Remove actual props
     for (const rule in this.styles) {
       if (!styles.hasOwnProperty(rule)) {
-        $styles[rule.split(UNIT_SEPARATOR)[0]] = null
+        $styles.delete(StyleRenderer.parseRule(rule).prop)
       }
     }
 
-    // Add new props
+    // Add/set props
     for (const rule in styles) {
-      if (this.styles[rule] !== styles[rule]) {
-        const [prop, unit] = rule.split(UNIT_SEPARATOR)
-        $styles[prop] = `${styles[rule]}${unit || ''}`
+      const value = styles[rule]
+
+      if (this.styles[rule] !== value) {
+        const { prop, unit } = StyleRenderer.parseRule(rule)
+        $styles.set(prop, unit ? CSS[unit](value) : value)
       }
     }
 
