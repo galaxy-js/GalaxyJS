@@ -557,10 +557,10 @@ class BindingRenderer {
 
     if (!config.debug) attributes.removeNamedItem(name);
 
-    if (observed) return observed
-
-    observed = document.createAttribute(normalizedName);
-    attributes.setNamedItem(observed);
+    if (!observed) {
+      observed = document.createAttribute(normalizedName);
+      attributes.setNamedItem(observed);
+    }
 
     return observed
   }
