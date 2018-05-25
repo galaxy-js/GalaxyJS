@@ -55,10 +55,6 @@ function isDefined (value) {
   return value != null
 }
 
-function isReserved (name) {
-  return name.startsWith('$') || name.startsWith('_')
-}
-
 function isGalaxyElement (element) {
   return element.hasOwnProperty(ELEMENT_SYMBOL)
 }
@@ -176,24 +172,22 @@ var global = {
  *
  * @type {RegExp}
  */
-const METHOD_REGEX = /(?<prefix>\W)?(?<name>\w+)\(/g;
+const METHOD_REGEX = /#(?<name>\w+)\(/g;
 
 /**
- * Rewrite a given `expression` for event binding
+ * Rewrite a given `expression` by intercepting
+ * functions calls passing the `state` as first argument
  *
  * @param {string} expression - JavaScript expression to be rewritten
  *
  * @return {string}
  */
-function getEvent (expression) {
+function rewriteMethods (expression) {
   let match;
   let rewrited = expression;
 
   while (match = METHOD_REGEX.exec(expression)) {
     const { index, groups } = match;
-
-    // In case we are in a sub path, skip
-    if (groups.prefix === '.') continue
 
     const start = index + match[0].length;
 
@@ -222,10 +216,10 @@ function getEvent (expression) {
     const args = expression.slice(start, cursor - 1 /* skip parenthesis */);
 
     rewrited = rewrited.replace(
-      expression.slice(groups.prefix ? index + 1/* skip prefix */ : index, cursor),
+      expression.slice(index, cursor),
 
-      // Intercept with $commit call
-      `$commit('${groups.name}'${args ? `, ${args}` : ''})`
+      // Intercept with the state
+      `${groups.name}(state${args ? `, ${args}` : ''})`
     );
   }
 
@@ -682,7 +676,11 @@ function event ({ name }, context) {
   const $el = context.element;
 
   const expression = getAttr($el, name);
-  const evaluator = compileScopedEvaluator(getEvent(expression), context);
+  console.group('Expr');
+  console.log('Expression:', expression);
+  console.log('Rewrited:', rewriteMethods(expression));
+  console.groupEnd();
+  const evaluator = compileScopedEvaluator(rewriteMethods(expression), context);
 
   const parsed = parseEvent(name);
   const { modifiers } = parsed;
@@ -1251,30 +1249,6 @@ class GalaxyElement extends HTMLElement {
   }
 
   /**
-   * Intercept given method call by passing the state
-   *
-   * @param {string} method - Method name
-   * @param {*...} [args] - Arguments to pass in
-   *
-   * @throws {GalaxyError}
-   *
-   * @return void
-   */
-  $commit (method, ...args) {
-    if (method in this) {
-      if (!isFunction(this[method])) {
-        throw new GalaxyError$1(`Method '${method}' must be a function`)
-      }
-
-      if (isReserved(method)) {
-        throw new GalaxyError$1(`Could no call reserved method '${method}'`)
-      }
-
-      this[method](this.state, ...args);
-    }
-  }
-
-  /**
    * Reflect state changes to the DOM
    *
    * @return void
@@ -1295,7 +1269,9 @@ class GalaxyElement extends HTMLElement {
         try {
           this.$renderer.render();
         } catch (e) {
-          e = new GalaxyError$1(e.message);
+          if (!(e instanceof GalaxyError$1)) {
+            e = new GalaxyError$1(e.message);
+          }
 
           // Don't handle the error in debug mode
           if (config.debug) throw e

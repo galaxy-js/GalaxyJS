@@ -1,4 +1,4 @@
-import { compileScopedEvaluator, getEvent } from '../../compiler/index.js'
+import { compileScopedEvaluator, rewriteMethods } from '../../compiler/index.js'
 
 import { getAttr } from '../../utils/generic.js'
 import { isGalaxyElement } from '../../utils/type-check.js'
@@ -14,7 +14,7 @@ export default function event ({ name }, context) {
   const $el = context.element
 
   const expression = getAttr($el, name)
-  const evaluator = compileScopedEvaluator(getEvent(expression), context)
+  const evaluator = compileScopedEvaluator(rewriteMethods(expression), context)
 
   const parsed = parseEvent(name)
   const { modifiers } = parsed

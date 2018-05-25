@@ -3,24 +3,22 @@
  *
  * @type {RegExp}
  */
-const METHOD_REGEX = /(?<prefix>\W)?(?<name>\w+)\(/g
+const METHOD_REGEX = /#(?<name>\w+)\(/g
 
 /**
- * Rewrite a given `expression` for event binding
+ * Rewrite a given `expression` by intercepting
+ * functions calls passing the `state` as first argument
  *
  * @param {string} expression - JavaScript expression to be rewritten
  *
  * @return {string}
  */
-export function getEvent (expression) {
+export function rewriteMethods (expression) {
   let match
   let rewrited = expression
 
   while (match = METHOD_REGEX.exec(expression)) {
     const { index, groups } = match
-
-    // In case we are in a sub path, skip
-    if (groups.prefix === '.') continue
 
     const start = index + match[0].length
 
@@ -49,10 +47,10 @@ export function getEvent (expression) {
     const args = expression.slice(start, cursor - 1 /* skip parenthesis */)
 
     rewrited = rewrited.replace(
-      expression.slice(groups.prefix ? index + 1/* skip prefix */ : index, cursor),
+      expression.slice(index, cursor),
 
-      // Intercept with $commit call
-      `$commit('${groups.name}'${args ? `, ${args}` : ''})`
+      // Intercept with the state
+      `${groups.name}(state${args ? `, ${args}` : ''})`
     )
   }
 

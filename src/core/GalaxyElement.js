@@ -155,30 +155,6 @@ export default class GalaxyElement extends HTMLElement {
   }
 
   /**
-   * Intercept given method call by passing the state
-   *
-   * @param {string} method - Method name
-   * @param {*...} [args] - Arguments to pass in
-   *
-   * @throws {GalaxyError}
-   *
-   * @return void
-   */
-  $commit (method, ...args) {
-    if (method in this) {
-      if (!isFunction(this[method])) {
-        throw new GalaxyError(`Method '${method}' must be a function`)
-      }
-
-      if (isReserved(method)) {
-        throw new GalaxyError(`Could no call reserved method '${method}'`)
-      }
-
-      this[method](this.state, ...args)
-    }
-  }
-
-  /**
    * Reflect state changes to the DOM
    *
    * @return void
@@ -199,7 +175,9 @@ export default class GalaxyElement extends HTMLElement {
         try {
           this.$renderer.render()
         } catch (e) {
-          e = new GalaxyError(e.message)
+          if (!(e instanceof GalaxyError)) {
+            e = new GalaxyError(e.message)
+          }
 
           // Don't handle the error in debug mode
           if (config.debug) throw e

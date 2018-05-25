@@ -1,6 +1,6 @@
 import global from '../core/global.js'
 
-export { getEvent } from './event.js'
+export { rewriteMethods } from './method.js'
 export { getExpression, TEXT_TEMPLATE_REGEX } from './template.js'
 
 /**

@@ -15,7 +15,7 @@ export default html`
     <li *for="todo in todos">
       {{ todo.name }}
       <input ::ref="'done' + $index" id="done-{{ $index }}" type="checkbox" @change="setTodoStatus(todo, $refs.get('done' + $index))">
-      <button @click="removeTodo(todo)">&times;</button>
+      <button @click="#removeTodo(todo)">&times;</button>
     </li>
     <li>Wrapped (End)</li>
   </ul>
@@ -28,7 +28,7 @@ export default html`
 
   <div>
     <input type="text" *bind="todo.name">
-    <button @click="console.log('Adding todo') || addTodo()">Add TODO</button>
+    <button @click="console.log('Adding todo') || #addTodo()">Add TODO</button>
   </div>
 
   <!-- Escaped -->

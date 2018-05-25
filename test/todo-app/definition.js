@@ -58,7 +58,7 @@ export default class TodoApp extends GalaxyElement {
     todos.splice(todos.indexOf(todo), 1)
   }
 
-  setTodoStatus (_, todo, done) {
+  setTodoStatus (todo, done) {
     todo.done = done.checked
   }
 }
