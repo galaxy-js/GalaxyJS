@@ -107,9 +107,9 @@ export default class GalaxyElement extends HTMLElement {
   $once (event, listener, useCapture) {
 
     // Once called wrapper
-    const onceCalled = event => {
+    const onceCalled = $event => {
       this.$off(event, onceCalled)
-      listener(event)
+      listener($event)
     }
 
     // Reference to original listener
