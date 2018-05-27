@@ -1,10 +1,14 @@
+import CustomRenderer from '../../element/Custom.js'
 import ElementRenderer from '../../element/Element.js'
 
+import { isGalaxyElement } from '../../../utils/type-check.js'
 import { newIsolated } from '../../../utils/generic.js'
 
 export default class ItemRenderer {
   constructor (template, context, isolated) {
-    this.child = new ElementRenderer(
+    const Renderer = ItemRenderer.getRenderer(template)
+
+    this.renderer = new Renderer(
       template.cloneNode(true),
       context.scope,
       newIsolated(context.isolated, isolated)
@@ -13,17 +17,27 @@ export default class ItemRenderer {
     this.reused = false
   }
 
+  static getRenderer (template) {
+    return isGalaxyElement(template)
+      ? CustomRenderer
+      : ElementRenderer
+  }
+
   update (isolated) {
     this.reused = true
 
-    Object.assign(this.child.isolated, isolated)
+    Object.assign(this.renderer.isolated, isolated)
   }
 
   insert (item) {
-    item.parentNode.insertBefore(this.child.element, item)
+    item.parentNode.insertBefore(this.renderer.element, item)
+  }
+
+  remove () {
+    this.renderer.element.remove()
   }
 
   render () {
-    this.child.render()
+    this.renderer.render()
   }
 }

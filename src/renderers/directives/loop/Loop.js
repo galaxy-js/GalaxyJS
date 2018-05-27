@@ -98,7 +98,7 @@ export default class LoopRenderer {
         // Enable recycling again
         item.reused = false
       } else {
-        item.child.element.remove()
+        item.remove()
       }
     }
 

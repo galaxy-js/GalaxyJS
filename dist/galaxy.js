@@ -676,10 +676,6 @@ function event ({ name }, context) {
   const $el = context.element;
 
   const expression = getAttr($el, name);
-  console.group('Expr');
-  console.log('Expression:', expression);
-  console.log('Rewrited:', rewriteMethods(expression));
-  console.groupEnd();
   const evaluator = compileScopedEvaluator(rewriteMethods(expression), context);
 
   const parsed = parseEvent(name);
@@ -920,7 +916,9 @@ class CustomRenderer extends ElementRenderer {
 
 class ItemRenderer {
   constructor (template, context, isolated) {
-    this.child = new ElementRenderer(
+    const Renderer = ItemRenderer.getRenderer(template);
+
+    this.renderer = new Renderer(
       template.cloneNode(true),
       context.scope,
       newIsolated(context.isolated, isolated)
@@ -929,18 +927,28 @@ class ItemRenderer {
     this.reused = false;
   }
 
+  static getRenderer (template) {
+    return isGalaxyElement(template)
+      ? CustomRenderer
+      : ElementRenderer
+  }
+
   update (isolated) {
     this.reused = true;
 
-    Object.assign(this.child.isolated, isolated);
+    Object.assign(this.renderer.isolated, isolated);
   }
 
   insert (item) {
-    item.parentNode.insertBefore(this.child.element, item);
+    item.parentNode.insertBefore(this.renderer.element, item);
+  }
+
+  remove () {
+    this.renderer.element.remove();
   }
 
   render () {
-    this.child.render();
+    this.renderer.render();
   }
 }
 
@@ -1038,7 +1046,7 @@ class LoopRenderer {
         // Enable recycling again
         item.reused = false;
       } else {
-        item.child.element.remove();
+        item.remove();
       }
     }
 
