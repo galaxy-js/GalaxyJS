@@ -740,6 +740,8 @@ function parseEvent (name) {
   }
 }
 
+const REFERENCE_ATTRIBUTE = 'ref';
+
 class ElementRenderer {
   constructor (element, scope, isolated) {
     this.element = element;
@@ -777,7 +779,13 @@ class ElementRenderer {
     return (
       this.directives.length > 0 ||
       this.bindings.length > 0 ||
-      this.childrenRenderer.renderers.length > 0
+      this.childrenRenderer.renderers.length > 0 ||
+
+      /**
+       * Elements needs to be resolved included ones
+       * which are only referenced
+       */
+      this.element.hasAttribute(REFERENCE_ATTRIBUTE)
     )
   }
 
@@ -841,7 +849,7 @@ class ElementRenderer {
        * ref: It's a special directive/attribute which holds
        * native elements instantiation within the scope
        */
-      const ref = $el.getAttribute('ref');
+      const ref = $el.getAttribute(REFERENCE_ATTRIBUTE);
 
       // We need to resolve the reference first
       // since possible childs may need access to
