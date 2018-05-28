@@ -80,18 +80,14 @@ export default class GalaxyElement extends HTMLElement {
   }
 
   disconnectedCallback () {
-    // TODO: Maybe detach all listeners?
-
     callHook(this, 'detached')
   }
 
-  /**
-   *  NOTE: This hook needs some revision
-   *
-   *  attributeChangedCallback (...args) {
-   *    callHook(this, 'attribute', ...args)
-   *  }
-   */
+  attributeChangedCallback (name, old, value) {
+    callHook(this, 'attribute', {
+      name, old, value
+    })
+  }
 
   /**
    * Events
