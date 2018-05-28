@@ -1,6 +1,6 @@
 {
   "name": "@galaxy/framework",
-  "version": "v0.1.0-alpha.5",
+  "version": "v0.1.0-alpha.6",
   "description": "A framework fully based on native WebComponents API",
   "main": "dist/galaxy.js",
   "repository": "https://github.com/LosMaquios/GalaxyJS.git",
