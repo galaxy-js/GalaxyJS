@@ -1,5 +1,6 @@
 import TemplateRenderer from '../Template.js'
 import ElementRenderer from './Element.js'
+import VoidRenderer from './Void.js'
 import CustomRenderer from './Custom.js'
 
 import LoopRenderer from '../directives/loop/Loop.js'
@@ -38,7 +39,10 @@ export default class ChildrenRenderer {
         } else if (CustomRenderer.is(child))  {
           this.renderers.push(new CustomRenderer(child, this.scope, this.isolated))
         } else {
-          const element = new ElementRenderer(child, this.scope, this.isolated)
+          const element = new (
+            VoidRenderer.is(child)
+              ? VoidRenderer
+              : ElementRenderer)(child, this.scope, this.isolated)
 
           // Only consider a render element if its childs
           // or attributes has something to bind/update

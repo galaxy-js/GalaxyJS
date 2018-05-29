@@ -740,9 +740,53 @@ function parseEvent (name) {
   }
 }
 
+/**
+ * Directives
+ */
+
 const REFERENCE_ATTRIBUTE = 'ref';
 
-class ElementRenderer {
+/**
+ * Taken from MDN
+ *
+ * @see https://developer.mozilla.org/en-US/docs/Glossary/Empty_element
+ */
+const VOID_TAGS = [
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr'
+];
+
+/**
+ * Renderer for void elements or elements without childs like:
+ *
+ *  - area
+ *  - base
+ *  - br
+ *  - col
+ *  - embed
+ *  - hr
+ *  - img
+ *  - input
+ *  - link
+ *  - meta
+ *  - param
+ *  - source
+ *  - track
+ *  - wbr
+ */
+class VoidRenderer {
   constructor (element, scope, isolated) {
     this.element = element;
     this.scope = scope;
@@ -753,7 +797,7 @@ class ElementRenderer {
      * Note: We need to create a shallow copy
      * to avoid overrides a parent isolated scope
      */
-    this.isolated = newIsolated(isolated);
+    this.isolated = isolated;
 
     /**
      * Hold directives to digest
@@ -765,35 +809,24 @@ class ElementRenderer {
      */
     this.bindings = [];
 
-    /**
-     * Resolve children rendering
-     */
-    this.childrenRenderer = new ChildrenRenderer(element.childNodes, scope, this.isolated);
-
-    // Attach children
     this._initDirectives(element);
     this._initBindings(element);
+  }
+
+  static is ({ tagName }) {
+    return VOID_TAGS.indexOf(tagName.toLowerCase()) > -1
   }
 
   get isRenderable () {
     return (
       this.directives.length > 0 ||
       this.bindings.length > 0 ||
-      this.childrenRenderer.renderers.length > 0 ||
 
       /**
        * Elements needs to be resolved included ones
        * which are only referenced
        */
       this.element.hasAttribute(REFERENCE_ATTRIBUTE)
-    )
-  }
-
-  get isFlattenable () {
-    return (
-      this.childrenRenderer.renderers.length > 0 &&
-      !this.directives.length &&
-      !this.bindings.length
     )
   }
 
@@ -858,6 +891,41 @@ class ElementRenderer {
         // Reference attribute isn't removed
         this.scope.$refs.set(ref, $el);
       }
+    }
+  }
+}
+
+class ElementRenderer extends VoidRenderer {
+  constructor (element, scope, isolated) {
+    super(element, scope, newIsolated(isolated));
+
+    /**
+     * Resolve children rendering
+     */
+    this.childrenRenderer = new ChildrenRenderer(element.childNodes, scope, this.isolated);
+  }
+
+  get isRenderable () {
+    return (
+      super.isRenderable ||
+      this.childrenRenderer.renderers.length > 0
+    )
+  }
+
+  get isFlattenable () {
+    return (
+      this.childrenRenderer.renderers.length > 0 &&
+      !this.directives.length &&
+      !this.bindings.length
+    )
+  }
+
+  render () {
+    // Render directives/bindings
+    super.render();
+
+    // Don't perform updates on disconnected element
+    if (this.element.isConnected) {
 
       // Render children
       this.childrenRenderer.render();
@@ -1093,7 +1161,10 @@ class ChildrenRenderer {
         } else if (CustomRenderer.is(child))  {
           this.renderers.push(new CustomRenderer(child, this.scope, this.isolated));
         } else {
-          const element = new ElementRenderer(child, this.scope, this.isolated);
+          const element = new (
+            VoidRenderer.is(child)
+              ? VoidRenderer
+              : ElementRenderer)(child, this.scope, this.isolated);
 
           // Only consider a render element if its childs
           // or attributes has something to bind/update
