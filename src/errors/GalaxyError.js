@@ -1,6 +1,7 @@
-export default class GalaxyError {
+export default class GalaxyError extends Error {
   constructor (message) {
+    super(message)
+
     this.name = 'GalaxyError'
-    this.message = message
   }
 }

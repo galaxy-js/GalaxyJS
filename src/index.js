@@ -1,5 +1,7 @@
 import config from './config.js'
 
+import GalaxyError from './errors/GalaxyError.js'
+
 export { config }
 export { default as GalaxyElement } from './core/GalaxyElement.js'
 

@@ -25,6 +25,13 @@ var config = {
   elements: []
 }
 
+class GalaxyError extends Error {
+  constructor (message) {
+    this.name = 'GalaxyError';
+    this.message = message;
+  }
+}
+
 /**
  * @type {Symbol}
  */
@@ -1185,13 +1192,6 @@ class ChildrenRenderer {
   }
 }
 
-class GalaxyError$1 {
-  constructor (message) {
-    this.name = 'GalaxyError';
-    this.message = message;
-  }
-}
-
 class GalaxyElement extends HTMLElement {
   constructor () {
     super();
@@ -1352,8 +1352,8 @@ class GalaxyElement extends HTMLElement {
         try {
           this.$renderer.render();
         } catch (e) {
-          if (!(e instanceof GalaxyError$1)) {
-            e = new GalaxyError$1(e.message);
+          if (!(e instanceof GalaxyError)) {
+            e = new GalaxyError(e.message);
           }
 
           // Don't handle the error in debug mode
