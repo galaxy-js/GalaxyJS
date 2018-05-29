@@ -33,16 +33,6 @@ class GalaxyError extends Error {
   }
 }
 
-/**
- * @type {Symbol}
- */
-const ELEMENT_SYMBOL = Symbol('Galaxy.Element');
-
-/**
- * @type {Symbol}
- */
-const STATE_SYMBOL = Symbol('Galaxy.State');
-
 function isObject (value) {
   return value !== null && typeof value === 'object'
 }
@@ -63,8 +53,8 @@ function isDefined (value) {
   return value != null
 }
 
-function isGalaxyElement (element) {
-  return element.hasOwnProperty(ELEMENT_SYMBOL)
+function isGalaxyElement ({ constructor }) {
+  return config.elements.indexOf(constructor) > -1
 }
 
 const same = value => value;
@@ -1193,6 +1183,11 @@ class ChildrenRenderer {
   }
 }
 
+/**
+ * Internal
+ */
+const __proxies__ = new WeakMap();
+
 class GalaxyElement extends HTMLElement {
   constructor () {
     super();
@@ -1228,9 +1223,6 @@ class GalaxyElement extends HTMLElement {
     // Flag whether we are in a rendering phase
     this.$rendering = false;
 
-    // Is this a Galaxy Element?
-    Object.defineProperty(this, ELEMENT_SYMBOL, { value: true });
-
     callHook(this, 'created');
 
     console.dir(this); // For debugging purposes
@@ -1238,18 +1230,23 @@ class GalaxyElement extends HTMLElement {
 
   get state () {
     // Return proxified state
-    return this[STATE_SYMBOL]
+    return __proxies__.get(this)
   }
 
   set state (state) {
+    const render = () => { this.$render(); };
+
     // Reassign state as proxy
-    this[STATE_SYMBOL] = ProxyObserver.observe(
-      state, {} /* takes default options */,
-      () => { this.$render(); } // Perform render on changes
+    __proxies__.set(
+      this,
+      ProxyObserver.observe(
+        state, {} /* takes default options */,
+        render // Perform render on changes
+      )
     );
 
     // State change, so render...
-    this.$render();
+    render();
   }
 
   /**

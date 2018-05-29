@@ -9,7 +9,10 @@ import { callHook, ensureListeners } from '../utils/generic.js'
 
 import GalaxyError from '../errors/GalaxyError.js'
 
-import { ELEMENT_SYMBOL, STATE_SYMBOL } from './symbols.js'
+/**
+ * Internal
+ */
+const __proxies__ = new WeakMap()
 
 export default class GalaxyElement extends HTMLElement {
   constructor () {
@@ -46,9 +49,6 @@ export default class GalaxyElement extends HTMLElement {
     // Flag whether we are in a rendering phase
     this.$rendering = false
 
-    // Is this a Galaxy Element?
-    Object.defineProperty(this, ELEMENT_SYMBOL, { value: true })
-
     callHook(this, 'created')
 
     console.dir(this) // For debugging purposes
@@ -56,18 +56,23 @@ export default class GalaxyElement extends HTMLElement {
 
   get state () {
     // Return proxified state
-    return this[STATE_SYMBOL]
+    return __proxies__.get(this)
   }
 
   set state (state) {
+    const render = () => { this.$render() }
+
     // Reassign state as proxy
-    this[STATE_SYMBOL] = ProxyObserver.observe(
-      state, {} /* takes default options */,
-      () => { this.$render() } // Perform render on changes
+    __proxies__.set(
+      this,
+      ProxyObserver.observe(
+        state, {} /* takes default options */,
+        render // Perform render on changes
+      )
     )
 
     // State change, so render...
-    this.$render()
+    render()
   }
 
   /**

@@ -1,4 +1,4 @@
-import { ELEMENT_SYMBOL } from '../core/symbols.js'
+import config from '../config.js'
 
 export function isObject (value) {
   return value !== null && typeof value === 'object'
@@ -24,6 +24,6 @@ export function isReserved (name) {
   return name.startsWith('$') || name.startsWith('_')
 }
 
-export function isGalaxyElement (element) {
-  return element.hasOwnProperty(ELEMENT_SYMBOL)
+export function isGalaxyElement ({ constructor }) {
+  return config.elements.indexOf(constructor) > -1
 }
