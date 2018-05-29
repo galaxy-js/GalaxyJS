@@ -27,8 +27,9 @@ var config = {
 
 class GalaxyError extends Error {
   constructor (message) {
+    super(message);
+
     this.name = 'GalaxyError';
-    this.message = message;
   }
 }
 
