@@ -53,6 +53,10 @@ function isDefined (value) {
   return value != null
 }
 
+function isReserved (name) {
+  return name.startsWith('$') || name.startsWith('_')
+}
+
 function isGalaxyElement ({ constructor }) {
   return config.elements.indexOf(constructor) > -1
 }
@@ -216,8 +220,8 @@ function rewriteMethods (expression) {
     rewrited = rewrited.replace(
       expression.slice(index, cursor),
 
-      // Intercept with the state
-      `${groups.name}(state${args ? `, ${args}` : ''})`
+      // Intercept method call with $commit
+      `$commit('${groups.name}'${args ? `, ${args}` : ''})`
     );
   }
 
@@ -1327,6 +1331,30 @@ class GalaxyElement extends HTMLElement {
         ? event
         : new CustomEvent(event, { detail })
     );
+  }
+
+  /**
+   * Intercept given method call by passing the state
+   *
+   * @param {string} method - Method name
+   * @param {*...} [args] - Arguments to pass in
+   *
+   * @throws {GalaxyError}
+   *
+   * @return void
+   */
+  $commit (method, ...args) {
+    if (method in this) {
+      if (!isFunction(this[method])) {
+        throw new GalaxyError$1(`Method '${method}' must be a function`)
+      }
+
+      if (isReserved(method)) {
+        throw new GalaxyError$1(`Could no call reserved method '${method}'`)
+      }
+
+      this[method](this.state, ...args);
+    }
   }
 
   /**

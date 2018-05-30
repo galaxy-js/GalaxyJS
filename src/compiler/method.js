@@ -49,8 +49,8 @@ export function rewriteMethods (expression) {
     rewrited = rewrited.replace(
       expression.slice(index, cursor),
 
-      // Intercept with the state
-      `${groups.name}(state${args ? `, ${args}` : ''})`
+      // Intercept method call with $commit
+      `$commit('${groups.name}'${args ? `, ${args}` : ''})`
     )
   }
 
