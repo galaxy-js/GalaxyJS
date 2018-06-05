@@ -13,6 +13,7 @@ import GalaxyError from '../errors/GalaxyError.js'
  * Internal
  */
 const __proxies__ = new WeakMap()
+const __observers__ = new WeakMap()
 
 export default class GalaxyElement extends HTMLElement {
   constructor () {
@@ -62,17 +63,24 @@ export default class GalaxyElement extends HTMLElement {
   set state (state) {
     const render = () => { this.$render() }
 
-    // Reassign state as proxy
-    __proxies__.set(
-      this,
-      ProxyObserver.observe(
-        state, {} /* takes default options */,
-        render // Perform render on changes
-      )
-    )
+    // Setup proxy to perform render on changes
+    const proxy = ProxyObserver.observe(state, {}, render)
+
+    // Setup indexes
+    __proxies__.set(this, proxy)
+    __observers__.set(this, ProxyObserver.get(proxy))
 
     // State change, so render...
     render()
+  }
+
+  /**
+   * Gets actual observer
+   *
+   * Warning: When the state changes also the observer changes
+   */
+  get $observer () {
+    return __observers__.get(this)
   }
 
   /**
@@ -89,9 +97,7 @@ export default class GalaxyElement extends HTMLElement {
   }
 
   attributeChangedCallback (name, old, value) {
-    callHook(this, 'attribute', {
-      name, old, value
-    })
+    callHook(this, 'attribute', { name, old, value })
   }
 
   /**
