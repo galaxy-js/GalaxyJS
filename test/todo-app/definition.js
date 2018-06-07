@@ -58,8 +58,8 @@ export default class TodoApp extends GalaxyElement {
     todos.splice(todos.indexOf(todo), 1)
   }
 
-  setTodoStatus (todo, done) {
-    todo.done = done.checked
+  showStatus () {
+    console.log('Todos:', JSON.parse(JSON.stringify(this.state.todos)))
   }
 }
 

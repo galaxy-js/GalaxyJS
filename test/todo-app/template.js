@@ -14,7 +14,7 @@ export default html`
     <li>Wrapped (Start)</li>
     <li *for="todo in todos">
       {{ todo.name }}
-      <input ::ref="'done' + $index" id="done-{{ $index }}" type="checkbox" @change="setTodoStatus(todo, $refs.get('done' + $index))">
+      <input id="done-{{ $index }}" type="checkbox" *bind="todo.done" @change="showStatus()">
       <button @click="#removeTodo(todo)">&times;</button>
     </li>
     <li>Wrapped (End)</li>

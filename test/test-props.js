@@ -12,6 +12,20 @@ export default class TestProps extends GalaxyElement {
       <h2 :style="{ color: color }">
         {{ props.string }}
       </h2>
+
+      <h2>Fruit {{ fruit }}</h2>
+
+      <label *for="_fruit in fruits">
+        {{ _fruit }}
+        <input type="radio" :value="_fruit" *bind="fruit" @change="#showFruit()">
+      </label>
+
+      <h2>Sport {{ sport }}</h2>
+
+      <select *bind="sport" @change="#showSport()">
+        <option value="" disabled>Sport</option>
+        <option *for="_sport in sports" :value="_sport">{{ _sport.toUpperCase() }}</option>
+      </select>
     `
   }
 
@@ -27,7 +41,14 @@ export default class TestProps extends GalaxyElement {
 
     this.colors = ['tomato', 'steelblue']
     this.colorIndex = 0
-    this.state.color = this.colors[this.colorIndex]
+
+    this.state = {
+      color: this.colors[this.colorIndex],
+      fruits: ['apple', 'strawberry', 'lemon'],
+      fruit: null,
+      sports: ['football', 'soccer', 'basketball', 'tennis'],
+      sport: 'tennis'
+    }
   }
 
   onCreated () {
@@ -45,5 +66,13 @@ export default class TestProps extends GalaxyElement {
 
   onAttached () {
     console.log('Attached')
+  }
+
+  showFruit ({ fruit }) {
+    console.log('Fruit:', fruit)
+  }
+
+  showSport ({ sport }) {
+    console.log('Sport:', sport)
   }
 }

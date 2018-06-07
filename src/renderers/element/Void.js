@@ -2,7 +2,11 @@
  * Directives
  */
 import ConditionalRenderer from '../directives/Conditional.js'
-import BindRenderer from '../directives/Bind.js'
+import BindRenderer from '../directives/model/Bind.js'
+import InputRenderer from '../directives/model/Input.js'
+import CheckboxRenderer from '../directives/model/Checkbox.js'
+import RadioRenderer from '../directives/model/Radio.js'
+import SelectRenderer from '../directives/model/Select.js'
 
 /**
  * Bindings
@@ -105,7 +109,15 @@ export default class VoidRenderer {
     }
 
     if (BindRenderer.is($el)) {
-      this.directives.push(new BindRenderer($el, this))
+      const Renderer = CheckboxRenderer.is($el) ? CheckboxRenderer
+        : RadioRenderer.is($el) ? RadioRenderer
+        : InputRenderer.is($el) ? InputRenderer
+        : SelectRenderer.is($el) ? SelectRenderer
+        : null
+
+      if (SelectRenderer) {
+        this.directives.push(new Renderer($el, this))
+      }
     }
   }
 

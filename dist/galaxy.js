@@ -436,22 +436,12 @@ class ConditionalRenderer {
 
 const BIND_ATTRIBUTE = '*bind';
 
-/**
- * With support just for input types:
- *
- *   - Password
- *   - Text
- *   - Email
- *   - Search
- *   - URL
- *   - Number
- */
 class BindRenderer {
-  constructor (input, context) {
-    this.input = input;
+  constructor (target, context) {
+    this.target = target;
     this.context = context;
 
-    this.path = getAttr(input, BIND_ATTRIBUTE);
+    this.path = getAttr(target, BIND_ATTRIBUTE);
 
     this.setting = false;
 
@@ -461,24 +451,58 @@ class BindRenderer {
     // State -> Input
     this.getter = compileScopedGetter(this.path, context);
 
-    this.conversor = input.type === 'number' ? Number : String;
+    if (this.onInput) {
+      target.addEventListener('input', this.onInput.bind(this));
+    }
 
-    this._onInput();
+    if (this.onChange) {
+      target.addEventListener('change', this.onChange.bind(this));
+    }
+  }
+
+  static is ({ attributes }) {
+    return BIND_ATTRIBUTE in attributes
+  }
+
+  get value () {
+    return this.getter()
+  }
+
+  setValue (value) {
+    this.setting = true;
+    this.setter(value);
+  }
+}
+
+/**
+ * With support just for input types:
+ *
+ *   - Password
+ *   - Text
+ *   - Email
+ *   - Search
+ *   - URL
+ *   - Number
+ *
+ * And <textarea>
+ */
+class InputRenderer extends BindRenderer {
+  constructor (input, context) {
+    super(input, context);
+
+    this.conversor = input.type === 'number' ? Number : String;
   }
 
   static is (element) {
     return (
-      BIND_ATTRIBUTE in element.attributes &&
-      element instanceof HTMLInputElement
+      element instanceof HTMLInputElement ||
+      element instanceof HTMLTextAreaElement
     )
   }
 
   // Change state (Input -> State)
-  _onInput () {
-    this.input.addEventListener('input', ({ target }) => {
-      this.setting = true;
-      this.setter(this.conversor(target.value));
-    });
+  onInput ({ target }) {
+    this.setValue(this.conversor(target.value));
   }
 
   // Change input (State -> Input)
@@ -490,11 +514,105 @@ class BindRenderer {
       return
     }
 
-    const value = String(this.getter());
+    const value = String(this.value);
 
-    if (differ(this.input, value)) {
-      this.input.value = value;
+    if (differ(this.target, value)) {
+      this.target.value = value;
     }
+  }
+}
+
+/**
+ * Support for <input type="checkbox">
+ */
+class CheckboxRenderer extends BindRenderer {
+  static is ({ type }) {
+    return type === 'checkbox'
+  }
+
+  onChange ({ target }) {
+    this.setValue(target.checked);
+  }
+
+  render () {
+    if (this.setting) {
+      this.setting = false;
+      return
+    }
+
+    this.target.checked = Boolean(this.value);
+  }
+}
+
+/**
+ * Support for <input type="radio">
+ */
+class RadioRenderer extends BindRenderer {
+  static is ({ type }) {
+    return type === 'radio'
+  }
+
+  onChange ({ target }) {
+    if (target.checked) {
+      this.setValue(target.value);
+    }
+  }
+
+  render () {
+    if (this.setting) {
+      this.setting = false;
+      return
+    }
+
+    this.target.checked = String(this.value) === this.target.value;
+  }
+}
+
+const { forEach } = Array.prototype;
+
+/**
+ * Support for single and multiple <select>
+ */
+class SelectRenderer extends BindRenderer {
+  static is (element) {
+    return element instanceof HTMLSelectElement
+  }
+
+  get multiple () {
+    return this.target.multiple
+  }
+
+  onChange ({ target }) {
+    let value = this.multiple ? [] : null;
+
+    forEach.call(target.options, option => {
+      if (option.selected) {
+        if (this.multiple) {
+          value.push(option.value);
+        } else {
+          value = option.value;
+        }
+      }
+    });
+
+    this.setValue(value);
+  }
+
+  render () {
+    if (this.setting) {
+      this.setting = false;
+      return
+    }
+
+    const { value } = this;
+
+    console.dir(this.target.options[0]);
+
+    forEach.call(this.target.options, option => {
+      option.selected = this.multiple
+        ? value.indexOf(option.value) > -1
+        : value === option.value;
+    });
   }
 }
 
@@ -838,7 +956,15 @@ class VoidRenderer {
     }
 
     if (BindRenderer.is($el)) {
-      this.directives.push(new BindRenderer($el, this));
+      const Renderer = CheckboxRenderer.is($el) ? CheckboxRenderer
+        : RadioRenderer.is($el) ? RadioRenderer
+        : InputRenderer.is($el) ? InputRenderer
+        : SelectRenderer.is($el) ? SelectRenderer
+        : null;
+
+      if (SelectRenderer) {
+        this.directives.push(new Renderer($el, this));
+      }
     }
   }
 
