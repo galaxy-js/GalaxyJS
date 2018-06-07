@@ -606,8 +606,6 @@ class SelectRenderer extends BindRenderer {
 
     const { value } = this;
 
-    console.dir(this.target.options[0]);
-
     forEach.call(this.target.options, option => {
       option.selected = this.multiple
         ? value.indexOf(option.value) > -1
