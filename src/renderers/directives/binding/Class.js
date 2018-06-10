@@ -5,10 +5,6 @@ import { isObject } from '../../../utils/type-check.js'
 const CLASS_REGEX = /^:{1,2}class$/
 
 export default class ClassRenderer extends BindingRenderer {
-  constructor (...args) {
-    super(...args)
-  }
-
   static is ({ name }) {
     return CLASS_REGEX.test(name)
   }

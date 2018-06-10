@@ -136,12 +136,17 @@ export default class VoidRenderer {
 
       // 3. Check :attribute or ::attribute
       } else if (BindingRenderer.is(attribute)) {
-        this.bindings.push(new (
+        const binding = new (
           ClassRenderer.is(attribute)
             ? ClassRenderer
             : StyleRenderer.is(attribute)
               ? StyleRenderer
-              : BindingRenderer)(attribute, this))
+              : BindingRenderer)(attribute, this)
+
+        // Enable quick access
+        this.bindings[binding.name] = binding
+
+        this.bindings.push(binding)
       }
     }
   }

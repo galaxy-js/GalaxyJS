@@ -22,6 +22,8 @@ export default class BindingRenderer {
 
     this.attribute = this._getObserved(attribute)
 
+    this.name = this.attribute.name
+
     this.expression = attribute.value
 
     this.getter = compileScopedGetter(this.expression, context)

@@ -632,6 +632,8 @@ class BindingRenderer {
 
     this.attribute = this._getObserved(attribute);
 
+    this.name = this.attribute.name;
+
     this.expression = attribute.value;
 
     this.getter = compileScopedGetter(this.expression, context);
@@ -689,10 +691,6 @@ class BindingRenderer {
 const CLASS_REGEX = /^:{1,2}class$/;
 
 class ClassRenderer extends BindingRenderer {
-  constructor (...args) {
-    super(...args);
-  }
-
   static is ({ name }) {
     return CLASS_REGEX.test(name)
   }
@@ -981,12 +979,17 @@ class VoidRenderer {
 
       // 3. Check :attribute or ::attribute
       } else if (BindingRenderer.is(attribute)) {
-        this.bindings.push(new (
+        const binding = new (
           ClassRenderer.is(attribute)
             ? ClassRenderer
             : StyleRenderer.is(attribute)
               ? StyleRenderer
-              : BindingRenderer)(attribute, this));
+              : BindingRenderer)(attribute, this);
+
+        // Enable quick access
+        this.bindings[binding.name] = binding;
+
+        this.bindings.push(binding);
       }
     }
   }
