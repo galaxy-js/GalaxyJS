@@ -1171,15 +1171,17 @@ const LOOP_ATTRIBUTE = '*for';
  *   [item] in [expression]
  *   ([item]) in [expression]
  *
- *  2. Complex
+ *  2. With key
  *
- *   [item], [key|index] in [expression]
- *   ([item], [key|index]) in [expression]
+ *   [item], [key] in [expression]
+ *   [item], [key], [index] in [expression]
+ *
+ *  3. With index
+ *
+ *   ([item], [key]) in [expression]
+ *   ([item], [key], [index]) in [expression]
  */
-const LOOP_REGEX = /^\(?(?<value>\w+)(?:\s*,\s*(?<key>\w+))?\)?\s+in\s+(?<expression>.+)$/;
-
-const LOOP_INDEX = '$index';
-const LOOP_KEY_NAME = '$key';
+const LOOP_REGEX = /^\(?(?<value>\w+)(?:\s*,\s*(?<key>\w+)(?:\s*,\s*(?<index>\w+))?)?\)?\s+in\s+(?<expression>.+)$/;
 
 class LoopRenderer {
   constructor (template, context) {
@@ -1190,7 +1192,8 @@ class LoopRenderer {
 
     const { groups } = getAttr(template, LOOP_ATTRIBUTE).match(LOOP_REGEX);
 
-    this.keyName = groups.key || LOOP_KEY_NAME;
+    this.keyName = groups.key;
+    this.indexName = groups.index;
     this.valueName = groups.value;
 
     this.getter = compileScopedGetter(groups.expression, context);
@@ -1219,14 +1222,18 @@ class LoopRenderer {
     // TODO: Add sort of track-by (maybe a key attribute)
 
     // 1. Adding, updating
-    keys.forEach((key, index) => {
-      const value = collection[key];
+    keys.forEach(($key, $index) => {
+      const value = collection[$key];
 
-      let item = this.items[index];
+      let item = this.items[$index];
 
       const isolated = {
-        [LOOP_INDEX]: index,
-        [this.keyName]: key,
+        $index,
+        $key,
+
+        // User-defined locals
+        [this.keyName]: $key,
+        [this.indexName]: $index,
         [this.valueName]: value
       };
 
