@@ -589,7 +589,7 @@ class SelectRenderer extends BindRenderer {
           // In non-multiple select we need to set
           // the raw value since there's no reference
           return this.setValue(value)
-        } else if (values.includes(value)) {
+        } else if (!values.includes(value)) {
           values.push(value);
         }
       } else if (multiple) {

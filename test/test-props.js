@@ -13,16 +13,16 @@ export default class TestProps extends GalaxyElement {
         {{ props.string }}
       </h2>
 
-      <h2>Fruit {{ fruit }}</h2>
+      <h2>Selected fruit: {{ fruit || 'nothing' }}</h2>
 
       <label *for="_fruit in fruits">
         {{ _fruit }}
         <input type="radio" :value="_fruit" *bind="fruit" @change="#showFruit()">
       </label>
 
-      <h2>Sport {{ sport }}</h2>
+      <h2>Selected sports: {{ selectedSports.join(',') }}</h2>
 
-      <select *bind="sport" @change="#showSport()">
+      <select multiple *bind="selectedSports" @change="#showSport()">
         <option value="" disabled>Sport</option>
         <option *for="_sport in sports" :value="_sport">{{ _sport.toUpperCase() }}</option>
       </select>
@@ -47,7 +47,7 @@ export default class TestProps extends GalaxyElement {
       fruits: ['apple', 'strawberry', 'lemon'],
       fruit: null,
       sports: ['football', 'soccer', 'basketball', 'tennis'],
-      sport: 'tennis'
+      selectedSports: ['tennis']
     }
   }
 
