@@ -45,12 +45,7 @@ export default class SelectRenderer extends BindRenderer {
     }
   }
 
-  render () {
-    if (this.setting) {
-      this.setting = false
-      return
-    }
-
+  _render () {
     const { value } = this
 
     for (const option of this.target.options) {

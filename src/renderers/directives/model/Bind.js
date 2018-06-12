@@ -39,4 +39,13 @@ export default class BindRenderer {
     this.setting = true
     this.setter(value)
   }
+
+  render () {
+    // Avoid re-dispatching render on updated values
+    if (this.setting) {
+      this.setting = false
+    } else {
+      this._render()
+    }
+  }
 }

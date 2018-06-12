@@ -472,6 +472,15 @@ class BindRenderer {
     this.setting = true;
     this.setter(value);
   }
+
+  render () {
+    // Avoid re-dispatching render on updated values
+    if (this.setting) {
+      this.setting = false;
+    } else {
+      this._render();
+    }
+  }
 }
 
 /**
@@ -505,15 +514,7 @@ class InputRenderer extends BindRenderer {
     this.setValue(this.conversor(target.value));
   }
 
-  // Change input (State -> Input)
-  render () {
-    // Avoid re-dispatching on flush cycle
-    // for an already assigned value
-    if (this.setting) {
-      this.setting = false;
-      return
-    }
-
+  _render () {
     const value = String(this.value);
 
     if (differ(this.target, value)) {
@@ -534,12 +535,7 @@ class CheckboxRenderer extends BindRenderer {
     this.setValue(target.checked);
   }
 
-  render () {
-    if (this.setting) {
-      this.setting = false;
-      return
-    }
-
+  _render () {
     this.target.checked = Boolean(this.value);
   }
 }
@@ -558,12 +554,7 @@ class RadioRenderer extends BindRenderer {
     }
   }
 
-  render () {
-    if (this.setting) {
-      this.setting = false;
-      return
-    }
-
+  _render () {
     this.target.checked = String(this.value) === this.target.value;
   }
 }
@@ -611,12 +602,7 @@ class SelectRenderer extends BindRenderer {
     }
   }
 
-  render () {
-    if (this.setting) {
-      this.setting = false;
-      return
-    }
-
+  _render () {
     const { value } = this;
 
     for (const option of this.target.options) {

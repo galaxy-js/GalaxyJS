@@ -12,12 +12,7 @@ export default class CheckboxRenderer extends BindRenderer {
     this.setValue(target.checked)
   }
 
-  render () {
-    if (this.setting) {
-      this.setting = false
-      return
-    }
-
+  _render () {
     this.target.checked = Boolean(this.value)
   }
 }

@@ -14,12 +14,7 @@ export default class RadioRenderer extends BindRenderer {
     }
   }
 
-  render () {
-    if (this.setting) {
-      this.setting = false
-      return
-    }
-
+  _render () {
     this.target.checked = String(this.value) === this.target.value
   }
 }

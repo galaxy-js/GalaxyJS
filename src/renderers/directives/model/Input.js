@@ -33,15 +33,7 @@ export default class InputRenderer extends BindRenderer {
     this.setValue(this.conversor(target.value))
   }
 
-  // Change input (State -> Input)
-  render () {
-    // Avoid re-dispatching on flush cycle
-    // for an already assigned value
-    if (this.setting) {
-      this.setting = false
-      return
-    }
-
+  _render () {
     const value = String(this.value)
 
     if (differ(this.target, value)) {
