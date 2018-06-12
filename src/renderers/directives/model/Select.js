@@ -10,14 +10,11 @@ export default class SelectRenderer extends BindRenderer {
     return element instanceof HTMLSelectElement
   }
 
-  get multiple () {
-    return this.target.multiple
-  }
-
   onChange ({ target }) {
     let values
+    const multiple = this.target.multiple
 
-    if (this.multiple) {
+    if (multiple) {
       values = this.value
 
       if (!Array.isArray(values)) {
@@ -30,15 +27,15 @@ export default class SelectRenderer extends BindRenderer {
 
     for (const { value, selected } of target.options) {
       if (selected) {
-        if (!this.multiple) {
+        if (!multiple) {
 
           // In non-multiple select we need to set
           // the raw value since there's no reference
           return this.setValue(value)
-        } else if (values.indexOf(value) === -1) {
+        } else if (values.includes(value)) {
           values.push(value)
         }
-      } else if (this.multiple) {
+      } else if (multiple) {
         const index = values.indexOf(value)
 
         if (index > -1) {
@@ -57,7 +54,7 @@ export default class SelectRenderer extends BindRenderer {
     const { value } = this
 
     for (const option of this.target.options) {
-      option.selected = this.multiple
+      option.selected = this.target.multiple
         ? value.indexOf(option.value) > -1
         : value === option.value
     }
