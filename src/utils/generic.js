@@ -6,17 +6,31 @@ import { isObject, isFunction } from './type-check.js'
 
 const same = value => value
 
-const HYPEN_REGEX = /-([a-z][0-9])/gi
+const HYPHEN_REGEX = /-([a-z][0-9])/gi
+const CAMEL_REGEX = /(?<=[a-z0-9])([A-Z])/g
 
 /**
- * Converts hypenated string to camelized
+ * Converts hyphenated string to camelized
  *
- * @param {string} hypenated
+ * @param {string} hyphenated
  *
  * @return {string}
  */
-export function camelize (hypenated) {
-  return hypenated.replace(HYPEN_REGEX, (_, letter) => letter.toUpperCase())
+export function camelize (hyphenated) {
+  return hyphenated.replace(HYPHEN_REGEX, (_, letter) => letter.toUpperCase())
+}
+
+/**
+ * Converts camelized string to hyphenated
+ *
+ * @param {string} camelized
+ *
+ * @return {string}
+ */
+export function hyphenate (camelized) {
+  return camelized.replace(CAMEL_REGEX, (_, letter) => `-${letter.toLowerCase()}`)
+    // Make rest letters lowercased
+    .toLowerCase()
 }
 
 export function getAttr (element, name, conversor = same) {

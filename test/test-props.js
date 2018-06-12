@@ -1,10 +1,6 @@
 import { GalaxyElement, html } from '../dist/galaxy.js'
 
 export default class TestProps extends GalaxyElement {
-  static get is () {
-    return 'test-props'
-  }
-
   static get template () {
     return html`
       <slot name="title"></slot>
@@ -72,7 +68,7 @@ export default class TestProps extends GalaxyElement {
     console.log('Fruit:', fruit)
   }
 
-  showSport ({ sport }) {
-    console.log('Sport:', sport)
+  showSport ({ selectedSports }) {
+    console.log('Sports:', selectedSports)
   }
 }

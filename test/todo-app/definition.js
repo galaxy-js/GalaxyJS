@@ -38,10 +38,6 @@ export default class TodoApp extends GalaxyElement {
     }, 5000)
   }
 
-  static get is () {
-    return 'todo-app'
-  }
-
   onCreated () {
     setTimeout(() => {
       this.state.letters.sort()

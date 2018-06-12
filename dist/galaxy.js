@@ -63,17 +63,31 @@ function isGalaxyElement ({ constructor }) {
 
 const same = value => value;
 
-const HYPEN_REGEX = /-([a-z][0-9])/gi;
+const HYPHEN_REGEX = /-([a-z][0-9])/gi;
+const CAMEL_REGEX = /(?<=[a-z0-9])([A-Z])/g;
 
 /**
- * Converts hypenated string to camelized
+ * Converts hyphenated string to camelized
  *
- * @param {string} hypenated
+ * @param {string} hyphenated
  *
  * @return {string}
  */
-function camelize (hypenated) {
-  return hypenated.replace(HYPEN_REGEX, (_, letter) => letter.toUpperCase())
+function camelize (hyphenated) {
+  return hyphenated.replace(HYPHEN_REGEX, (_, letter) => letter.toUpperCase())
+}
+
+/**
+ * Converts camelized string to hyphenated
+ *
+ * @param {string} camelized
+ *
+ * @return {string}
+ */
+function hyphenate (camelized) {
+  return camelized.replace(CAMEL_REGEX, (_, letter) => `-${letter.toLowerCase()}`)
+    // Make rest letters lowercased
+    .toLowerCase()
 }
 
 function getAttr (element, name, conversor = same) {
@@ -1555,12 +1569,14 @@ function setup (options) {
 
   // Register element classes
   for (const GalaxyElement of options.elements) {
-    if (typeof GalaxyElement.is === 'undefined') {
-      throw new GalaxyError('Unknown element name')
+    const name = GalaxyElement.is || GalaxyElement.name && hyphenate(GalaxyElement.name);
+
+    if (!name) {
+      throw new GalaxyError('Unknown element tag name')
     }
 
     try {
-      customElements.define(GalaxyElement.is, GalaxyElement);
+      customElements.define(name, GalaxyElement);
     } catch (e) {
       throw new GalaxyError(e.message)
     }
