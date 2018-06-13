@@ -971,7 +971,7 @@ class VoidRenderer {
         : SelectRenderer.is($el) ? SelectRenderer
         : null;
 
-      if (SelectRenderer) {
+      if (Renderer) {
         this.directives.push(new Renderer($el, this));
       }
     }
