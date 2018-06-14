@@ -17,7 +17,7 @@ export default {
       const applier = config.filters[filter.name]
 
       return filter.args
-        ? applier(result, ...args)
+        ? applier(result, ...filter.args)
         : applier(result)
     }, value)
   }
