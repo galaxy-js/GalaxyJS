@@ -7,7 +7,7 @@ import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick@v0.1.0/in
 import { isObject, isFunction, isReserved } from '../utils/type-check.js'
 import { callHook, ensureListeners } from '../utils/generic.js'
 
-import GalaxyError from '../errors/GalaxyError.js'
+import GalaxyError, { galaxyError } from '../errors/GalaxyError.js'
 
 /**
  * Internal
@@ -237,7 +237,7 @@ export default class GalaxyElement extends HTMLElement {
           this.$renderer.render()
         } catch (e) {
           if (!(e instanceof GalaxyError)) {
-            e = new GalaxyError(e.message)
+            e = galaxyError(e)
           }
 
           // Don't handle the error in debug mode

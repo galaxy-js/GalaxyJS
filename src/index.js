@@ -1,6 +1,6 @@
 import config from './config.js'
 
-import GalaxyError from './errors/GalaxyError.js'
+import GalaxyError, { galaxyError } from './errors/GalaxyError.js'
 
 import { hyphenate } from './utils/generic.js'
 
@@ -31,7 +31,7 @@ export function setup (options) {
     try {
       customElements.define(name, GalaxyElement)
     } catch (e) {
-      throw new GalaxyError(e.message)
+      throw galaxyError(e)
     }
   }
 }

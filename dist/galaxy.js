@@ -25,12 +25,22 @@ var config = {
   elements: []
 }
 
-class GalaxyError extends Error {
-  constructor (message) {
-    super(message);
+class GalaxyError extends Error {}
 
-    this.name = 'GalaxyError';
-  }
+/**
+ * Converts given `error`
+ *
+ * @param {Error} error
+ *
+ * @return {GalaxyError}
+ */
+function galaxyError ({ message, stack }) {
+  const galaxyError = new GalaxyError(message);
+
+  // Setting up correct stack
+  galaxyError.stack = stack;
+
+  return galaxyError
 }
 
 function isObject (value) {
@@ -1562,7 +1572,7 @@ class GalaxyElement extends HTMLElement {
           this.$renderer.render();
         } catch (e) {
           if (!(e instanceof GalaxyError)) {
-            e = new GalaxyError(e.message);
+            e = galaxyError(e);
           }
 
           // Don't handle the error in debug mode
@@ -1608,7 +1618,7 @@ function setup (options) {
     try {
       customElements.define(name, GalaxyElement);
     } catch (e) {
-      throw new GalaxyError(e.message)
+      throw galaxyError(e)
     }
   }
 }

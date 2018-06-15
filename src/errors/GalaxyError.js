@@ -1,7 +1,17 @@
-export default class GalaxyError extends Error {
-  constructor (message) {
-    super(message)
+export default class GalaxyError extends Error {}
 
-    this.name = 'GalaxyError'
-  }
+/**
+ * Converts given `error`
+ *
+ * @param {Error} error
+ *
+ * @return {GalaxyError}
+ */
+export function galaxyError ({ message, stack }) {
+  const galaxyError = new GalaxyError(message)
+
+  // Setting up correct stack
+  galaxyError.stack = stack
+
+  return galaxyError
 }
