@@ -100,6 +100,36 @@ export default class GalaxyElement extends HTMLElement {
     callHook(this, 'attribute', { name, old, value })
   }
 
+  $watch (path, watcher) {
+    let $observer
+    let { state } = this
+    const keys = path.split('.')
+
+    keys.forEach((key, index) => {
+      if (index !== keys.length - 1) {
+        state = state[key]
+
+        if (!state) throw new GalaxyError(`Wrong path at segment: '.${key}'`)
+      } else {
+        $observer = ProxyObserver.get(state)
+
+        if (key !== '*') {
+          const dispatch = watcher
+
+          watcher = change => {
+            if (change.property === key) {
+              dispatch(change)
+            }
+          }
+        }
+      }
+    })
+
+    if ($observer && watcher) {
+      $observer.subscribe(watcher)
+    }
+  }
+
   /**
    * Events
    *
