@@ -19,40 +19,77 @@ export default class GalaxyElement extends HTMLElement {
   constructor () {
     super()
 
-    // Default initial state
-    // Just an empty object
-    // Note: This also calls initial render
-    this.state = {}
+    /**
+     * State for data-binding
+     *
+     * @type {Object.<*>}
+     * @public
+     */
+    this.state = {} // This already call initial render
 
-    // Hold component properties
-    // TODO: How to properly define properties?
-    this.props = this.constructor.properties
+    /**
+     * Hold component properties
+     *
+     * @type {Object.<*>}
+     * @public
+     */
+    this.props = this.constructor.properties // TODO: How to properly define properties?
 
-    // Actual DOM event being dispatched
+    /**
+     * Actual DOM event being dispatched
+     *
+     * @type {Event}
+     * @public
+     */
     this.$event = null
 
-    // Attached events
+    /**
+     * Attached events
+     *
+     * @type {Object.<Array>}
+     * @public
+     */
     this.$events = Object.create(null)
 
-    // For parent communication
+    /**
+     * Give directly access to the parent element
+     *
+     * @type {GalaxyElement}
+     * @public
+     */
     this.$parent = null
 
-    // Hold element references
+    /**
+     * Hold element references
+     *
+     * @type {Map<string, HTMLElement>}
+     * @public
+     */
     this.$refs = new Map()
 
+    const shadow = this.attachShadow({ mode: 'open' })
+
     // We need to append content before setting up the main renderer
-    this.attachShadow({ mode: 'open' })
-      .appendChild(this.constructor.template.content.cloneNode(true))
+    shadow.appendChild(this.constructor.template.content.cloneNode(true))
 
-    // Setup main renderer
-    this.$renderer = new ChildrenRenderer(this.shadowRoot.childNodes, this, {})
+    /**
+     * Main renderer called for rendering
+     *
+     * @type {ChildrenRenderer}
+     * @public
+     */
+    this.$renderer = new ChildrenRenderer(shadow.childNodes, this, {})
 
-    // Flag whether we are in a rendering phase
+    /**
+     * Determines whether we are in a rendering phase
+     *
+     * @type {boolean}
+     * @public
+     */
     this.$rendering = false
 
+    // Call element initialization
     callHook(this, 'created')
-
-    console.dir(this) // For debugging purposes
   }
 
   get state () {
@@ -100,8 +137,18 @@ export default class GalaxyElement extends HTMLElement {
     callHook(this, 'attribute', { name, old, value })
   }
 
+  /**
+   * Watch a given `path` from the state
+   *
+   * @param {string} path
+   * @param {Function} watcher
+   *
+   * @return {Function}
+   */
   $watch (path, watcher) {
     let $observer
+    let dispatch
+
     let { state } = this
     const keys = path.split('.')
 
@@ -113,20 +160,32 @@ export default class GalaxyElement extends HTMLElement {
       } else {
         $observer = ProxyObserver.get(state)
 
-        if (key !== '*') {
-          const dispatch = watcher
+        if (key === '*') {
+          dispatch = change => {
+            watcher(
+              change.value, change.old,
 
-          watcher = change => {
+              // We need to pass extra properties
+              // for deep observing.
+              change.property, change.target
+            )
+          }
+        } else {
+          dispatch = change => {
             if (change.property === key) {
-              dispatch(change)
+              watcher(change.value, change.old)
             }
           }
         }
       }
     })
 
-    if ($observer && watcher) {
-      $observer.subscribe(watcher)
+    if ($observer && dispatch) {
+      $observer.subscribe(dispatch)
+
+      return () => {
+        $observer.unsubscribe(dispatch)
+      }
     }
   }
 
@@ -204,14 +263,14 @@ export default class GalaxyElement extends HTMLElement {
   $commit (method, ...args) {
     if (method in this) {
       if (!isFunction(this[method])) {
-        throw new GalaxyError$1(`Method '${method}' must be a function`)
+        throw new GalaxyError(`Method '${method}' must be a function`)
       }
 
       if (isReserved(method)) {
-        throw new GalaxyError$1(`Could no call reserved method '${method}'`)
+        throw new GalaxyError(`Could no call reserved method '${method}'`)
       }
 
-      this[method](this.state, ...args);
+      this[method](this.state, ...args)
     }
   }
 
