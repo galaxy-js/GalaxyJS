@@ -73,7 +73,7 @@ function isGalaxyElement ({ constructor }) {
 
 const same = value => value;
 
-const HYPHEN_REGEX = /-([a-z][0-9])/gi;
+const HYPHEN_REGEX = /-([a-z0-9])/gi;
 const CAMEL_REGEX = /(?<=[a-z0-9])([A-Z])/g;
 
 /**
@@ -151,6 +151,10 @@ function flatChildren (element) {
   });
 
   return flat
+}
+
+function getName (GalaxyElement) {
+  return GalaxyElement.is || GalaxyElement.name && hyphenate(GalaxyElement.name)
 }
 
 function callHook (ce, hook, ...args) {
@@ -1095,7 +1099,10 @@ class CustomRenderer extends ElementRenderer {
     super(ce, scope, isolated);
 
     // Set parent communication
-    ce.$parent = this.scope;
+    ce.$parent = scope;
+
+    // Set children communication
+    scope.$children[camelize(getName(ce.constructor))] = ce;
 
     this._resolveProps();
   }
@@ -1387,12 +1394,20 @@ class GalaxyElement extends HTMLElement {
     this.$events = Object.create(null);
 
     /**
-     * Give directly access to the parent element
+     * Give directly access to the parent galaxy element
      *
      * @type {GalaxyElement}
      * @public
      */
     this.$parent = null;
+
+    /**
+     * Give access to children galaxy elements
+     *
+     * @type {Object.<GalaxyElement>}
+     * @public
+     */
+    this.$children = {};
 
     /**
      * Hold element references
@@ -1668,7 +1683,7 @@ function setup (options) {
 
   // Register element classes
   for (const GalaxyElement of options.elements) {
-    const name = GalaxyElement.is || GalaxyElement.name && hyphenate(GalaxyElement.name);
+    const name = getName(GalaxyElement);
 
     if (!name) {
       throw new GalaxyError('Unknown element tag name')

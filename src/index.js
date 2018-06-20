@@ -2,7 +2,7 @@ import config from './config.js'
 
 import GalaxyError, { galaxyError } from './errors/GalaxyError.js'
 
-import { hyphenate } from './utils/generic.js'
+import { getName } from './utils/generic.js'
 
 export { config }
 export { default as GalaxyElement } from './core/GalaxyElement.js'
@@ -22,7 +22,7 @@ export function setup (options) {
 
   // Register element classes
   for (const GalaxyElement of options.elements) {
-    const name = GalaxyElement.is || GalaxyElement.name && hyphenate(GalaxyElement.name)
+    const name = getName(GalaxyElement)
 
     if (!name) {
       throw new GalaxyError('Unknown element tag name')

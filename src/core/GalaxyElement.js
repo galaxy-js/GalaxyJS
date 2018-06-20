@@ -52,12 +52,20 @@ export default class GalaxyElement extends HTMLElement {
     this.$events = Object.create(null)
 
     /**
-     * Give directly access to the parent element
+     * Give directly access to the parent galaxy element
      *
      * @type {GalaxyElement}
      * @public
      */
     this.$parent = null
+
+    /**
+     * Give access to children galaxy elements
+     *
+     * @type {Object.<GalaxyElement>}
+     * @public
+     */
+    this.$children = {}
 
     /**
      * Hold element references

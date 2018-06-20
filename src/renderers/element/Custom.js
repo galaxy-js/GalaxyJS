@@ -1,7 +1,7 @@
 import ElementRenderer from './Element.js'
 
 import { compileScopedGetter } from '../../compiler/index.js'
-import { camelize } from '../../utils/generic.js'
+import { camelize, getName } from '../../utils/generic.js'
 import { isGalaxyElement } from '../../utils/type-check.js'
 
 const PROP_TOKEN = '.'
@@ -14,7 +14,10 @@ export default class CustomRenderer extends ElementRenderer {
     super(ce, scope, isolated)
 
     // Set parent communication
-    ce.$parent = this.scope
+    ce.$parent = scope
+
+    // Set children communication
+    scope.$children[camelize(getName(ce.constructor))] = ce
 
     this._resolveProps()
   }

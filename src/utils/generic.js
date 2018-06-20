@@ -6,7 +6,7 @@ import { isObject, isFunction } from './type-check.js'
 
 const same = value => value
 
-const HYPHEN_REGEX = /-([a-z][0-9])/gi
+const HYPHEN_REGEX = /-([a-z0-9])/gi
 const CAMEL_REGEX = /(?<=[a-z0-9])([A-Z])/g
 
 /**
@@ -88,6 +88,10 @@ export function flatChildren (element) {
   })
 
   return flat
+}
+
+export function getName (GalaxyElement) {
+  return GalaxyElement.is || GalaxyElement.name && hyphenate(GalaxyElement.name)
 }
 
 export function callHook (ce, hook, ...args) {
