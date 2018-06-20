@@ -180,9 +180,10 @@ function ensureListeners (events, event) {
 var global = {
 
   /**
+   * Apply filter descriptors to the given `value`
    *
    * @param {*} value
-   * @param {Array.<Object>} filters
+   * @param {Array<Object>} filters
    *
    * @return {*}
    */
@@ -194,6 +195,17 @@ var global = {
         ? applier(result, ...filter.args)
         : applier(result)
     }, value)
+  },
+
+  /**
+   * Normalize given template value
+   *
+   * @param {*} value
+   *
+   * @return {string}
+   */
+  _$n (value) {
+    return isDefined(value) ? value : ''
   }
 }
 
@@ -302,9 +314,11 @@ function getExpression (template) {
       const parts = expression.split(FILTER_SPLIT_REGEX);
 
       expressions.push(
-        parts.length > 1
-          ? `_$f(${parts[0]}, [${getDescriptors(parts.slice(1)).join()}])`
-          : `(${expression})`
+        `_$n(${
+          parts.length > 1
+            ? `_$f(${parts[0]}, [${getDescriptors(parts.slice(1)).join()}])`
+            : expression
+        })`
       );
     }
 

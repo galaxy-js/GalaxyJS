@@ -9,7 +9,7 @@ export default class TestProps extends GalaxyElement {
         {{ props.string }}
       </h2>
 
-      <h2>Selected fruit: {{ fruit || 'nothing' }}</h2>
+      <h2>Selected fruit: {{ fruit }}</h2>
 
       <label *for="_fruit in fruits">
         {{ _fruit }}

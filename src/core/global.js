@@ -1,14 +1,17 @@
 import config from '../config.js'
 
+import { isDefined } from '../utils/type-check.js'
+
 /**
  * Exposed internally as Globals within the scope
  */
 export default {
 
   /**
+   * Apply filter descriptors to the given `value`
    *
    * @param {*} value
-   * @param {Array.<Object>} filters
+   * @param {Array<Object>} filters
    *
    * @return {*}
    */
@@ -20,5 +23,16 @@ export default {
         ? applier(result, ...filter.args)
         : applier(result)
     }, value)
+  },
+
+  /**
+   * Normalize given template value
+   *
+   * @param {*} value
+   *
+   * @return {string}
+   */
+  _$n (value) {
+    return isDefined(value) ? value : ''
   }
 }

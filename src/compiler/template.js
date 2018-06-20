@@ -44,9 +44,11 @@ export function getExpression (template) {
       const parts = expression.split(FILTER_SPLIT_REGEX)
 
       expressions.push(
-        parts.length > 1
-          ? `_$f(${parts[0]}, [${getDescriptors(parts.slice(1)).join()}])`
-          : `(${expression})`
+        `_$n(${
+          parts.length > 1
+            ? `_$f(${parts[0]}, [${getDescriptors(parts.slice(1)).join()}])`
+            : expression
+        })`
       )
     }
 
