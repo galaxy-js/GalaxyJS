@@ -23,6 +23,14 @@ export default class ItemRenderer {
       : ElementRenderer
   }
 
+  get key () {
+    return this.renderer.bindings.by
+  }
+
+  by (isolated) {
+    return this.key.getter(isolated)
+  }
+
   update (isolated) {
     this.reused = true
 

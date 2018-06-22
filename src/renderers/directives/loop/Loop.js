@@ -1,3 +1,5 @@
+import config from '../../../config.js'
+
 import BaseRenderer from '../../Base.js'
 import ItemRenderer from './Item.js'
 
@@ -38,6 +40,7 @@ export default class LoopRenderer extends BaseRenderer {
     super(template, context, groups.expression)
 
     this.items = []
+    this.values = new Map()
 
     this.keyName = groups.key
     this.indexName = groups.index
@@ -46,12 +49,22 @@ export default class LoopRenderer extends BaseRenderer {
     this.startAnchor = createAnchor(`start for: ${groups.expression}`)
     this.endAnchor = createAnchor(`end for: ${groups.expression}`)
 
-    const parent =
-    this.parent = template.parentNode
+    const parent = template.parentNode
 
     // Remove `template` since is just a template
     parent.replaceChild(this.startAnchor, template)
     parent.insertBefore(this.endAnchor, this.startAnchor.nextSibling)
+
+    if (!template.hasAttribute(':by')) {
+      if (config.debug) {
+        console.warn(
+          'The element with the loop expression `' + expression + '` ' +
+          'doesn\'t have a `by` binding, defaulting to `$index` tracking.'
+        )
+      }
+
+      template.setAttribute(':by', '$index')
+    }
   }
 
   static is ({ attributes }) {
@@ -82,12 +95,23 @@ export default class LoopRenderer extends BaseRenderer {
       }
 
       if (item) {
+        const oldKey = item.key
+        const newKey = item.by(isolated)
+
+        if (oldKey !== newKey) {
+          const newItem = this.values.get(newKey)
+          newItem.insert(item.renderer.element.nextSibling)
+          item = newItem
+        }
+
         item.update(isolated)
       } else {
         item = new ItemRenderer(template, this.context, isolated)
 
         // Insert before end anchor
         item.insert(this.endAnchor)
+
+        this.values.set(item.key.value, item)
       }
 
       // Push render on to the new queue
@@ -102,6 +126,7 @@ export default class LoopRenderer extends BaseRenderer {
         // Enable recycling again
         item.reused = false
       } else {
+        this.values.delete(item.key.value)
         item.remove()
       }
     }
