@@ -33,11 +33,11 @@ export default class InputRenderer extends BindRenderer {
     this.setValue(this.conversor(target.value))
   }
 
-  _render () {
-    const value = String(this.value)
+  update (input, value) {
+    value = String(value)
 
-    if (differ(this.target, value)) {
-      this.target.value = value
+    if (differ(input, value)) {
+      input.value = value
     }
   }
 }

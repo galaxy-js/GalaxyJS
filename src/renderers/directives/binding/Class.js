@@ -9,9 +9,7 @@ export default class ClassRenderer extends BindingRenderer {
     return CLASS_REGEX.test(name)
   }
 
-  _getNormalized () {
-    const value = this.getter()
-
+  static getNormalized (value) {
     if (!Array.isArray(value)) return value
 
     const result = {}
@@ -27,13 +25,13 @@ export default class ClassRenderer extends BindingRenderer {
     return result
   }
 
-  render () {
-    const value = this._getNormalized()
+  patch (attribute, value) {
+    value = ClassRenderer.getNormalized(value)
 
-    // Fallback to normal attribute rendering
-    if (!isObject(value)) return super.render()
+    // Fallback to normal attribute patching
+    if (!isObject(value)) return super.patch(attribute, value)
 
-    const { classList } = this.attribute.ownerElement
+    const { classList } = this.owner
 
     for (const key in value) {
       if (value.hasOwnProperty(key)) {

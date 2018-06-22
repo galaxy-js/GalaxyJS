@@ -1,22 +1,31 @@
+import BaseRenderer from '../../Base.js'
+
 import { getAttr } from '../../../utils/generic.js'
-import { compileScopedSetter, compileScopedGetter } from '../../../compiler/index.js'
+import { compileScopedSetter } from '../../../compiler/index.js'
 
-const BIND_ATTRIBUTE = '*bind'
+const BIND_DIRECTIVE = '*bind'
 
-export default class BindRenderer {
+export default class BindRenderer extends BaseRenderer {
   constructor (target, context) {
-    this.target = target
-    this.context = context
-
-    this.path = getAttr(target, BIND_ATTRIBUTE)
+    super(
+      target, context,
+      getAttr(target, BIND_DIRECTIVE)
+    )
 
     this.setting = false
 
     // Input -> State
-    this.setter = compileScopedSetter(this.path, context)
+    const setter = compileScopedSetter(this.expression)
 
-    // State -> Input
-    this.getter = compileScopedGetter(this.path, context)
+    this.setter = value => {
+      setter(
+        // (scope, locals
+        context.scope, context.isolated,
+
+        // ...args[0])
+        value
+      )
+    }
 
     if (this.onInput) {
       target.addEventListener('input', this.onInput.bind(this))
@@ -28,11 +37,7 @@ export default class BindRenderer {
   }
 
   static is ({ attributes }) {
-    return BIND_ATTRIBUTE in attributes
-  }
-
-  get value () {
-    return this.getter()
+    return BIND_DIRECTIVE in attributes
   }
 
   setValue (value) {
@@ -40,12 +45,12 @@ export default class BindRenderer {
     this.setter(value)
   }
 
-  render () {
+  patch (target, value) {
     // Avoid re-dispatching render on updated values
     if (this.setting) {
       this.setting = false
     } else {
-      this._render()
+      this.update(target, value)
     }
   }
 }

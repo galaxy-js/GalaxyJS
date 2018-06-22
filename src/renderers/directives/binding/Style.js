@@ -25,11 +25,9 @@ export default class StyleRenderer extends BindingRenderer {
     }
   }
 
-  render () {
-    const styles = this.getter()
-
-    // Fallback to normal rendering
-    if (!isObject(styles)) return super.render()
+  patch (style, styles) {
+    // Fallback to normal styles patching
+    if (!isObject(styles)) return super.patch(style, styles)
 
     const $styles = this.owner.attributeStyleMap
 

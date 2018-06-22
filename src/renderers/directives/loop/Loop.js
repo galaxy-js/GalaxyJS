@@ -1,6 +1,6 @@
+import BaseRenderer from '../../Base.js'
 import ItemRenderer from './Item.js'
 
-import { compileScopedGetter } from '../../../compiler/index.js'
 import { getAttr, createAnchor, newIsolated } from '../../../utils/generic.js'
 import { isDefined } from '../../../utils/type-check.js'
 
@@ -8,7 +8,7 @@ import { isDefined } from '../../../utils/type-check.js'
 
 // TODO: Add anchor delimiters
 
-const LOOP_ATTRIBUTE = '*for'
+const LOOP_DIRECTIVE = '*for'
 
 /**
  * Captures:
@@ -30,20 +30,18 @@ const LOOP_ATTRIBUTE = '*for'
  */
 const LOOP_REGEX = /^\(?(?<value>\w+)(?:\s*,\s*(?<key>\w+)(?:\s*,\s*(?<index>\w+))?)?\)?\s+in\s+(?<expression>.+)$/
 
-export default class LoopRenderer {
+export default class LoopRenderer extends BaseRenderer {
   constructor (template, context) {
-    this.template = template
-    this.context = context
+    const expression = getAttr(template, LOOP_DIRECTIVE)
+    const { groups } = expression.match(LOOP_REGEX)
+
+    super(template, context, groups.expression)
 
     this.items = []
-
-    const { groups } = getAttr(template, LOOP_ATTRIBUTE).match(LOOP_REGEX)
 
     this.keyName = groups.key
     this.indexName = groups.index
     this.valueName = groups.value
-
-    this.getter = compileScopedGetter(groups.expression, context)
 
     this.startAnchor = createAnchor(`start for: ${groups.expression}`)
     this.endAnchor = createAnchor(`end for: ${groups.expression}`)
@@ -57,11 +55,10 @@ export default class LoopRenderer {
   }
 
   static is ({ attributes }) {
-    return LOOP_ATTRIBUTE in attributes
+    return LOOP_DIRECTIVE in attributes
   }
 
-  render () {
-    const collection = this.getter()
+  patch (template, collection) {
     const keys = Object.keys(collection)
 
     const items = []
@@ -87,7 +84,7 @@ export default class LoopRenderer {
       if (item) {
         item.update(isolated)
       } else {
-        item = new ItemRenderer(this.template, this.context, isolated)
+        item = new ItemRenderer(template, this.context, isolated)
 
         // Insert before end anchor
         item.insert(this.endAnchor)

@@ -10,11 +10,9 @@ export function isEvent ({ name }) {
   return name.startsWith(EVENT_TOKEN)
 }
 
-export default function event ({ name }, context) {
-  const $el = context.element
-
-  const expression = getAttr($el, name)
-  const evaluator = compileScopedEvaluator(rewriteMethods(expression), context)
+export default function event ({ name }, { element, scope, isolated }) {
+  const expression = getAttr(element, name)
+  const evaluator = compileScopedEvaluator(rewriteMethods(expression))
 
   const parsed = parseEvent(name)
   const { modifiers } = parsed
@@ -24,11 +22,11 @@ export default function event ({ name }, context) {
   let actual
   let handler = event => {
     // Externalize event
-    context.scope.$event = event
+    scope.$event = event
 
-    evaluator()
+    evaluator(scope, isolated)
 
-    context.scope.$event = null
+    scope.$event = null
   }
 
   if (modifiers.self) {
@@ -48,17 +46,17 @@ export default function event ({ name }, context) {
     }
   }
 
-  if (isGalaxyElement($el)) {
+  if (isGalaxyElement(element)) {
     attachMethod = `$on${modifiers.once ? 'ce' : ''}`
   } else if (modifiers.once) {
     actual = handler
     handler = event => {
-      $el.removeEventListener(parsed.name, handler)
+      element.removeEventListener(parsed.name, handler)
       actual(event)
     }
   }
 
-  $el[attachMethod](parsed.name, handler)
+  element[attachMethod](parsed.name, handler)
 }
 
 function parseEvent (name) {

@@ -38,10 +38,15 @@ export default class CustomRenderer extends ElementRenderer {
         if (props.hasOwnProperty(prop)) {
 
           // Get raw value (with references)
-          const get = compileScopedGetter(value, this)
+          const getter = compileScopedGetter(value)
 
           // Immutable property
-          Object.defineProperty(props, prop, { enumerable: true, get })
+          Object.defineProperty(props, prop, {
+            enumerable: true,
+            get: () => {
+              return getter(this.scope, this.isolated)
+            }
+          })
         }
 
         // TODO: Warn unknown prop

@@ -1,25 +1,25 @@
+import BaseRenderer from '../Base.js'
+
 import { getAttr, createAnchor } from '../../utils/generic.js'
-import { compileScopedGetter } from '../../compiler/index.js'
 
-const CONDITIONAL_ATTRIBUTE = '*if'
+const CONDITIONAL_DIRECTIVE = '*if'
 
-export default class ConditionalRenderer {
+export default class ConditionalRenderer extends BaseRenderer {
   constructor (element, context) {
-    this.element = element
-    this.context = context
-
-    this.condition = getAttr(element, CONDITIONAL_ATTRIBUTE)
-    this.getter = compileScopedGetter(this.condition, this.context)
+    super(
+      element, context,
+      getAttr(element, CONDITIONAL_DIRECTIVE)
+    )
 
     this.anchor = createAnchor(`if: ${this.condition}`)
   }
 
   static is ({ attributes }) {
-    return CONDITIONAL_ATTRIBUTE in attributes
+    return CONDITIONAL_DIRECTIVE in attributes
   }
 
-  render () {
-    if (this.getter()) {
+  patch (value) {
+    if (value) {
       if (!this.element.isConnected) {
         this.anchor.parentNode.replaceChild(this.element, this.anchor)
       }

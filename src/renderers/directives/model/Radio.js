@@ -14,7 +14,7 @@ export default class RadioRenderer extends BindRenderer {
     }
   }
 
-  _render () {
-    this.target.checked = String(this.value) === this.target.value
+  update (radio, value) {
+    radio.checked = String(value) === radio.value
   }
 }

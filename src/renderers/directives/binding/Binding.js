@@ -1,5 +1,7 @@
 import config from '../../../config.js'
 
+import BaseRenderer from '../../Base.js'
+
 import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick@v0.1.0/index.js'
 import { compileScopedGetter } from '../../../compiler/index.js'
 import { differ } from '../../../utils/generic.js'
@@ -13,36 +15,35 @@ const BIND_ONE_TIME_TOKEN = BIND_TOKEN.repeat(2)
  *   1. :attribute
  *   2. ::attribute (one time)
  */
-export default class BindingRenderer {
+export default class BindingRenderer extends BaseRenderer {
   constructor (attribute, context) {
-    this.owner = attribute.ownerElement
-    this.context = context
+    let oneTime = attribute.name.startsWith(BIND_ONE_TIME_TOKEN)
 
-    this.oneTime = attribute.name.startsWith(BIND_ONE_TIME_TOKEN)
+    super(
+      BindingRenderer.getObserved(attribute, oneTime),
 
-    this.attribute = this._getObserved(attribute)
+      context, attribute.value
+    )
 
-    this.name = this.attribute.name
+    /**
+     * Specific binding attributes
+     */
+    this.oneTime = oneTime
+    this.owner = this.target.ownerElement
+    this.name = this.target.name
 
-    this.expression = attribute.value
+    if (oneTime) {
+      const patch = this.patch
 
-    this.getter = compileScopedGetter(this.expression, context)
-
-    // Attribute raw value (without any conversion) and holding reference
-    this.value = null
-
-    if (this.oneTime) {
-      const render = this.render
-
-      this.render = () => {
+      this.patch = value => {
         const { bindings } = context
+
+        patch.call(this, value)
 
         // Schedule remove to queue end
         nextTick(() => {
           bindings.splice(bindings.indexOf(this), 1)
         })
-
-        render.call(this)
       }
     }
   }
@@ -51,11 +52,11 @@ export default class BindingRenderer {
     return name.startsWith(BIND_TOKEN)
   }
 
-  _getObserved (attribute) {
+  static getObserved (attribute, oneTime) {
     const { name } = attribute
     const { attributes } = attribute.ownerElement
 
-    const normalizedName = name.slice(this.oneTime ? 2 : 1)
+    const normalizedName = name.slice(oneTime ? 2 : 1)
 
     let observed = attributes.getNamedItem(normalizedName)
 
@@ -69,11 +70,9 @@ export default class BindingRenderer {
     return observed
   }
 
-  render () {
-    const value = this.value = this.getter()
-
-    if (differ(this.attribute, value)) {
-      this.attribute.value = value
+  patch (attribute, value) {
+    if (differ(attribute, value)) {
+      attribute.value = value
     }
   }
 }

@@ -45,11 +45,9 @@ export default class SelectRenderer extends BindRenderer {
     }
   }
 
-  _render () {
-    const { value } = this
-
-    for (const option of this.target.options) {
-      option.selected = this.target.multiple
+  update (select, value) {
+    for (const option of select.options) {
+      option.selected = select.multiple
         ? value.indexOf(option.value) > -1
         : value === option.value
     }

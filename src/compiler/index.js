@@ -4,66 +4,75 @@ export { rewriteMethods } from './method.js'
 export { getExpression, TEXT_TEMPLATE_REGEX } from './template.js'
 
 /**
+ * Cache evaluators
+ *
+ * @type {Map<string, Function>}
+ * @private
+ */
+const __evaluators__ = new Map()
+
+/**
  * Compile an scoped getter with given `expression`
  *
  * @param {string} expression - JavaScript expression
- * @param {*} context - Getter context
  *
  * @return {Function}
  */
-export function compileScopedGetter (expression, context) {
-  return compileScopedEvaluator(`return ${expression}`, context)
+export function compileScopedGetter (expression) {
+  return compileScopedEvaluator(`return ${expression}`)
 }
 
 /**
  * Compile an scoped setter with given `expression`
  *
  * @param {string} expression - JavaScript expression
- * @param {*} context - Setter context
  *
  * @return {Function}
  */
-export function compileScopedSetter (expression, context) {
-
-  /**
-   * Wrap the whole expression within parenthesis
-   * to avoid statement declarations
-   */
-  return compileScopedEvaluator(`(${expression} = arguments[1])`, context)
+export function compileScopedSetter (expression) {
+  return compileScopedEvaluator(`(${expression} = __args__[0])`)
 }
 
 /**
- * Compile an evaluator function with scoped context
+ * Compile a scoped evaluator function
  *
  * @param {string} body - Function body
- * @param {*} context - Function context
  *
  * @return {Function}
  */
-export function compileScopedEvaluator (body, context) {
+export function compileScopedEvaluator (body) {
+  let evaluator = __evaluators__.get(body)
 
-  /**
-   * Allow directly access to:
-   *
-   *   1. `scope`: Custom element instance itself
-   *   2. `scope.state`: State taken from custom element
-   *   3. `isolated`: Isolated scope internally used by loop directive
-   *
-   * In that order, `isolated` overrides `scope.state` data,
-   * and `scope` is going to be overriden by `scope.state` data.
-   */
-  const evaluator = new Function(`
-    with (arguments[0]) {
-      with (this.scope) {
-        with (state) {
-          with (this.isolated) {
-            ${body}
+  if (!evaluator) {
+
+    /**
+     * Allow directly access to:
+     *
+     *   1. `scope`: Custom element instance itself
+     *   2. `scope.state`: State taken from custom element
+     *   3. `isolated`: Isolated scope internally used by loop directive
+     *
+     * In that order, `isolated` overrides `scope.state` data,
+     * and `scope` is going to be overriden by `scope.state` data.
+     */
+    evaluator = new Function(
+      '__global__', '__scope__', '__locals__', '...__args__',
+      `with (__global__) {
+        with (__scope__) {
+          with (state) {
+            with (__locals__) {
+              ${body}
+            }
           }
         }
-      }
-    }
-  `)
+      }`
+    )
 
-  // Wrapper function to avoid `Function.prototype.bind`
-  return value => evaluator.call(context, global, value)
+    // Cache evaluator with body as key
+    __evaluators__.set(body, evaluator)
+  }
+
+  return (scope, locals, ...args) => {
+    return evaluator(global, scope, locals, ...args)
+  }
 }

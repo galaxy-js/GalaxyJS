@@ -351,68 +351,102 @@ function getDescriptors (filters) {
 }
 
 /**
+ * Cache evaluators
+ *
+ * @type {Map<string, Function>}
+ * @private
+ */
+const __evaluators__ = new Map();
+
+/**
  * Compile an scoped getter with given `expression`
  *
  * @param {string} expression - JavaScript expression
- * @param {*} context - Getter context
  *
  * @return {Function}
  */
-function compileScopedGetter (expression, context) {
-  return compileScopedEvaluator(`return ${expression}`, context)
+function compileScopedGetter (expression) {
+  return compileScopedEvaluator(`return ${expression}`)
 }
 
 /**
  * Compile an scoped setter with given `expression`
  *
  * @param {string} expression - JavaScript expression
- * @param {*} context - Setter context
  *
  * @return {Function}
  */
-function compileScopedSetter (expression, context) {
-
-  /**
-   * Wrap the whole expression within parenthesis
-   * to avoid statement declarations
-   */
-  return compileScopedEvaluator(`(${expression} = arguments[1])`, context)
+function compileScopedSetter (expression) {
+  return compileScopedEvaluator(`(${expression} = __args__[0])`)
 }
 
 /**
- * Compile an evaluator function with scoped context
+ * Compile a scoped evaluator function
  *
  * @param {string} body - Function body
- * @param {*} context - Function context
  *
  * @return {Function}
  */
-function compileScopedEvaluator (body, context) {
+function compileScopedEvaluator (body) {
+  let evaluator = __evaluators__.get(body);
 
-  /**
-   * Allow directly access to:
-   *
-   *   1. `scope`: Custom element instance itself
-   *   2. `scope.state`: State taken from custom element
-   *   3. `isolated`: Isolated scope internally used by loop directive
-   *
-   * In that order, `isolated` overrides `scope.state` data,
-   * and `scope` is going to be overriden by `scope.state` data.
-   */
-  const evaluator = new Function(`
-    with (arguments[0]) {
-      with (this.scope) {
-        with (state) {
-          with (this.isolated) {
-            ${body}
+  if (!evaluator) {
+
+    /**
+     * Allow directly access to:
+     *
+     *   1. `scope`: Custom element instance itself
+     *   2. `scope.state`: State taken from custom element
+     *   3. `isolated`: Isolated scope internally used by loop directive
+     *
+     * In that order, `isolated` overrides `scope.state` data,
+     * and `scope` is going to be overriden by `scope.state` data.
+     */
+    evaluator = new Function(
+      '__global__', '__scope__', '__locals__', '...__args__',
+      `with (__global__) {
+        with (__scope__) {
+          with (state) {
+            with (__locals__) {
+              ${body}
+            }
           }
         }
-      }
-    }
-  `);
+      }`
+    );
 
-  // Wrapper function to avoid `Function.prototype.bind`
-  return value => evaluator.call(context, global, value)
+    // Cache evaluator with body as key
+    __evaluators__.set(body, evaluator);
+  }
+
+  return (scope, locals, ...args) => {
+    return evaluator(global, scope, locals, ...args)
+  }
+}
+
+class BaseRenderer {
+  constructor (target, context, expression) {
+    this.target = target;
+    this.context = context;
+    this.expression = expression;
+
+    const getter = compileScopedGetter(expression);
+
+    this.getter = (locals = context.isolated) => {
+      return getter(context.scope, locals)
+    };
+  }
+
+  get value () {
+    return this.getter()
+  }
+
+  render () {
+    this.patch(
+      this.target,
+      this.value
+    );
+  }
 }
 
 /**
@@ -421,52 +455,46 @@ function compileScopedEvaluator (body, context) {
  *   1. Within text node: <h1>Hello {{ world }}</h1>
  *   2. As attribute interpolation: <input class="some-class {{ klass }}"/>
  */
-class TemplateRenderer {
+class TemplateRenderer extends BaseRenderer {
   constructor (node, context) {
-    this.node = node;
-    this.context = context;
-
-    this.expression = getExpression(node.nodeValue);
-    this.getter = compileScopedGetter(this.expression, context);
-
-    this.value = null;
+    super(
+      node, context,
+      getExpression(node.nodeValue)
+    );
   }
 
   static is ({ nodeValue }) {
     return TEXT_TEMPLATE_REGEX.test(nodeValue)
   }
 
-  render () {
-    const value = this.getter();
-
+  patch (node, value) {
     // Normalized value to avoid null or undefined
-    const normalized = this.value = isDefined(value) ? String(value) : '';
+    const normalized = isDefined(value) ? String(value) : '';
 
-    if (differ(this.node, normalized)) {
-      this.node.nodeValue = normalized;
+    if (differ(node, normalized)) {
+      node.nodeValue = normalized;
     }
   }
 }
 
-const CONDITIONAL_ATTRIBUTE = '*if';
+const CONDITIONAL_DIRECTIVE = '*if';
 
-class ConditionalRenderer {
+class ConditionalRenderer extends BaseRenderer {
   constructor (element, context) {
-    this.element = element;
-    this.context = context;
-
-    this.condition = getAttr(element, CONDITIONAL_ATTRIBUTE);
-    this.getter = compileScopedGetter(this.condition, this.context);
+    super(
+      element, context,
+      getAttr(element, CONDITIONAL_DIRECTIVE)
+    );
 
     this.anchor = createAnchor(`if: ${this.condition}`);
   }
 
   static is ({ attributes }) {
-    return CONDITIONAL_ATTRIBUTE in attributes
+    return CONDITIONAL_DIRECTIVE in attributes
   }
 
-  render () {
-    if (this.getter()) {
+  patch (value) {
+    if (value) {
       if (!this.element.isConnected) {
         this.anchor.parentNode.replaceChild(this.element, this.anchor);
       }
@@ -476,22 +504,29 @@ class ConditionalRenderer {
   }
 }
 
-const BIND_ATTRIBUTE = '*bind';
+const BIND_DIRECTIVE = '*bind';
 
-class BindRenderer {
+class BindRenderer extends BaseRenderer {
   constructor (target, context) {
-    this.target = target;
-    this.context = context;
-
-    this.path = getAttr(target, BIND_ATTRIBUTE);
+    super(
+      target, context,
+      getAttr(target, BIND_DIRECTIVE)
+    );
 
     this.setting = false;
 
     // Input -> State
-    this.setter = compileScopedSetter(this.path, context);
+    const setter = compileScopedSetter(this.expression);
 
-    // State -> Input
-    this.getter = compileScopedGetter(this.path, context);
+    this.setter = value => {
+      setter(
+        // (scope, locals
+        context.scope, context.isolated,
+
+        // ...args[0])
+        value
+      );
+    };
 
     if (this.onInput) {
       target.addEventListener('input', this.onInput.bind(this));
@@ -503,11 +538,7 @@ class BindRenderer {
   }
 
   static is ({ attributes }) {
-    return BIND_ATTRIBUTE in attributes
-  }
-
-  get value () {
-    return this.getter()
+    return BIND_DIRECTIVE in attributes
   }
 
   setValue (value) {
@@ -515,12 +546,12 @@ class BindRenderer {
     this.setter(value);
   }
 
-  render () {
+  patch (target, value) {
     // Avoid re-dispatching render on updated values
     if (this.setting) {
       this.setting = false;
     } else {
-      this._render();
+      this.update(target, value);
     }
   }
 }
@@ -556,11 +587,11 @@ class InputRenderer extends BindRenderer {
     this.setValue(this.conversor(target.value));
   }
 
-  _render () {
-    const value = String(this.value);
+  update (input, value) {
+    value = String(value);
 
-    if (differ(this.target, value)) {
-      this.target.value = value;
+    if (differ(input, value)) {
+      input.value = value;
     }
   }
 }
@@ -577,8 +608,8 @@ class CheckboxRenderer extends BindRenderer {
     this.setValue(target.checked);
   }
 
-  _render () {
-    this.target.checked = Boolean(this.value);
+  update (checkbox, value) {
+    checkbox.checked = Boolean(value);
   }
 }
 
@@ -596,8 +627,8 @@ class RadioRenderer extends BindRenderer {
     }
   }
 
-  _render () {
-    this.target.checked = String(this.value) === this.target.value;
+  update (radio, value) {
+    radio.checked = String(value) === radio.value;
   }
 }
 
@@ -644,11 +675,9 @@ class SelectRenderer extends BindRenderer {
     }
   }
 
-  _render () {
-    const { value } = this;
-
-    for (const option of this.target.options) {
-      option.selected = this.target.multiple
+  update (select, value) {
+    for (const option of select.options) {
+      option.selected = select.multiple
         ? value.indexOf(option.value) > -1
         : value === option.value;
     }
@@ -664,36 +693,35 @@ const BIND_ONE_TIME_TOKEN = BIND_TOKEN.repeat(2);
  *   1. :attribute
  *   2. ::attribute (one time)
  */
-class BindingRenderer {
+class BindingRenderer extends BaseRenderer {
   constructor (attribute, context) {
-    this.owner = attribute.ownerElement;
-    this.context = context;
+    let oneTime = attribute.name.startsWith(BIND_ONE_TIME_TOKEN);
 
-    this.oneTime = attribute.name.startsWith(BIND_ONE_TIME_TOKEN);
+    super(
+      BindingRenderer.getObserved(attribute, oneTime),
 
-    this.attribute = this._getObserved(attribute);
+      context, attribute.value
+    );
 
-    this.name = this.attribute.name;
+    /**
+     * Specific binding attributes
+     */
+    this.oneTime = oneTime;
+    this.owner = this.target.ownerElement;
+    this.name = this.target.name;
 
-    this.expression = attribute.value;
+    if (oneTime) {
+      const patch = this.patch;
 
-    this.getter = compileScopedGetter(this.expression, context);
-
-    // Attribute raw value (without any conversion) and holding reference
-    this.value = null;
-
-    if (this.oneTime) {
-      const render = this.render;
-
-      this.render = () => {
+      this.patch = value => {
         const { bindings } = context;
+
+        patch.call(this, value);
 
         // Schedule remove to queue end
         nextTick(() => {
           bindings.splice(bindings.indexOf(this), 1);
         });
-
-        render.call(this);
       };
     }
   }
@@ -702,11 +730,11 @@ class BindingRenderer {
     return name.startsWith(BIND_TOKEN)
   }
 
-  _getObserved (attribute) {
+  static getObserved (attribute, oneTime) {
     const { name } = attribute;
     const { attributes } = attribute.ownerElement;
 
-    const normalizedName = name.slice(this.oneTime ? 2 : 1);
+    const normalizedName = name.slice(oneTime ? 2 : 1);
 
     let observed = attributes.getNamedItem(normalizedName);
 
@@ -720,11 +748,9 @@ class BindingRenderer {
     return observed
   }
 
-  render () {
-    const value = this.value = this.getter();
-
-    if (differ(this.attribute, value)) {
-      this.attribute.value = value;
+  patch (attribute, value) {
+    if (differ(attribute, value)) {
+      attribute.value = value;
     }
   }
 }
@@ -736,9 +762,7 @@ class ClassRenderer extends BindingRenderer {
     return CLASS_REGEX.test(name)
   }
 
-  _getNormalized () {
-    const value = this.getter();
-
+  static getNormalized (value) {
     if (!Array.isArray(value)) return value
 
     const result = {};
@@ -754,13 +778,13 @@ class ClassRenderer extends BindingRenderer {
     return result
   }
 
-  render () {
-    const value = this._getNormalized();
+  patch (attribute, value) {
+    value = ClassRenderer.getNormalized(value);
 
-    // Fallback to normal attribute rendering
-    if (!isObject(value)) return super.render()
+    // Fallback to normal attribute patching
+    if (!isObject(value)) return super.patch(attribute, value)
 
-    const { classList } = this.attribute.ownerElement;
+    const { classList } = this.owner;
 
     for (const key in value) {
       if (value.hasOwnProperty(key)) {
@@ -793,11 +817,9 @@ class StyleRenderer extends BindingRenderer {
     }
   }
 
-  render () {
-    const styles = this.getter();
-
-    // Fallback to normal rendering
-    if (!isObject(styles)) return super.render()
+  patch (style, styles) {
+    // Fallback to normal styles patching
+    if (!isObject(styles)) return super.patch(style, styles)
 
     const $styles = this.owner.attributeStyleMap;
 
@@ -829,11 +851,9 @@ function isEvent ({ name }) {
   return name.startsWith(EVENT_TOKEN)
 }
 
-function event ({ name }, context) {
-  const $el = context.element;
-
-  const expression = getAttr($el, name);
-  const evaluator = compileScopedEvaluator(rewriteMethods(expression), context);
+function event ({ name }, { element, scope, isolated }) {
+  const expression = getAttr(element, name);
+  const evaluator = compileScopedEvaluator(rewriteMethods(expression));
 
   const parsed = parseEvent(name);
   const { modifiers } = parsed;
@@ -843,11 +863,11 @@ function event ({ name }, context) {
   let actual;
   let handler = event => {
     // Externalize event
-    context.scope.$event = event;
+    scope.$event = event;
 
-    evaluator();
+    evaluator(scope, isolated);
 
-    context.scope.$event = null;
+    scope.$event = null;
   };
 
   if (modifiers.self) {
@@ -867,17 +887,17 @@ function event ({ name }, context) {
     };
   }
 
-  if (isGalaxyElement($el)) {
+  if (isGalaxyElement(element)) {
     attachMethod = `$on${modifiers.once ? 'ce' : ''}`;
   } else if (modifiers.once) {
     actual = handler;
     handler = event => {
-      $el.removeEventListener(parsed.name, handler);
+      element.removeEventListener(parsed.name, handler);
       actual(event);
     };
   }
 
-  $el[attachMethod](parsed.name, handler);
+  element[attachMethod](parsed.name, handler);
 }
 
 function parseEvent (name) {
@@ -1137,10 +1157,15 @@ class CustomRenderer extends ElementRenderer {
         if (props.hasOwnProperty(prop)) {
 
           // Get raw value (with references)
-          const get = compileScopedGetter(value, this);
+          const getter = compileScopedGetter(value);
 
           // Immutable property
-          Object.defineProperty(props, prop, { enumerable: true, get });
+          Object.defineProperty(props, prop, {
+            enumerable: true,
+            get: () => {
+              return getter(this.scope, this.isolated)
+            }
+          });
         }
 
         // TODO: Warn unknown prop
@@ -1205,7 +1230,7 @@ class ItemRenderer {
 
 // TODO: Add anchor delimiters
 
-const LOOP_ATTRIBUTE = '*for';
+const LOOP_DIRECTIVE = '*for';
 
 /**
  * Captures:
@@ -1227,20 +1252,18 @@ const LOOP_ATTRIBUTE = '*for';
  */
 const LOOP_REGEX = /^\(?(?<value>\w+)(?:\s*,\s*(?<key>\w+)(?:\s*,\s*(?<index>\w+))?)?\)?\s+in\s+(?<expression>.+)$/;
 
-class LoopRenderer {
+class LoopRenderer extends BaseRenderer {
   constructor (template, context) {
-    this.template = template;
-    this.context = context;
+    const expression = getAttr(template, LOOP_DIRECTIVE);
+    const { groups } = expression.match(LOOP_REGEX);
+
+    super(template, context, groups.expression);
 
     this.items = [];
-
-    const { groups } = getAttr(template, LOOP_ATTRIBUTE).match(LOOP_REGEX);
 
     this.keyName = groups.key;
     this.indexName = groups.index;
     this.valueName = groups.value;
-
-    this.getter = compileScopedGetter(groups.expression, context);
 
     this.startAnchor = createAnchor(`start for: ${groups.expression}`);
     this.endAnchor = createAnchor(`end for: ${groups.expression}`);
@@ -1254,11 +1277,10 @@ class LoopRenderer {
   }
 
   static is ({ attributes }) {
-    return LOOP_ATTRIBUTE in attributes
+    return LOOP_DIRECTIVE in attributes
   }
 
-  render () {
-    const collection = this.getter();
+  patch (template, collection) {
     const keys = Object.keys(collection);
 
     const items = [];
@@ -1284,7 +1306,7 @@ class LoopRenderer {
       if (item) {
         item.update(isolated);
       } else {
-        item = new ItemRenderer(this.template, this.context, isolated);
+        item = new ItemRenderer(template, this.context, isolated);
 
         // Insert before end anchor
         item.insert(this.endAnchor);
