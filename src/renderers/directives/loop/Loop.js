@@ -72,11 +72,8 @@ export default class LoopRenderer extends BaseRenderer {
   }
 
   patch (template, collection) {
-    const keys = Object.keys(collection)
-
     const items = []
-
-    // TODO: Add sort of track-by (maybe a key attribute)
+    const keys = Object.keys(collection)
 
     // 1. Adding, updating
     keys.forEach(($key, $index) => {
@@ -104,18 +101,15 @@ export default class LoopRenderer extends BaseRenderer {
 
         if ((item.key.value /* oldKey */) !== newKey) {
           const newItem = this.values.get(newKey)
-          const index = this.items.indexOf(newItem)
-
-          const to = item.next
           const from = newItem.next
 
           // Swap elements
-          newItem.insert(to)
+          newItem.insert(item.next)
           item.insert(from)
 
           // Swap items
+          this.items[this.items.indexOf(newItem)] = item
           this.items[$index] = newItem
-          this.items[index] = item
 
           item = newItem
         }
