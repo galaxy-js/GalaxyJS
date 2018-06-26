@@ -1170,8 +1170,11 @@ class CustomRenderer extends ElementRenderer {
 
         // TODO: Warn unknown prop
 
-        // Don't reflect prop value
-        this.element.removeAttribute(name);
+        if (!config.debug) {
+
+          // Don't reflect prop value
+          this.element.removeAttribute(name);
+        }
       }
     }
   }
