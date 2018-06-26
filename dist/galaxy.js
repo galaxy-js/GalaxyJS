@@ -1211,6 +1211,10 @@ class ItemRenderer {
     return this.renderer.bindings.by
   }
 
+  get next () {
+    return this.renderer.element.nextSibling
+  }
+
   by (isolated) {
     return this.key.getter(isolated)
   }
@@ -1308,8 +1312,6 @@ class LoopRenderer extends BaseRenderer {
 
     // 1. Adding, updating
     keys.forEach(($key, $index) => {
-      const value = collection[$key];
-
       let item = this.items[$index];
 
       const isolated = {
@@ -1319,27 +1321,38 @@ class LoopRenderer extends BaseRenderer {
         // User-defined locals
         [this.keyName]: $key,
         [this.indexName]: $index,
-        [this.valueName]: value
+        [this.valueName]: collection[$key]
       };
 
-      if (item) {
-        const oldKey = item.key;
-        const newKey = item.by(isolated);
-
-        if (oldKey !== newKey) {
-          const newItem = this.values.get(newKey);
-          newItem.insert(item.renderer.element.nextSibling);
-          item = newItem;
-        }
-
-        item.update(isolated);
-      } else {
+      if (!item) {
         item = new ItemRenderer(template, this.context, isolated);
 
         // Insert before end anchor
         item.insert(this.endAnchor);
 
         this.values.set(item.key.value, item);
+      } else {
+        const newKey = item.by(isolated);
+
+        if ((item.key.value /* oldKey */) !== newKey) {
+          const newItem = this.values.get(newKey);
+          const index = this.items.indexOf(newItem);
+
+          const to = item.next;
+          const from = newItem.next;
+
+          // Swap elements
+          newItem.insert(to);
+          item.insert(from);
+
+          // Swap items
+          this.items[$index] = newItem;
+          this.items[index] = item;
+
+          item = newItem;
+        }
+
+        item.update(isolated);
       }
 
       // Push render on to the new queue

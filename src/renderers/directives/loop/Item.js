@@ -27,6 +27,10 @@ export default class ItemRenderer {
     return this.renderer.bindings.by
   }
 
+  get next () {
+    return this.renderer.element.nextSibling
+  }
+
   by (isolated) {
     return this.key.getter(isolated)
   }

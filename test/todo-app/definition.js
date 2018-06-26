@@ -52,6 +52,14 @@ export default class TodoApp extends GalaxyElement {
 
   removeTodo ({ todos }, todo) {
     todos.splice(todos.indexOf(todo), 1)
+    console.log('Removed todo:', todo)
+  }
+
+  sortTodos ({ todos }) {
+    todos.sort((a, b) => (
+      a.name > b.name ? -1 :
+      a.name < b.name ? 1 : 0
+    ))
   }
 
   showStatus () {

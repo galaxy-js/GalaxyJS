@@ -3,7 +3,7 @@ import config from '../../../config.js'
 import BaseRenderer from '../../Base.js'
 import ItemRenderer from './Item.js'
 
-import { getAttr, createAnchor, newIsolated } from '../../../utils/generic.js'
+import { getAttr, createAnchor } from '../../../utils/generic.js'
 import { isDefined } from '../../../utils/type-check.js'
 
 // Note: to maintain consistence avoid `of` reserved word on iterators.
@@ -80,8 +80,6 @@ export default class LoopRenderer extends BaseRenderer {
 
     // 1. Adding, updating
     keys.forEach(($key, $index) => {
-      const value = collection[$key]
-
       let item = this.items[$index]
 
       const isolated = {
@@ -91,27 +89,38 @@ export default class LoopRenderer extends BaseRenderer {
         // User-defined locals
         [this.keyName]: $key,
         [this.indexName]: $index,
-        [this.valueName]: value
+        [this.valueName]: collection[$key]
       }
 
-      if (item) {
-        const oldKey = item.key
-        const newKey = item.by(isolated)
-
-        if (oldKey !== newKey) {
-          const newItem = this.values.get(newKey)
-          newItem.insert(item.renderer.element.nextSibling)
-          item = newItem
-        }
-
-        item.update(isolated)
-      } else {
+      if (!item) {
         item = new ItemRenderer(template, this.context, isolated)
 
         // Insert before end anchor
         item.insert(this.endAnchor)
 
         this.values.set(item.key.value, item)
+      } else {
+        const newKey = item.by(isolated)
+
+        if ((item.key.value /* oldKey */) !== newKey) {
+          const newItem = this.values.get(newKey)
+          const index = this.items.indexOf(newItem)
+
+          const to = item.next
+          const from = newItem.next
+
+          // Swap elements
+          newItem.insert(to)
+          item.insert(from)
+
+          // Swap items
+          this.items[$index] = newItem
+          this.items[index] = item
+
+          item = newItem
+        }
+
+        item.update(isolated)
       }
 
       // Push render on to the new queue

@@ -29,6 +29,7 @@ export default html`
   <div>
     <input type="text" *bind="todo.name">
     <button @click="console.log('Adding todo') || #addTodo()">Add TODO</button>
+    <button @click="#sortTodos() || console.log('TODOs sorted:', todos)">Add TODO</button>
   </div>
 
   <!-- Escaped -->
