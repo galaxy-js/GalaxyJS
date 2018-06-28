@@ -1,3 +1,5 @@
+import config from '../../config.js'
+
 import TemplateRenderer from '../Template.js'
 import ElementRenderer from './Element.js'
 import VoidRenderer from './Void.js'
@@ -7,6 +9,8 @@ import LoopRenderer from '../directives/loop/Loop.js'
 
 import { isTextNode, isElementNode } from '../../utils/type-check.js'
 import { flatChildren } from '../../utils/generic.js'
+
+const SKIP_DIRECTIVE = '*skip'
 
 export default class ChildrenRenderer {
   constructor (children, scope, isolated) {
@@ -32,6 +36,15 @@ export default class ChildrenRenderer {
 
       // 2. Element binding
       } else if (isElementNode(child)) {
+
+        if (child.hasAttribute(SKIP_DIRECTIVE)) {
+          if (!config.debug) {
+            child.removeAttribute(SKIP_DIRECTIVE)
+          }
+
+          // Skip construction phase
+          continue
+        }
 
         // The loop directive is resolved as a child
         if (LoopRenderer.is(child)) {
