@@ -1373,7 +1373,7 @@ class LoopRenderer extends BaseRenderer {
   }
 }
 
-const SKIP_DIRECTIVE = '*skip';
+const SKIP_ATTRIBUTE = 'skip';
 
 class ChildrenRenderer {
   constructor (children, scope, isolated) {
@@ -1400,12 +1400,12 @@ class ChildrenRenderer {
       // 2. Element binding
       } else if (isElementNode(child)) {
 
-        if (child.hasAttribute(SKIP_DIRECTIVE)) {
+        if (child.hasAttribute(SKIP_ATTRIBUTE)) {
           if (!config.debug) {
-            child.removeAttribute(SKIP_DIRECTIVE);
+            child.removeAttribute(SKIP_ATTRIBUTE);
           }
 
-          // Skip construction phase
+          // Skip construction/compilation phase
           continue
         }
 

@@ -10,7 +10,7 @@ import LoopRenderer from '../directives/loop/Loop.js'
 import { isTextNode, isElementNode } from '../../utils/type-check.js'
 import { flatChildren } from '../../utils/generic.js'
 
-const SKIP_DIRECTIVE = '*skip'
+const SKIP_ATTRIBUTE = 'skip'
 
 export default class ChildrenRenderer {
   constructor (children, scope, isolated) {
@@ -37,12 +37,12 @@ export default class ChildrenRenderer {
       // 2. Element binding
       } else if (isElementNode(child)) {
 
-        if (child.hasAttribute(SKIP_DIRECTIVE)) {
+        if (child.hasAttribute(SKIP_ATTRIBUTE)) {
           if (!config.debug) {
-            child.removeAttribute(SKIP_DIRECTIVE)
+            child.removeAttribute(SKIP_ATTRIBUTE)
           }
 
-          // Skip construction phase
+          // Skip construction/compilation phase
           continue
         }
 
