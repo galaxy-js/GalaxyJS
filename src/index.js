@@ -7,14 +7,40 @@ import { getName } from './utils/generic.js'
 export { config }
 export { default as GalaxyElement } from './core/GalaxyElement.js'
 
+/**
+ * Generates a new template
+ *
+ * @param {*...} args
+ *
+ * @return {HTMLTemplateElement}
+ */
 export function html (...args) {
-  const template = document.createElement('template')
-
-  template.innerHTML = String.raw(...args)
-
-  return template
+  return template('template', ...args)
 }
 
+/**
+ * Generates a new style template
+ *
+ * @param {*...} args
+ *
+ * @return {HTMLStyleElement}
+ */
+export function css (...args) {
+  const style = template('style', ...args)
+
+  // Avoid construction phase
+  style.setAttribute('skip', '')
+
+  return style
+}
+
+/**
+ * Initialize galaxy
+ *
+ * @param {Object} options
+ *
+ * @return void
+ */
 export function setup (options) {
 
   // Merge rest options with default configuration
@@ -34,4 +60,21 @@ export function setup (options) {
       throw galaxyError(e)
     }
   }
+}
+
+/**
+ * Generates a new html element
+ *
+ * @param {string} tag
+ * @param {*...} args
+ *
+ * @return {HTMLElement}
+ * @private
+ */
+function template (tag, ...args) {
+  const element = document.createElement(tag)
+
+  element.innerHTML = String.raw(...args)
+
+  return element
 }

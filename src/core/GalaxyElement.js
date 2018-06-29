@@ -77,6 +77,12 @@ export default class GalaxyElement extends HTMLElement {
 
     const shadow = this.attachShadow({ mode: 'open' })
 
+    if (this.constructor.style instanceof HTMLStyleElement) {
+
+      // Prepend styles
+      shadow.appendChild(this.constructor.style)
+    }
+
     // We need to append content before setting up the main renderer
     shadow.appendChild(this.constructor.template.content.cloneNode(true))
 

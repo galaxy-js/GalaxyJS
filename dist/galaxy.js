@@ -1507,6 +1507,12 @@ class GalaxyElement extends HTMLElement {
 
     const shadow = this.attachShadow({ mode: 'open' });
 
+    if (this.constructor.style instanceof HTMLStyleElement) {
+
+      // Prepend styles
+      shadow.appendChild(this.constructor.style);
+    }
+
     // We need to append content before setting up the main renderer
     shadow.appendChild(this.constructor.template.content.cloneNode(true));
 
@@ -1756,14 +1762,40 @@ class GalaxyElement extends HTMLElement {
   }
 }
 
+/**
+ * Generates a new template
+ *
+ * @param {*...} args
+ *
+ * @return {HTMLTemplateElement}
+ */
 function html (...args) {
-  const template = document.createElement('template');
-
-  template.innerHTML = String.raw(...args);
-
-  return template
+  return template('template', ...args)
 }
 
+/**
+ * Generates a new style template
+ *
+ * @param {*...} args
+ *
+ * @return {HTMLStyleElement}
+ */
+function css (...args) {
+  const style = template('style', ...args);
+
+  // Avoid construction phase
+  style.setAttribute('skip', '');
+
+  return style
+}
+
+/**
+ * Initialize galaxy
+ *
+ * @param {Object} options
+ *
+ * @return void
+ */
 function setup (options) {
 
   // Merge rest options with default configuration
@@ -1785,4 +1817,21 @@ function setup (options) {
   }
 }
 
-export { config, html, setup, GalaxyElement };
+/**
+ * Generates a new html element
+ *
+ * @param {string} tag
+ * @param {*...} args
+ *
+ * @return {HTMLElement}
+ * @private
+ */
+function template (tag, ...args) {
+  const element = document.createElement(tag);
+
+  element.innerHTML = String.raw(...args);
+
+  return element
+}
+
+export { config, html, css, setup, GalaxyElement };
