@@ -18,13 +18,13 @@ export default class ConditionalRenderer extends BaseRenderer {
     return CONDITIONAL_DIRECTIVE in attributes
   }
 
-  patch (value) {
+  patch (element, value) {
     if (value) {
-      if (!this.element.isConnected) {
-        this.anchor.parentNode.replaceChild(this.element, this.anchor)
+      if (!element.isConnected) {
+        this.anchor.parentNode.replaceChild(element, this.anchor)
       }
-    } else if (this.element.isConnected) {
-      this.element.parentNode.replaceChild(this.anchor, this.element)
+    } else if (element.isConnected) {
+      element.parentNode.replaceChild(this.anchor, element)
     }
   }
 }
