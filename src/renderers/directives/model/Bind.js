@@ -40,6 +40,25 @@ export default class BindRenderer extends BaseRenderer {
     return BIND_DIRECTIVE in attributes
   }
 
+  /**
+   * Helper to set multiple values
+   *
+   * @param {boolean} active
+   * @param {string} value
+   * @param {Array<*>} values
+   *
+   * @return void
+   */
+  static setMultiple (active, value, values) {
+    const index = values.indexOf(value)
+
+    if (active) {
+      index === -1 && values.push(value)
+    } else if (index > -1) {
+      values.splice(index, 1)
+    }
+  }
+
   setValue (value) {
     this.setting = true
     this.setter(value)

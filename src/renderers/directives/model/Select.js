@@ -21,7 +21,7 @@ export default class SelectRenderer extends BindRenderer {
         if (selected) return this.setValue(value)
       }
     } else {
-      const values = this.value
+      const values = this.getter()
 
       if (!Array.isArray(values)) {
         throw new GalaxyError(
@@ -30,14 +30,12 @@ export default class SelectRenderer extends BindRenderer {
         )
       }
 
-      for (const { value, selected } of options) {
-        const index = values.indexOf(value)
-
-        if (selected) {
-          if (index === -1) values.push(value)
-        } else if (index > -1) {
-          values.splice(index, 1)
-        }
+      for (const option of options) {
+        BindRenderer.setMultiple(
+          option.selected,
+          option.value,
+          values
+        )
       }
     }
   }

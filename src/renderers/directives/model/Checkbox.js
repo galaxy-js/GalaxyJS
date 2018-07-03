@@ -9,7 +9,17 @@ export default class CheckboxRenderer extends BindRenderer {
   }
 
   onChange ({ target }) {
-    this.setValue(target.checked)
+    const values = this.getter()
+
+    if (!Array.isArray(values)) {
+      return this.setValue(target.checked)
+    }
+
+    BindRenderer.setMultiple(
+      target.checked,
+      target.value,
+      values
+    )
   }
 
   update (checkbox, value) {

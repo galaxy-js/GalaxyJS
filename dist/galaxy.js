@@ -541,6 +541,25 @@ class BindRenderer extends BaseRenderer {
     return BIND_DIRECTIVE in attributes
   }
 
+  /**
+   * Helper to set multiple values
+   *
+   * @param {boolean} active
+   * @param {string} value
+   * @param {Array<*>} values
+   *
+   * @return void
+   */
+  static setMultiple (active, value, values) {
+    const index = values.indexOf(value);
+
+    if (active) {
+      index === -1 && values.push(value);
+    } else if (index > -1) {
+      values.splice(index, 1);
+    }
+  }
+
   setValue (value) {
     this.setting = true;
     this.setter(value);
@@ -605,7 +624,17 @@ class CheckboxRenderer extends BindRenderer {
   }
 
   onChange ({ target }) {
-    this.setValue(target.checked);
+    const values = this.getter();
+
+    if (!Array.isArray(values)) {
+      return this.setValue(target.checked)
+    }
+
+    BindRenderer.setMultiple(
+      target.checked,
+      target.value,
+      values
+    );
   }
 
   update (checkbox, value) {
@@ -651,7 +680,7 @@ class SelectRenderer extends BindRenderer {
         if (selected) return this.setValue(value)
       }
     } else {
-      const values = this.value;
+      const values = this.getter();
 
       if (!Array.isArray(values)) {
         throw new GalaxyError(
@@ -660,14 +689,12 @@ class SelectRenderer extends BindRenderer {
         )
       }
 
-      for (const { value, selected } of options) {
-        const index = values.indexOf(value);
-
-        if (selected) {
-          if (index === -1) values.push(value);
-        } else if (index > -1) {
-          values.splice(index, 1);
-        }
+      for (const option of options) {
+        BindRenderer.setMultiple(
+          option.selected,
+          option.value,
+          values
+        );
       }
     }
   }
