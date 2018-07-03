@@ -108,9 +108,9 @@ function getAttr (element, name, conversor = same) {
   return value
 }
 
-const createAnchor = config.debug
-  ? content => new Comment(` ${content} `)
-  : () => new Text(); // Empty text node
+function createAnchor (content) {
+  return config.debug ? new Comment(` ${content} `) : new Text()
+}
 
 /**
  * Creates a new child isolated

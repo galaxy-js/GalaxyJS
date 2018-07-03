@@ -41,9 +41,9 @@ export function getAttr (element, name, conversor = same) {
   return value
 }
 
-export const createAnchor = config.debug
-  ? content => new Comment(` ${content} `)
-  : () => new Text() // Empty text node
+export function createAnchor (content) {
+  return config.debug ? new Comment(` ${content} `) : new Text()
+}
 
 export function diff ({ nodeValue }, newValue) {
   return nodeValue !== newValue
