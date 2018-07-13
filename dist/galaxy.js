@@ -11,6 +11,13 @@ var config = {
   debug: true,
 
   /**
+   * Plugins to install
+   *
+   * @type {Array<Object|Function>}
+   */
+  plugins: {},
+
+  /**
    * Filters holder
    *
    * @enum {Function}
@@ -23,24 +30,6 @@ var config = {
    * @type {Array.<GalaxyElement>}
    */
   elements: []
-}
-
-class GalaxyError extends Error {}
-
-/**
- * Converts given `error`
- *
- * @param {Error} error
- *
- * @return {GalaxyError}
- */
-function galaxyError ({ message, stack }) {
-  const galaxyError = new GalaxyError(message);
-
-  // Setting up correct stack
-  galaxyError.stack = stack;
-
-  return galaxyError
 }
 
 function isObject (value) {
@@ -69,109 +58,6 @@ function isReserved (name) {
 
 function isGalaxyElement ({ constructor }) {
   return config.elements.indexOf(constructor) > -1
-}
-
-const same = value => value;
-
-const HYPHEN_REGEX = /-([a-z0-9])/gi;
-const CAMEL_REGEX = /(?<=[a-z0-9])([A-Z])/g;
-
-/**
- * Converts hyphenated string to camelized
- *
- * @param {string} hyphenated
- *
- * @return {string}
- */
-function camelize (hyphenated) {
-  return hyphenated.replace(HYPHEN_REGEX, (_, letter) => letter.toUpperCase())
-}
-
-/**
- * Converts camelized string to hyphenated
- *
- * @param {string} camelized
- *
- * @return {string}
- */
-function hyphenate (camelized) {
-  return camelized.replace(CAMEL_REGEX, (_, letter) => `-${letter.toLowerCase()}`)
-    // Make rest letters lowercased
-    .toLowerCase()
-}
-
-function getAttr (element, name, conversor = same) {
-  const value = conversor(element.getAttribute(name));
-
-  if (!config.debug) element.removeAttribute(name);
-
-  return value
-}
-
-function createAnchor (content) {
-  return config.debug ? new Comment(` ${content} `) : new Text()
-}
-
-/**
- * Creates a new child isolated
- *
- * @param {*} parents - Parents to inherit from
- *
- * @return {Object}
- */
-function newIsolated (...parents) {
-  return Object.assign(Object.create(null), ...parents)
-}
-
-/**
- * Check if the value of a given `node`
- * differs againts the given `value`
- *
- * @param {Node} node - Node element to check
- * @param {*} value - Value to compare with
- *
- * @return {boolean}
- */
-function differ (node, value) {
-  return node.nodeValue !== value
-}
-
-/**
- * Flat children from a given `element`
- *
- * @param {ElementRenderer} element
- *
- * @return {Array.<*>}
- */
-function flatChildren (element) {
-  const flat = [];
-
-  element.childrenRenderer.renderers.forEach(renderer => {
-    flat.push(...(renderer.isFlattenable ? flatChildren(renderer) : [renderer]));
-  });
-
-  return flat
-}
-
-function getName (GalaxyElement) {
-  return GalaxyElement.is || GalaxyElement.name && hyphenate(GalaxyElement.name)
-}
-
-function callHook (ce, hook, ...args) {
-  hook = ce[
-    // Capitalize given hook name
-    `on${hook.charAt(0).toUpperCase() + hook.slice(1)}`
-  ];
-
-  if (isFunction(hook)) {
-    nextTick.afterFlush(() => {
-      hook.call(ce, ...args);
-    });
-  }
-}
-
-function ensureListeners (events, event) {
-  return events[event] || []
 }
 
 /**
@@ -449,6 +335,109 @@ class BaseRenderer {
   }
 }
 
+const same = value => value;
+
+const HYPHEN_REGEX = /-([a-z0-9])/gi;
+const CAMEL_REGEX = /(?<=[a-z0-9])([A-Z])/g;
+
+/**
+ * Converts hyphenated string to camelized
+ *
+ * @param {string} hyphenated
+ *
+ * @return {string}
+ */
+function camelize (hyphenated) {
+  return hyphenated.replace(HYPHEN_REGEX, (_, letter) => letter.toUpperCase())
+}
+
+/**
+ * Converts camelized string to hyphenated
+ *
+ * @param {string} camelized
+ *
+ * @return {string}
+ */
+function hyphenate (camelized) {
+  return camelized.replace(CAMEL_REGEX, (_, letter) => `-${letter.toLowerCase()}`)
+    // Make rest letters lowercased
+    .toLowerCase()
+}
+
+function getAttr (element, name, conversor = same) {
+  const value = conversor(element.getAttribute(name));
+
+  if (!config.debug) element.removeAttribute(name);
+
+  return value
+}
+
+function createAnchor (content) {
+  return config.debug ? new Comment(` ${content} `) : new Text()
+}
+
+/**
+ * Creates a new child isolated
+ *
+ * @param {*} parents - Parents to inherit from
+ *
+ * @return {Object}
+ */
+function newIsolated (...parents) {
+  return Object.assign(Object.create(null), ...parents)
+}
+
+/**
+ * Check if the value of a given `node`
+ * differs againts the given `value`
+ *
+ * @param {Node} node - Node element to check
+ * @param {*} value - Value to compare with
+ *
+ * @return {boolean}
+ */
+function differ (node, value) {
+  return node.nodeValue !== value
+}
+
+/**
+ * Flat children from a given `element`
+ *
+ * @param {ElementRenderer} element
+ *
+ * @return {Array.<*>}
+ */
+function flatChildren (element) {
+  const flat = [];
+
+  element.childrenRenderer.renderers.forEach(renderer => {
+    flat.push(...(renderer.isFlattenable ? flatChildren(renderer) : [renderer]));
+  });
+
+  return flat
+}
+
+function getName (GalaxyElement) {
+  return GalaxyElement.is || GalaxyElement.name && hyphenate(GalaxyElement.name)
+}
+
+function callHook (ce, hook, ...args) {
+  hook = ce[
+    // Capitalize given hook name
+    `on${hook.charAt(0).toUpperCase() + hook.slice(1)}`
+  ];
+
+  if (isFunction(hook)) {
+    nextTick.afterFlush(() => {
+      hook.call(ce, ...args);
+    });
+  }
+}
+
+function ensureListeners (events, event) {
+  return events[event] || []
+}
+
 /**
  * Renderer for inline tag template binding:
  *
@@ -659,6 +648,24 @@ class RadioRenderer extends BindRenderer {
   update (radio, value) {
     radio.checked = String(value) === radio.value;
   }
+}
+
+class GalaxyError extends Error {}
+
+/**
+ * Converts given `error`
+ *
+ * @param {Error} error
+ *
+ * @return {GalaxyError}
+ */
+function galaxyError ({ message, stack }) {
+  const galaxyError = new GalaxyError(message);
+
+  // Setting up correct stack
+  galaxyError.stack = stack;
+
+  return galaxyError
 }
 
 /**
@@ -1825,16 +1832,20 @@ function setup (options) {
   // Merge rest options with default configuration
   Object.assign(config, options);
 
+  if ('plugins' in options) {
+    installPlugins(options.plugins);
+  }
+
   // Register element classes
-  for (const GalaxyElement of options.elements) {
-    const name = getName(GalaxyElement);
+  for (const GalaxyElement$$1 of options.elements) {
+    const name = getName(GalaxyElement$$1);
 
     if (!name) {
       throw new GalaxyError('Unknown element tag name')
     }
 
     try {
-      customElements.define(name, GalaxyElement);
+      customElements.define(name, GalaxyElement$$1);
     } catch (e) {
       throw galaxyError(e)
     }
@@ -1858,4 +1869,27 @@ function template (tag, ...args) {
   return element
 }
 
-export { config, html, css, setup, GalaxyElement };
+/**
+ * Perform plugins installation
+ *
+ * @param {Array<Object|Function>} plugins
+ *
+ * @return void
+ */
+function installPlugins (plugins) {
+  const install = Object.assign.bind(null, GalaxyElement.prototype);
+
+  for (const pluginName in plugins) {
+    const plugin = plugins[pluginName];
+
+    if (plugin !== null && typeof plugin === 'object') {
+      install(plugin);
+    } else if (typeof plugin === 'function') {
+      plugin(GalaxyElement);
+    } else {
+      throw new GalaxyError(`plugin '${pluginName}' must be an object or function`)
+    }
+  }
+}
+
+export { GalaxyElement, config, html, css, setup };

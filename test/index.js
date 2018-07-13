@@ -8,6 +8,12 @@ Galaxy.setup({
   // Ready for prod
   debug: false,
 
+  plugins: {
+    test: {
+      $test: 'plugins working!'
+    }
+  },
+
   filters: {
     reverse (value, ...args) {
       return value.split('').reverse().join('')

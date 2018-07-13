@@ -8,6 +8,13 @@ export default {
   debug: true,
 
   /**
+   * Plugins to install
+   *
+   * @type {Array<Object|Function>}
+   */
+  plugins: {},
+
+  /**
    * Filters holder
    *
    * @enum {Function}

@@ -1,11 +1,11 @@
 import config from './config.js'
 
+import GalaxyElement from './core/GalaxyElement.js'
 import GalaxyError, { galaxyError } from './errors/GalaxyError.js'
 
 import { getName } from './utils/generic.js'
 
-export { config }
-export { default as GalaxyElement } from './core/GalaxyElement.js'
+export { GalaxyElement, config }
 
 /**
  * Generates a new template
@@ -46,6 +46,10 @@ export function setup (options) {
   // Merge rest options with default configuration
   Object.assign(config, options)
 
+  if ('plugins' in options) {
+    installPlugins(options.plugins)
+  }
+
   // Register element classes
   for (const GalaxyElement of options.elements) {
     const name = getName(GalaxyElement)
@@ -77,4 +81,27 @@ function template (tag, ...args) {
   element.innerHTML = String.raw(...args)
 
   return element
+}
+
+/**
+ * Perform plugins installation
+ *
+ * @param {Array<Object|Function>} plugins
+ *
+ * @return void
+ */
+function installPlugins (plugins) {
+  const install = Object.assign.bind(null, GalaxyElement.prototype)
+
+  for (const pluginName in plugins) {
+    const plugin = plugins[pluginName]
+
+    if (plugin !== null && typeof plugin === 'object') {
+      install(plugin)
+    } else if (typeof plugin === 'function') {
+      plugin(GalaxyElement)
+    } else {
+      throw new GalaxyError(`plugin '${pluginName}' must be an object or function`)
+    }
+  }
 }
