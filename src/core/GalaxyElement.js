@@ -13,7 +13,6 @@ import GalaxyError, { galaxyError } from '../errors/GalaxyError.js'
  * Internal
  */
 const __proxies__ = new WeakMap()
-const __observers__ = new WeakMap()
 
 export default class GalaxyElement extends HTMLElement {
 
@@ -112,23 +111,13 @@ export default class GalaxyElement extends HTMLElement {
     const render = () => { this.$render() }
 
     // Setup proxy to perform render on changes
-    const proxy = ProxyObserver.observe(state, {}, render)
-
-    // Setup indexes
-    __proxies__.set(this, proxy)
-    __observers__.set(this, ProxyObserver.get(proxy))
+    __proxies__.set(this, ProxyObserver.observe(
+      state, null /* <- options */,
+      render /* <- global subscription */
+    ))
 
     // State change, so render...
     render()
-  }
-
-  /**
-   * Gets actual observer
-   *
-   * Warning: When the state changes also the observer changes
-   */
-  get $observer () {
-    return __observers__.get(this)
   }
 
   /**
