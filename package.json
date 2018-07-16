@@ -8,9 +8,10 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "rollup src/index.js --format es --file dist/galaxy.js"
+    "build": "rollup -c"
   },
   "devDependencies": {
+    "acorn-class-fields": "^0.1.2",
     "rollup": "^0.58.2"
   }
 }

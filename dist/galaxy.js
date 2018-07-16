@@ -1477,8 +1477,72 @@ const __proxies__ = new WeakMap();
 const __observers__ = new WeakMap();
 
 class GalaxyElement extends HTMLElement {
+
+  /**
+   * Actual DOM event being dispatched
+   *
+   * @type {Event}
+   * @public
+   */
+  $event = null
+
+  /**
+   * Attached events
+   *
+   * @type {Object.<Array>}
+   * @public
+   */
+  $events = Object.create(null)
+
+  /**
+   * Give directly access to the parent galaxy element
+   *
+   * @type {GalaxyElement}
+   * @public
+   */
+  $parent = null
+
+  /**
+   * Give access to children galaxy elements
+   *
+   * @type {Object.<GalaxyElement>}
+   * @public
+   */
+  $children = {}
+
+  /**
+   * Hold element references
+   *
+   * @type {Map<string, HTMLElement>}
+   * @public
+   */
+  $refs = new Map()
+
+  /**
+   * Determines whether we are in a rendering phase
+   *
+   * @type {boolean}
+   * @public
+   */
+  $rendering = false
+
   constructor () {
     super();
+
+    const { style, template } = this.constructor;
+    const shadow = this.attachShadow({ mode: 'open' });
+
+    if (style instanceof HTMLStyleElement) {
+
+      // Prepend styles
+      shadow.appendChild(style);
+    }
+
+    if (template instanceof HTMLTemplateElement) {
+
+      // We need to append content before setting up the main renderer
+      shadow.appendChild(template.content.cloneNode(true));
+    }
 
     /**
      * State for data-binding
@@ -1486,7 +1550,7 @@ class GalaxyElement extends HTMLElement {
      * @type {Object.<*>}
      * @public
      */
-    this.state = {}; // This already call initial render
+    this.state = {}; // This performs the initial render
 
     /**
      * Hold component properties
@@ -1497,71 +1561,12 @@ class GalaxyElement extends HTMLElement {
     this.props = this.constructor.properties; // TODO: How to properly define properties?
 
     /**
-     * Actual DOM event being dispatched
-     *
-     * @type {Event}
-     * @public
-     */
-    this.$event = null;
-
-    /**
-     * Attached events
-     *
-     * @type {Object.<Array>}
-     * @public
-     */
-    this.$events = Object.create(null);
-
-    /**
-     * Give directly access to the parent galaxy element
-     *
-     * @type {GalaxyElement}
-     * @public
-     */
-    this.$parent = null;
-
-    /**
-     * Give access to children galaxy elements
-     *
-     * @type {Object.<GalaxyElement>}
-     * @public
-     */
-    this.$children = {};
-
-    /**
-     * Hold element references
-     *
-     * @type {Map<string, HTMLElement>}
-     * @public
-     */
-    this.$refs = new Map();
-
-    const shadow = this.attachShadow({ mode: 'open' });
-
-    if (this.constructor.style instanceof HTMLStyleElement) {
-
-      // Prepend styles
-      shadow.appendChild(this.constructor.style);
-    }
-
-    // We need to append content before setting up the main renderer
-    shadow.appendChild(this.constructor.template.content.cloneNode(true));
-
-    /**
-     * Main renderer called for rendering
+     * Main renderer
      *
      * @type {ChildrenRenderer}
      * @public
      */
     this.$renderer = new ChildrenRenderer(shadow.childNodes, this, {});
-
-    /**
-     * Determines whether we are in a rendering phase
-     *
-     * @type {boolean}
-     * @public
-     */
-    this.$rendering = false;
 
     // Call element initialization
     callHook(this, 'created');
@@ -1755,6 +1760,8 @@ class GalaxyElement extends HTMLElement {
    * @return void
    */
   $render () {
+    console.log('Rendering...');
+
     if (!this.$rendering) {
       this.$rendering = true;
 
