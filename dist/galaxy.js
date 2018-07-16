@@ -1169,43 +1169,41 @@ class CustomRenderer extends ElementRenderer {
     // Set children communication
     scope.$children[camelize(getName(ce.constructor))] = ce;
 
-    this._resolveProps();
+    this.properties = [];
+
+    this._resolveProps(ce);
   }
 
   static is (element) {
     return isGalaxyElement(element)
   }
 
-  _resolveProps () {
-    const { props, attributes } = this.element;
+  _resolveProps ($el) {
+    const { constructor, attributes } = $el;
+    const { properties } = constructor;
 
-    for (const { name, value } of Array.from(attributes)) {
+    for (const { name } of Array.from(attributes)) {
       if (name.startsWith(PROP_TOKEN)) {
 
         // Normalize prop name
-        const prop = camelize(name.slice(1));
+        const property = camelize(name.slice(1 /* skip `.` */));
 
-        if (props.hasOwnProperty(prop)) {
+        if (properties.hasOwnProperty(property)) {
 
-          // Get raw value (with references)
-          const getter = compileScopedGetter(value);
+          // Set initial property value
+          $el[property] = properties[property];
 
-          // Immutable property
-          Object.defineProperty(props, prop, {
-            enumerable: true,
-            get: () => {
-              return getter(this.scope, this.isolated)
-            }
+          // Push property to update
+          this.properties.push({
+            property,
+
+            // Get raw value (with references)
+            getter: compileScopedGetter(getAttr($el, name))
           });
         }
 
+        // TODO: Detect valid prop names (stuff like innerHTML, textContent, etc)
         // TODO: Warn unknown prop
-
-        if (!config.debug) {
-
-          // Don't reflect prop value
-          this.element.removeAttribute(name);
-        }
       }
     }
   }
@@ -1213,6 +1211,11 @@ class CustomRenderer extends ElementRenderer {
   render () {
     // Resolve element bindings
     super.render();
+
+    // Resolve property values
+    for (const { property, getter } of this.properties) {
+      this.element[property] = getter(this.scope, this.isolated);
+    }
 
     if (this.element.isConnected) {
 
@@ -1529,7 +1532,7 @@ class GalaxyElement extends HTMLElement {
   constructor () {
     super();
 
-    const { style, template } = this.constructor;
+    const { style, template, properties } = this.constructor;
     const shadow = this.attachShadow({ mode: 'open' });
 
     if (style instanceof HTMLStyleElement) {
@@ -1551,14 +1554,6 @@ class GalaxyElement extends HTMLElement {
      * @public
      */
     this.state = {}; // This performs the initial render
-
-    /**
-     * Hold component properties
-     *
-     * @type {Object.<*>}
-     * @public
-     */
-    this.props = this.constructor.properties; // TODO: How to properly define properties?
 
     /**
      * Main renderer
@@ -1760,8 +1755,6 @@ class GalaxyElement extends HTMLElement {
    * @return void
    */
   $render () {
-    console.log('Rendering...');
-
     if (!this.$rendering) {
       this.$rendering = true;
 

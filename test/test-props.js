@@ -6,7 +6,7 @@ export default class TestProps extends GalaxyElement {
       <slot name="title"></slot>
 
       <h2 :style="{ color: color }">
-        {{ props.string }}
+        {{ string }}
       </h2>
 
       <h2>Selected fruit: {{ fruit }}</h2>
@@ -48,11 +48,11 @@ export default class TestProps extends GalaxyElement {
   }
 
   onCreated () {
-    console.log(this.props.object)
+    console.log(this.object)
     console.log(this.$parent)
 
     setTimeout(() => {
-      this.props.object.push('a')
+      this.object.push('a')
     }, 2000)
 
     setInterval(() => {

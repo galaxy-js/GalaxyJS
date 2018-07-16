@@ -68,7 +68,7 @@ export default class GalaxyElement extends HTMLElement {
   constructor () {
     super()
 
-    const { style, template } = this.constructor
+    const { style, template, properties } = this.constructor
     const shadow = this.attachShadow({ mode: 'open' })
 
     if (style instanceof HTMLStyleElement) {
@@ -90,14 +90,6 @@ export default class GalaxyElement extends HTMLElement {
      * @public
      */
     this.state = {} // This performs the initial render
-
-    /**
-     * Hold component properties
-     *
-     * @type {Object.<*>}
-     * @public
-     */
-    this.props = this.constructor.properties // TODO: How to properly define properties?
 
     /**
      * Main renderer
@@ -299,8 +291,6 @@ export default class GalaxyElement extends HTMLElement {
    * @return void
    */
   $render () {
-    console.log('Rendering...')
-
     if (!this.$rendering) {
       this.$rendering = true
 
