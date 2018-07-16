@@ -1,11 +1,21 @@
 import config from './config.js'
 
 import GalaxyElement from './core/GalaxyElement.js'
+
+import EventsMixin from './core/mixins/Events.js'
+import ObserveMixin from './core/mixins/Observe.js'
+
 import GalaxyError, { galaxyError } from './errors/GalaxyError.js'
 
-import { getName } from './utils/generic.js'
+import { getName, applyMixins } from './utils/generic.js'
 
 export { GalaxyElement, config }
+
+// Mix features
+applyMixins(GalaxyElement, [
+  EventsMixin,
+  ObserveMixin
+])
 
 /**
  * Generates a new template

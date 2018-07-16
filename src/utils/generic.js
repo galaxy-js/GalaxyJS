@@ -2,7 +2,7 @@ import config from '../config.js'
 
 import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick@v0.1.0/index.js'
 
-import { isObject, isFunction } from './type-check.js'
+import { isFunction } from './type-check.js'
 
 const same = value => value
 
@@ -109,4 +109,8 @@ export function callHook (ce, hook, ...args) {
 
 export function ensureListeners (events, event) {
   return events[event] || []
+}
+
+export function applyMixins (Class, mixins) {
+  return Object.assign(Class.prototype, ...mixins)
 }

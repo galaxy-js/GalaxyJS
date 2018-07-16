@@ -438,6 +438,10 @@ function ensureListeners (events, event) {
   return events[event] || []
 }
 
+function applyMixins (Class, mixins) {
+  return Object.assign(Class.prototype, ...mixins)
+}
+
 /**
  * Renderer for inline tag template binding:
  *
@@ -650,7 +654,7 @@ class RadioRenderer extends BindRenderer {
   }
 }
 
-class GalaxyError extends Error {}
+class GalaxyError$1 extends Error {}
 
 /**
  * Converts given `error`
@@ -660,7 +664,7 @@ class GalaxyError extends Error {}
  * @return {GalaxyError}
  */
 function galaxyError ({ message, stack }) {
-  const galaxyError = new GalaxyError(message);
+  const galaxyError = new GalaxyError$1(message);
 
   // Setting up correct stack
   galaxyError.stack = stack;
@@ -690,7 +694,7 @@ class SelectRenderer extends BindRenderer {
       const values = this.getter();
 
       if (!Array.isArray(values)) {
-        throw new GalaxyError(
+        throw new GalaxyError$1(
           'Invalid bound value. ' +
           '*bind directive on select elements with a `multiple` attribute must have an array bound value.'
         )
@@ -1531,7 +1535,7 @@ class GalaxyElement extends HTMLElement {
   constructor () {
     super();
 
-    const { style, template, properties } = this.constructor;
+    const { style, template } = this.constructor;
     const shadow = this.attachShadow({ mode: 'open' });
 
     if (style instanceof HTMLStyleElement) {
@@ -1602,6 +1606,179 @@ class GalaxyElement extends HTMLElement {
   }
 
   /**
+   * Intercept given method call by passing the state
+   *
+   * @param {string} method - Method name
+   * @param {*...} [args] - Arguments to pass in
+   *
+   * @throws {GalaxyError}
+   *
+   * @return void
+   */
+  $commit (method, ...args) {
+    if (method in this) {
+      if (!isFunction(this[method])) {
+        throw new GalaxyError$1(`Method '${method}' must be a function`)
+      }
+
+      if (isReserved(method)) {
+        throw new GalaxyError$1(`Could no call reserved method '${method}'`)
+      }
+
+      this[method](this.state, ...args);
+    }
+  }
+
+  /**
+   * Reflect state changes to the DOM
+   *
+   * @return void
+   */
+  $render () {
+    if (!this.$rendering) {
+      this.$rendering = true;
+
+      nextTick(() => {
+
+        // Takes render error
+        let renderError;
+
+        // References are cleared before each render phase
+        // then they going to be filled up
+        this.$refs.clear();
+
+        try {
+          this.$renderer.render();
+        } catch (e) {
+          if (!(e instanceof GalaxyError$1)) {
+            e = galaxyError(e);
+          }
+
+          // Don't handle the error in debug mode
+          if (config.debug) throw e
+
+          renderError = e;
+        }
+
+        // Sleep after render new changes
+        this.$rendering = false;
+
+        if (renderError) {
+
+          // Event syntax: {phase}:{subject}
+          this.$emit('$render:error', renderError);
+        }
+      });
+    }
+  }
+}
+
+/**
+ * Events - Custom and native events API
+ *
+ * @mixin
+ */
+var EventsMixin = {
+
+  /**
+   * Attach a given listener to an event
+   *
+   * @param {string} event
+   * @param {Function} listener
+   * @param {boolean} [useCapture]
+   *
+   * @return void
+   */
+  $on (event, listener, useCapture) {
+    (this.$events[event] = ensureListeners(this.$events, event)).push(listener);
+
+    this.addEventListener(event, listener, useCapture);
+  },
+
+  /**
+   * Attach a listener to be called once
+   *
+   * @param {string} event
+   * @param {Function} listener
+   * @param {boolean} [useCapture]
+   *
+   * @return void
+   */
+  $once (event, listener, useCapture) {
+
+    // Once called wrapper
+    const onceCalled = $event => {
+      this.$off(event, onceCalled);
+      listener($event);
+    };
+
+    // Reference to original listener
+    onceCalled.listener = listener;
+
+    this.$on(event, onceCalled, useCapture);
+  },
+
+  /**
+   * Detach a given listener from an event
+   *
+   * @param {string} event
+   * @param {Function} listener
+   *
+   * @return void
+   */
+  $off (event, listener) {
+    switch (arguments.length) {
+
+      // .$off()
+      case 0: for (event in this.$events) {
+        this.$off(event);
+      } break
+
+      // .$off('event')
+      case 1: for (const listener of ensureListeners(this.$events, event)) {
+        this.$off(event, listener);
+      } break
+
+      // .$off('event', listener)
+      default: {
+        const alive = ensureListeners(this.$events, event).filter(_ => _ !== listener);
+
+        if (alive.length) {
+          this.$events[event] = alive;
+        } else {
+          delete this.$events[event];
+        }
+
+        this.removeEventListener(event, listener);
+      }
+    }
+  },
+
+  /**
+   * Dispatch an event
+   *
+   * @param {Event|string} event
+   * @param {*} [detail]
+   *
+   * @return void
+   */
+  $emit (event, detail) {
+    this.dispatchEvent(
+      event instanceof Event
+        ? event
+        : new CustomEvent(event, { detail })
+    );
+  }
+}
+
+/**
+ * Observe - Watching mechanism
+ *
+ * @mixin
+ */
+var ObserveMixin = {
+
+  /**
    * Watch a given `path` from the state
    *
    * @param {string} path
@@ -1652,135 +1829,13 @@ class GalaxyElement extends HTMLElement {
       }
     }
   }
-
-  /**
-   * Events
-   *
-   * Custom and native events API
-   */
-  $on (event, listener, useCapture) {
-    (this.$events[event] = ensureListeners(this.$events, event)).push(listener);
-
-    this.addEventListener(event, listener, useCapture);
-  }
-
-  $once (event, listener, useCapture) {
-
-    // Once called wrapper
-    const onceCalled = $event => {
-      this.$off(event, onceCalled);
-      listener($event);
-    };
-
-    // Reference to original listener
-    onceCalled.listener = listener;
-
-    this.$on(event, onceCalled, useCapture);
-  }
-
-  $off (event, listener) {
-    switch (arguments.length) {
-
-      // .$off()
-      case 0: for (event in this.$events) {
-        this.$off(event);
-      } break
-
-      // .$off('event')
-      case 1: for (const listener of ensureListeners(this.$events, event)) {
-        this.$off(event, listener);
-      } break
-
-      // .$off('event', listener)
-      default: {
-        const alive = ensureListeners(this.$events, event).filter(_ => _ !== listener);
-
-        if (alive.length) {
-          this.$events[event] = alive;
-        } else {
-          delete this.$events[event];
-        }
-
-        this.removeEventListener(event, listener);
-      }
-    }
-  }
-
-  $emit (event, detail) {
-    this.dispatchEvent(
-      event instanceof Event
-        ? event
-        : new CustomEvent(event, { detail })
-    );
-  }
-
-  /**
-   * Intercept given method call by passing the state
-   *
-   * @param {string} method - Method name
-   * @param {*...} [args] - Arguments to pass in
-   *
-   * @throws {GalaxyError}
-   *
-   * @return void
-   */
-  $commit (method, ...args) {
-    if (method in this) {
-      if (!isFunction(this[method])) {
-        throw new GalaxyError(`Method '${method}' must be a function`)
-      }
-
-      if (isReserved(method)) {
-        throw new GalaxyError(`Could no call reserved method '${method}'`)
-      }
-
-      this[method](this.state, ...args);
-    }
-  }
-
-  /**
-   * Reflect state changes to the DOM
-   *
-   * @return void
-   */
-  $render () {
-    if (!this.$rendering) {
-      this.$rendering = true;
-
-      nextTick(() => {
-
-        // Takes render error
-        let renderError;
-
-        // References are cleared before each render phase
-        // then they going to be filled up
-        this.$refs.clear();
-
-        try {
-          this.$renderer.render();
-        } catch (e) {
-          if (!(e instanceof GalaxyError)) {
-            e = galaxyError(e);
-          }
-
-          // Don't handle the error in debug mode
-          if (config.debug) throw e
-
-          renderError = e;
-        }
-
-        // Sleep after render new changes
-        this.$rendering = false;
-
-        if (renderError) {
-
-          // Event syntax: {phase}:{subject}
-          this.$emit('$render:error', renderError);
-        }
-      });
-    }
-  }
 }
+
+// Mix features
+applyMixins(GalaxyElement, [
+  EventsMixin,
+  ObserveMixin
+]);
 
 /**
  * Generates a new template
@@ -1830,7 +1885,7 @@ function setup (options) {
     const name = getName(GalaxyElement$$1);
 
     if (!name) {
-      throw new GalaxyError('Unknown element tag name')
+      throw new GalaxyError$1('Unknown element tag name')
     }
 
     try {
@@ -1876,7 +1931,7 @@ function installPlugins (plugins) {
     } else if (typeof plugin === 'function') {
       plugin(GalaxyElement);
     } else {
-      throw new GalaxyError(`plugin '${pluginName}' must be an object or function`)
+      throw new GalaxyError$1(`plugin '${pluginName}' must be an object or function`)
     }
   }
 }

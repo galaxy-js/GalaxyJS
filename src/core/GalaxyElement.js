@@ -5,7 +5,7 @@ import ChildrenRenderer from '../renderers/element/Children.js'
 
 import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick@v0.1.0/index.js'
 import { isFunction, isReserved } from '../utils/type-check.js'
-import { callHook, ensureListeners } from '../utils/generic.js'
+import { callHook } from '../utils/generic.js'
 
 import GalaxyError, { galaxyError } from '../errors/GalaxyError.js'
 
@@ -67,7 +67,7 @@ export default class GalaxyElement extends HTMLElement {
   constructor () {
     super()
 
-    const { style, template, properties } = this.constructor
+    const { style, template } = this.constructor
     const shadow = this.attachShadow({ mode: 'open' })
 
     if (style instanceof HTMLStyleElement) {
@@ -135,119 +135,6 @@ export default class GalaxyElement extends HTMLElement {
 
   attributeChangedCallback (name, old, value) {
     callHook(this, 'attribute', { name, old, value })
-  }
-
-  /**
-   * Watch a given `path` from the state
-   *
-   * @param {string} path
-   * @param {Function} watcher
-   *
-   * @return {Function}
-   */
-  $watch (path, watcher) {
-    let $observer
-    let dispatch
-
-    let { state } = this
-    const keys = path.split('.')
-
-    keys.forEach((key, index) => {
-      if (index !== keys.length - 1) {
-        state = state[key]
-
-        if (!state) throw new GalaxyError(`Wrong path at segment: '.${key}'`)
-      } else {
-        $observer = ProxyObserver.get(state)
-
-        if (key === '*') {
-          dispatch = change => {
-            watcher(
-              change.value, change.old,
-
-              // We need to pass extra properties
-              // for deep observing.
-              change.property, change.target
-            )
-          }
-        } else {
-          dispatch = change => {
-            if (change.property === key) {
-              watcher(change.value, change.old)
-            }
-          }
-        }
-      }
-    })
-
-    if ($observer && dispatch) {
-      $observer.subscribe(dispatch)
-
-      return () => {
-        $observer.unsubscribe(dispatch)
-      }
-    }
-  }
-
-  /**
-   * Events
-   *
-   * Custom and native events API
-   */
-  $on (event, listener, useCapture) {
-    (this.$events[event] = ensureListeners(this.$events, event)).push(listener)
-
-    this.addEventListener(event, listener, useCapture)
-  }
-
-  $once (event, listener, useCapture) {
-
-    // Once called wrapper
-    const onceCalled = $event => {
-      this.$off(event, onceCalled)
-      listener($event)
-    }
-
-    // Reference to original listener
-    onceCalled.listener = listener
-
-    this.$on(event, onceCalled, useCapture)
-  }
-
-  $off (event, listener) {
-    switch (arguments.length) {
-
-      // .$off()
-      case 0: for (event in this.$events) {
-        this.$off(event)
-      } break
-
-      // .$off('event')
-      case 1: for (const listener of ensureListeners(this.$events, event)) {
-        this.$off(event, listener)
-      } break
-
-      // .$off('event', listener)
-      default: {
-        const alive = ensureListeners(this.$events, event).filter(_ => _ !== listener)
-
-        if (alive.length) {
-          this.$events[event] = alive
-        } else {
-          delete this.$events[event]
-        }
-
-        this.removeEventListener(event, listener)
-      }
-    }
-  }
-
-  $emit (event, detail) {
-    this.dispatchEvent(
-      event instanceof Event
-        ? event
-        : new CustomEvent(event, { detail })
-    )
   }
 
   /**
