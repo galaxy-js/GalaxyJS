@@ -14,193 +14,213 @@ import GalaxyError, { galaxyError } from '../errors/GalaxyError.js'
  */
 const __proxies__ = new WeakMap()
 
-export default class GalaxyElement extends HTMLElement {
+/**
+ * Creates a customized built-in element
+ *
+ * @param {*} SuperElement
+ *
+ * @api public
+ */
+export function extend (SuperElement) {
 
-  /**
-   * Actual DOM event being dispatched
-   *
-   * @type {Event}
-   * @public
-   */
-  $event = null
+  class GalaxyElement extends SuperElement {
 
-  /**
-   * Attached events
-   *
-   * @type {Object.<Array>}
-   * @public
-   */
-  $events = Object.create(null)
+    /**
+     * Actual DOM event being dispatched
+     *
+     * @type {Event}
+     * @public
+     */
+    $event = null
 
-  /**
-   * Give directly access to the parent galaxy element
-   *
-   * @type {GalaxyElement}
-   * @public
-   */
-  $parent = null
+    /**
+     * Attached events
+     *
+     * @type {Object.<Array>}
+     * @public
+     */
+    $events = Object.create(null)
 
-  /**
-   * Give access to children galaxy elements
-   *
-   * @type {Object.<GalaxyElement>}
-   * @public
-   */
-  $children = {}
+    /**
+     * Give directly access to the parent galaxy element
+     *
+     * @type {GalaxyElement}
+     * @public
+     */
+    $parent = null
 
-  /**
-   * Hold element references
-   *
-   * @type {Map<string, HTMLElement>}
-   * @public
-   */
-  $refs = new Map()
+    /**
+     * Give access to children galaxy elements
+     *
+     * @type {Object.<GalaxyElement>}
+     * @public
+     */
+    $children = {}
 
-  /**
-   * Determines whether we are in a rendering phase
-   *
-   * @type {boolean}
-   * @public
-   */
-  $rendering = false
+    /**
+     * Hold element references
+     *
+     * @type {Map<string, HTMLElement>}
+     * @public
+     */
+    $refs = new Map()
 
-  constructor () {
-    super()
+    /**
+     * Determines whether we are in a rendering phase
+     *
+     * @type {boolean}
+     * @public
+     */
+    $rendering = false
 
-    const { style, template } = this.constructor
-    const shadow = this.attachShadow({ mode: 'open' })
+    constructor () {
+      super()
 
-    if (style instanceof HTMLStyleElement) {
+      const { style, template } = this.constructor
+      const shadow = this.attachShadow({ mode: 'open' })
 
-      // Prepend styles
-      shadow.appendChild(style)
+      if (style instanceof HTMLStyleElement) {
+
+        // Prepend styles
+        shadow.appendChild(style)
+      }
+
+      if (template instanceof HTMLTemplateElement) {
+
+        // We need to append content before setting up the main renderer
+        shadow.appendChild(template.content.cloneNode(true))
+      }
+
+      /**
+       * State for data-binding
+       *
+       * @type {Object.<*>}
+       * @public
+       */
+      this.state = {} // This performs the initial render
+
+      /**
+       * Main renderer
+       *
+       * @type {ChildrenRenderer}
+       * @public
+       */
+      this.$renderer = new ChildrenRenderer(shadow.childNodes, this, {})
+
+      // Call element initialization
+      callHook(this, 'created')
     }
 
-    if (template instanceof HTMLTemplateElement) {
+    get state () {
+      // Return proxified state
+      return __proxies__.get(this)
+    }
 
-      // We need to append content before setting up the main renderer
-      shadow.appendChild(template.content.cloneNode(true))
+    set state (state) {
+      const render = () => { this.$render() }
+
+      // Setup proxy to perform render on changes
+      __proxies__.set(this, ProxyObserver.observe(
+        state, null /* <- options */,
+        render /* <- global subscription */
+      ))
+
+      // State change, so render...
+      render()
     }
 
     /**
-     * State for data-binding
+     * Lifecycle hooks
      *
-     * @type {Object.<*>}
-     * @public
+     * Hooks that catch changes properly
      */
-    this.state = {} // This performs the initial render
+    connectedCallback () {
+      callHook(this, 'attached')
+    }
+
+    disconnectedCallback () {
+      callHook(this, 'detached')
+    }
+
+    attributeChangedCallback (name, old, value) {
+      callHook(this, 'attribute', { name, old, value })
+    }
 
     /**
-     * Main renderer
+     * Intercept given method call by passing the state
      *
-     * @type {ChildrenRenderer}
-     * @public
+     * @param {string} method - Method name
+     * @param {*...} [args] - Arguments to pass in
+     *
+     * @throws {GalaxyError}
+     *
+     * @return void
      */
-    this.$renderer = new ChildrenRenderer(shadow.childNodes, this, {})
+    $commit (method, ...args) {
+      if (method in this) {
+        if (!isFunction(this[method])) {
+          throw new GalaxyError(`Method '${method}' must be a function`)
+        }
 
-    // Call element initialization
-    callHook(this, 'created')
-  }
+        if (isReserved(method)) {
+          throw new GalaxyError(`Could no call reserved method '${method}'`)
+        }
 
-  get state () {
-    // Return proxified state
-    return __proxies__.get(this)
-  }
-
-  set state (state) {
-    const render = () => { this.$render() }
-
-    // Setup proxy to perform render on changes
-    __proxies__.set(this, ProxyObserver.observe(
-      state, null /* <- options */,
-      render /* <- global subscription */
-    ))
-
-    // State change, so render...
-    render()
-  }
-
-  /**
-   * Lifecycle hooks
-   *
-   * Hooks that catch changes properly
-   */
-  connectedCallback () {
-    callHook(this, 'attached')
-  }
-
-  disconnectedCallback () {
-    callHook(this, 'detached')
-  }
-
-  attributeChangedCallback (name, old, value) {
-    callHook(this, 'attribute', { name, old, value })
-  }
-
-  /**
-   * Intercept given method call by passing the state
-   *
-   * @param {string} method - Method name
-   * @param {*...} [args] - Arguments to pass in
-   *
-   * @throws {GalaxyError}
-   *
-   * @return void
-   */
-  $commit (method, ...args) {
-    if (method in this) {
-      if (!isFunction(this[method])) {
-        throw new GalaxyError(`Method '${method}' must be a function`)
+        this[method](this.state, ...args)
       }
-
-      if (isReserved(method)) {
-        throw new GalaxyError(`Could no call reserved method '${method}'`)
-      }
-
-      this[method](this.state, ...args)
     }
-  }
 
-  /**
-   * Reflect state changes to the DOM
-   *
-   * @return void
-   */
-  $render () {
-    if (!this.$rendering) {
-      this.$rendering = true
+    /**
+     * Reflect state changes to the DOM
+     *
+     * @return void
+     */
+    $render () {
+      if (!this.$rendering) {
+        this.$rendering = true
 
-      nextTick(() => {
+        nextTick(() => {
 
-        // Takes render error
-        let renderError
+          // Takes render error
+          let renderError
 
-        // References are cleared before each render phase
-        // then they going to be filled up
-        this.$refs.clear()
+          // References are cleared before each render phase
+          // then they going to be filled up
+          this.$refs.clear()
 
-        try {
-          this.$renderer.render()
-        } catch (e) {
-          if (!(e instanceof GalaxyError)) {
-            e = galaxyError(e)
+          try {
+            this.$renderer.render()
+          } catch (e) {
+            if (!(e instanceof GalaxyError)) {
+              e = galaxyError(e)
+            }
+
+            // Don't handle the error in debug mode
+            if (config.debug) throw e
+
+            renderError = e
           }
 
-          // Don't handle the error in debug mode
-          if (config.debug) throw e
+          // Sleep after render new changes
+          this.$rendering = false
 
-          renderError = e
-        }
+          if (renderError) {
 
-        // Sleep after render new changes
-        this.$rendering = false
-
-        if (renderError) {
-
-          // Event syntax: {phase}:{subject}
-          this.$emit('$render:error', renderError)
-        }
-      })
+            // Event syntax: {phase}:{subject}
+            this.$emit('$render:error', renderError)
+          }
+        })
+      }
     }
   }
+
+  /**
+   * Used internally
+   * Simply to avoid: GalaxyElement.prototype.__proto__.[[constructor]]
+   *
+   * @type {boolean}
+   */
+  GalaxyElement.extendsBuiltIn = SuperElement !== HTMLElement
+
+  return GalaxyElement
 }

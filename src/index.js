@@ -1,6 +1,6 @@
 import config from './config.js'
 
-import GalaxyElement from './core/GalaxyElement.js'
+import { extend } from './core/GalaxyElement.js'
 
 import EventsMixin from './core/mixins/Events.js'
 import ObserveMixin from './core/mixins/Observe.js'
@@ -9,7 +9,9 @@ import GalaxyError, { galaxyError } from './errors/GalaxyError.js'
 
 import { getName, applyMixins } from './utils/generic.js'
 
-export { GalaxyElement, config }
+export { extend, config }
+
+export const GalaxyElement = extend(HTMLElement)
 
 // Mix features
 applyMixins(GalaxyElement, [
@@ -62,14 +64,19 @@ export function setup (options) {
 
   // Register element classes
   for (const GalaxyElement of options.elements) {
+    let defineOptions = {}
     const name = getName(GalaxyElement)
 
     if (!name) {
       throw new GalaxyError('Unknown element tag name')
     }
 
+    if (GalaxyElement.extendsBuiltIn && !(defineOptions.extends = GalaxyElement.extends)) {
+      throw new GalaxyError('Extended customized built-in elements must have an `extends` property')
+    }
+
     try {
-      customElements.define(name, GalaxyElement)
+      customElements.define(name, GalaxyElement, defineOptions)
     } catch (e) {
       throw galaxyError(e)
     }
