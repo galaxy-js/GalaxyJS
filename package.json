@@ -1,8 +1,8 @@
 {
   "name": "@galaxy/framework",
-  "version": "v0.0.1-alpha.7",
+  "version": "v0.0.1-alpha.8",
   "description": "A framework fully based on native WebComponents API",
-  "main": "dist/galaxy.js",
+  "main": "dist/galaxy.umd.js",
   "repository": "https://github.com/LosMaquios/GalaxyJS.git",
   "author": "Camilo Rodriguez <aeromotiondesign@gmail.com>",
   "license": "MIT",
