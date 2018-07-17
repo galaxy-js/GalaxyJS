@@ -1,9 +1,9 @@
 import config from '../config.js'
 
-import ProxyObserver from 'https://cdn.jsdelivr.net/gh/LosMaquios/ProxyObserver@v0.3.3/index.js'
+import ProxyObserver from 'proxy-observer'
 import ChildrenRenderer from '../renderers/element/Children.js'
 
-import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick@v0.1.0/index.js'
+import nextTick from 'next-tick'
 import { isFunction, isReserved } from '../utils/type-check.js'
 import { callHook } from '../utils/generic.js'
 

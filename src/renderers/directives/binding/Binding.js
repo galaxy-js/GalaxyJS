@@ -2,7 +2,7 @@ import config from '../../../config.js'
 
 import BaseRenderer from '../../Base.js'
 
-import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick@v0.1.0/index.js'
+import nextTick from 'next-tick'
 import { compileScopedGetter } from '../../../compiler/index.js'
 import { differ } from '../../../utils/generic.js'
 

@@ -1,6 +1,6 @@
 import config from '../config.js'
 
-import nextTick from 'https://cdn.jsdelivr.net/gh/LosMaquios/next-tick@v0.1.0/index.js'
+import nextTick from 'next-tick'
 
 import { isFunction } from './type-check.js'
 

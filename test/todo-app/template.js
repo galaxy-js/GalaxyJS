@@ -1,4 +1,4 @@
-import { html } from '../../dist/galaxy.js'
+import { html } from '../../dist/galaxy.esm.js'
 
 export default html`
   <style>

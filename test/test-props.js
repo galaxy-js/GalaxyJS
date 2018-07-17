@@ -1,4 +1,4 @@
-import { GalaxyElement, html } from '../dist/galaxy.js'
+import { GalaxyElement, html } from '../dist/galaxy.esm.js'
 
 export default class TestProps extends GalaxyElement {
   static get template () {

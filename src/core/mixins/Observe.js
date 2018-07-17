@@ -1,4 +1,4 @@
-import ProxyObserver from 'https://cdn.jsdelivr.net/gh/LosMaquios/ProxyObserver@v0.3.3/index.js'
+import ProxyObserver from 'proxy-observer'
 
 /**
  * Observe - Watching mechanism
