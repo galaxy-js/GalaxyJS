@@ -1874,7 +1874,9 @@
   /**
    * Creates a customized built-in element
    *
-   * @param {*} SuperElement
+   * @param {HTMLElement} SuperElement
+   *
+   * @return {GalaxyElement}
    *
    * @api public
    */
@@ -1933,16 +1935,26 @@
       constructor () {
         super();
 
+        let shadow;
         const { style, template } = this.constructor;
-        const shadow = this.attachShadow({ mode: 'open' });
+
+        try {
+          shadow = this.attachShadow({ mode: 'open' });
+        } catch (e) {
+          /**
+           * @see https://developer.mozilla.org/en-US/docs/Web/API/Element/attachShadow#Exceptions
+           */
+        }
 
         if (style instanceof HTMLStyleElement) {
+          if (!shadow) throw new GalaxyError$1('style cannot be attached')
 
           // Prepend styles
-          shadow.appendChild(style);
+          shadow.appendChild(style.cloneNode(true));
         }
 
         if (template instanceof HTMLTemplateElement) {
+          if (!shadow) throw new GalaxyError$1('template cannot be attached')
 
           // We need to append content before setting up the main renderer
           shadow.appendChild(template.content.cloneNode(true));
@@ -1962,7 +1974,10 @@
          * @type {ChildrenRenderer}
          * @public
          */
-        this.$renderer = new ChildrenRenderer(shadow.childNodes, this, {});
+        this.$renderer = new ChildrenRenderer(
+          shadow ? shadow.childNodes : [],
+          this, {}
+        );
 
         // Call element initialization
         callHook(this, 'created');
