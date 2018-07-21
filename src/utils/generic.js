@@ -94,15 +94,21 @@ export function getName (GalaxyElement) {
   return GalaxyElement.is || GalaxyElement.name && hyphenate(GalaxyElement.name)
 }
 
-export function callHook (ce, hook, ...args) {
+export function callHook (ce, hook, extra) {
+
+  // Emit sync
+  ce.$emit(`$${hook}`, extra)
+
   hook = ce[
     // Capitalize given hook name
     `on${hook.charAt(0).toUpperCase() + hook.slice(1)}`
   ]
 
   if (isFunction(hook)) {
+
+    // Emit async
     nextTick.afterFlush(() => {
-      hook.call(ce, ...args)
+      hook.call(ce, extra)
     })
   }
 }

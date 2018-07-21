@@ -1,5 +1,3 @@
-import config from '../../config.js'
-
 import ElementRenderer from './Element.js'
 
 import { compileScopedGetter } from '../../compiler/index.js'
