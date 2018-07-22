@@ -4,8 +4,8 @@ import ProxyObserver from 'proxy-observer'
 import ChildrenRenderer from '../renderers/element/Children.js'
 
 import nextTick from 'next-tick'
-import { isFunction, isReserved } from '../utils/type-check.js'
-import { callHook } from '../utils/generic.js'
+import { isFunction, isReserved, isGalaxyElement } from '../utils/type-check.js'
+import { callHook, camelize, getName } from '../utils/generic.js'
 
 import GalaxyError, { galaxyError } from '../errors/GalaxyError.js'
 
@@ -104,6 +104,14 @@ export function extend (SuperElement) {
       }
 
       /**
+       * Custom element name
+       *
+       * @type {string}
+       * @public
+       */
+      this.$name = getName(this.constructor)
+
+      /**
        * State for data-binding
        *
        * @type {Object.<*>}
@@ -150,10 +158,39 @@ export function extend (SuperElement) {
      * Hooks that catch changes properly
      */
     connectedCallback () {
+      // TODO: For testing environments maybe we don't want to
+      // leave this only works on in-document elements
+
+      let $parent = this
+
+      do {
+        $parent = $parent instanceof ShadowRoot
+          ? $parent.host
+          : $parent.parentNode
+      } while ($parent && !isGalaxyElement($parent))
+
+      if ($parent && isGalaxyElement($parent)) {
+
+        // Set parent communication
+        this.$parent = $parent
+
+        // Set children communication
+        $parent.$children[camelize(this.$name)] = this
+      }
+
       callHook(this, 'attached')
     }
 
     disconnectedCallback () {
+      if (this.$parent) {
+
+        // Cut-out children communication
+        delete this.$parent.$children[camelize(this.$name)]
+
+        // Cut-out parent communication
+        this.$parent = null
+      }
+
       callHook(this, 'detached')
     }
 

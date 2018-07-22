@@ -13,12 +13,6 @@ export default class CustomRenderer extends ElementRenderer {
   constructor (ce, scope, isolated) {
     super(ce, scope, isolated)
 
-    // Set parent communication
-    ce.$parent = scope
-
-    // Set children communication
-    scope.$children[camelize(getName(ce.constructor))] = ce
-
     this.properties = []
 
     this._resolveProps(ce)
