@@ -35,6 +35,100 @@ function createCommonjsModule(fn, module) {
 	return module = { exports: {} }, fn(module, module.exports), module.exports;
 }
 
+var nextTick = createCommonjsModule(function (module, exports) {
+(function (global, factory) {
+  module.exports = factory();
+}(commonjsGlobal, (function () {
+  /**
+   * Resolved promise to schedule new microtasks
+   *
+   * @type {Promise}
+   *
+   * @api private
+   */
+  const resolved = Promise.resolve();
+
+  /**
+   * Queue of callbacks to be flushed
+   *
+   * @type {Array}
+   *
+   * @api public
+   */
+  const queue = nextTick.queue = [];
+
+  /**
+   * Defers execution of a given `callback`
+   *
+   * @param {Function} callback - Function to be deferred
+   *
+   * @return void
+   *
+   * @api public
+   */
+  function nextTick (callback) {
+    if (!nextTick.waiting) {
+      // Always flushing in a microtask
+      resolved.then(nextTick.flush);
+    }
+
+    queue.push(callback);
+  }
+
+  /**
+   * Determines when we are waiting to flush the queue
+   *
+   * @type {boolean}
+   *
+   * @api public
+   */
+  Object.defineProperty(nextTick, 'waiting', {
+    enumerable: true,
+    get () {
+      return queue.length > 0
+    }
+  });
+
+  /**
+   * Defers a callback to be called
+   * after flush the queue
+   *
+   * @param {Function} callback
+   *
+   * @return void
+   */
+  nextTick.afterFlush = callback => {
+    setTimeout(() => {
+      if (!nextTick.waiting) return callback()
+
+      // If we are waiting, then re-schedule call
+      nextTick.afterFlush(callback);
+    });
+  };
+
+  /**
+   * Flushes the actual queue
+   *
+   * @return {boolean}
+   */
+  nextTick.flush = () => {
+    if (nextTick.waiting) {
+      const callbacks = queue.slice();
+
+      // Empty actual queue
+      queue.length = 0;
+
+      for (const callback of callbacks) {
+        callback();
+      }
+    }
+  };
+
+  return nextTick;
+
+})));
+});
+
 var proxyObserver = createCommonjsModule(function (module, exports) {
 (function (global, factory) {
   module.exports = factory();
@@ -623,100 +717,6 @@ class BaseRenderer {
     );
   }
 }
-
-var nextTick = createCommonjsModule(function (module, exports) {
-(function (global, factory) {
-  module.exports = factory();
-}(commonjsGlobal, (function () {
-  /**
-   * Resolved promise to schedule new microtasks
-   *
-   * @type {Promise}
-   *
-   * @api private
-   */
-  const resolved = Promise.resolve();
-
-  /**
-   * Queue of callbacks to be flushed
-   *
-   * @type {Array}
-   *
-   * @api public
-   */
-  const queue = nextTick.queue = [];
-
-  /**
-   * Defers execution of a given `callback`
-   *
-   * @param {Function} callback - Function to be deferred
-   *
-   * @return void
-   *
-   * @api public
-   */
-  function nextTick (callback) {
-    if (!nextTick.waiting) {
-      // Always flushing in a microtask
-      resolved.then(nextTick.flush);
-    }
-
-    queue.push(callback);
-  }
-
-  /**
-   * Determines when we are waiting to flush the queue
-   *
-   * @type {boolean}
-   *
-   * @api public
-   */
-  Object.defineProperty(nextTick, 'waiting', {
-    enumerable: true,
-    get () {
-      return queue.length > 0
-    }
-  });
-
-  /**
-   * Defers a callback to be called
-   * after flush the queue
-   *
-   * @param {Function} callback
-   *
-   * @return void
-   */
-  nextTick.afterFlush = callback => {
-    setTimeout(() => {
-      if (!nextTick.waiting) return callback()
-
-      // If we are waiting, then re-schedule call
-      nextTick.afterFlush(callback);
-    });
-  };
-
-  /**
-   * Flushes the actual queue
-   *
-   * @return {boolean}
-   */
-  nextTick.flush = () => {
-    if (nextTick.waiting) {
-      const callbacks = queue.slice();
-
-      // Empty actual queue
-      queue.length = 0;
-
-      for (const callback of callbacks) {
-        callback();
-      }
-    }
-  };
-
-  return nextTick;
-
-})));
-});
 
 const same = value => value;
 
@@ -1861,6 +1861,164 @@ class ChildrenRenderer {
 }
 
 /**
+ * Events - Custom and native events API
+ *
+ * @mixin
+ */
+var EventsMixin = {
+
+  /**
+   * Attach a given listener to an event
+   *
+   * @param {string} event
+   * @param {Function} listener
+   * @param {boolean} [useCapture]
+   *
+   * @return void
+   */
+  $on (event, listener, useCapture) {
+    (this.$events[event] = ensureListeners(this.$events, event)).push(listener);
+
+    this.addEventListener(event, listener, useCapture);
+  },
+
+  /**
+   * Attach a listener to be called once
+   *
+   * @param {string} event
+   * @param {Function} listener
+   * @param {boolean} [useCapture]
+   *
+   * @return void
+   */
+  $once (event, listener, useCapture) {
+
+    // Once called wrapper
+    const onceCalled = $event => {
+      this.$off(event, onceCalled);
+      listener($event);
+    };
+
+    // Reference to original listener
+    onceCalled.listener = listener;
+
+    this.$on(event, onceCalled, useCapture);
+  },
+
+  /**
+   * Detach a given listener from an event
+   *
+   * @param {string} event
+   * @param {Function} listener
+   *
+   * @return void
+   */
+  $off (event, listener) {
+    switch (arguments.length) {
+
+      // .$off()
+      case 0: for (event in this.$events) {
+        this.$off(event);
+      } break
+
+      // .$off('event')
+      case 1: for (const listener of ensureListeners(this.$events, event)) {
+        this.$off(event, listener);
+      } break
+
+      // .$off('event', listener)
+      default: {
+        const alive = ensureListeners(this.$events, event).filter(_ => _ !== listener);
+
+        if (alive.length) {
+          this.$events[event] = alive;
+        } else {
+          delete this.$events[event];
+        }
+
+        this.removeEventListener(event, listener);
+      }
+    }
+  },
+
+  /**
+   * Dispatch an event
+   *
+   * @param {Event|string} event
+   * @param {*} [detail]
+   *
+   * @return void
+   */
+  $emit (event, detail) {
+    this.dispatchEvent(
+      event instanceof Event
+        ? event
+        : new CustomEvent(event, { detail })
+    );
+  }
+}
+
+/**
+ * Observe - Watching mechanism
+ *
+ * @mixin
+ */
+var ObserveMixin = {
+
+  /**
+   * Watch a given `path` from the state
+   *
+   * @param {string} path
+   * @param {Function} watcher
+   *
+   * @return {Function}
+   */
+  $watch (path, watcher) {
+    let $observer;
+    let dispatch;
+
+    let { state } = this;
+    const keys = path.split('.');
+
+    keys.forEach((key, index) => {
+      if (index !== keys.length - 1) {
+        state = state[key];
+
+        if (!state) throw new GalaxyError(`Wrong path at segment: '.${key}'`)
+      } else {
+        $observer = proxyObserver.get(state);
+
+        if (key === '*') {
+          dispatch = change => {
+            watcher(
+              change.value, change.old,
+
+              // We need to pass extra properties
+              // for deep observing.
+              change.property, change.target
+            );
+          };
+        } else {
+          dispatch = change => {
+            if (change.property === key) {
+              watcher(change.value, change.old);
+            }
+          };
+        }
+      }
+    });
+
+    if ($observer && dispatch) {
+      $observer.subscribe(dispatch);
+
+      return () => {
+        $observer.unsubscribe(dispatch);
+      }
+    }
+  }
+}
+
+/**
  * Internal
  */
 const __proxies__ = new WeakMap();
@@ -2125,174 +2283,17 @@ function extend (SuperElement) {
    */
   GalaxyElement.extendsBuiltIn = SuperElement !== HTMLElement;
 
+  // Mix features
+  applyMixins(GalaxyElement, [
+    EventsMixin,
+    ObserveMixin
+  ]);
+
+  // Return mixed
   return GalaxyElement
 }
 
-/**
- * Events - Custom and native events API
- *
- * @mixin
- */
-var EventsMixin = {
-
-  /**
-   * Attach a given listener to an event
-   *
-   * @param {string} event
-   * @param {Function} listener
-   * @param {boolean} [useCapture]
-   *
-   * @return void
-   */
-  $on (event, listener, useCapture) {
-    (this.$events[event] = ensureListeners(this.$events, event)).push(listener);
-
-    this.addEventListener(event, listener, useCapture);
-  },
-
-  /**
-   * Attach a listener to be called once
-   *
-   * @param {string} event
-   * @param {Function} listener
-   * @param {boolean} [useCapture]
-   *
-   * @return void
-   */
-  $once (event, listener, useCapture) {
-
-    // Once called wrapper
-    const onceCalled = $event => {
-      this.$off(event, onceCalled);
-      listener($event);
-    };
-
-    // Reference to original listener
-    onceCalled.listener = listener;
-
-    this.$on(event, onceCalled, useCapture);
-  },
-
-  /**
-   * Detach a given listener from an event
-   *
-   * @param {string} event
-   * @param {Function} listener
-   *
-   * @return void
-   */
-  $off (event, listener) {
-    switch (arguments.length) {
-
-      // .$off()
-      case 0: for (event in this.$events) {
-        this.$off(event);
-      } break
-
-      // .$off('event')
-      case 1: for (const listener of ensureListeners(this.$events, event)) {
-        this.$off(event, listener);
-      } break
-
-      // .$off('event', listener)
-      default: {
-        const alive = ensureListeners(this.$events, event).filter(_ => _ !== listener);
-
-        if (alive.length) {
-          this.$events[event] = alive;
-        } else {
-          delete this.$events[event];
-        }
-
-        this.removeEventListener(event, listener);
-      }
-    }
-  },
-
-  /**
-   * Dispatch an event
-   *
-   * @param {Event|string} event
-   * @param {*} [detail]
-   *
-   * @return void
-   */
-  $emit (event, detail) {
-    this.dispatchEvent(
-      event instanceof Event
-        ? event
-        : new CustomEvent(event, { detail })
-    );
-  }
-}
-
-/**
- * Observe - Watching mechanism
- *
- * @mixin
- */
-var ObserveMixin = {
-
-  /**
-   * Watch a given `path` from the state
-   *
-   * @param {string} path
-   * @param {Function} watcher
-   *
-   * @return {Function}
-   */
-  $watch (path, watcher) {
-    let $observer;
-    let dispatch;
-
-    let { state } = this;
-    const keys = path.split('.');
-
-    keys.forEach((key, index) => {
-      if (index !== keys.length - 1) {
-        state = state[key];
-
-        if (!state) throw new GalaxyError(`Wrong path at segment: '.${key}'`)
-      } else {
-        $observer = proxyObserver.get(state);
-
-        if (key === '*') {
-          dispatch = change => {
-            watcher(
-              change.value, change.old,
-
-              // We need to pass extra properties
-              // for deep observing.
-              change.property, change.target
-            );
-          };
-        } else {
-          dispatch = change => {
-            if (change.property === key) {
-              watcher(change.value, change.old);
-            }
-          };
-        }
-      }
-    });
-
-    if ($observer && dispatch) {
-      $observer.subscribe(dispatch);
-
-      return () => {
-        $observer.unsubscribe(dispatch);
-      }
-    }
-  }
-}
-
 const GalaxyElement = extend(HTMLElement);
-
-// Mix features
-applyMixins(GalaxyElement, [
-  EventsMixin,
-  ObserveMixin
-]);
 
 /**
  * Generates a new template

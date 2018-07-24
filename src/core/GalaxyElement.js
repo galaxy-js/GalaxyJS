@@ -1,11 +1,15 @@
+import nextTick from 'next-tick'
+
 import config from '../config.js'
 
 import ProxyObserver from 'proxy-observer'
 import ChildrenRenderer from '../renderers/element/Children.js'
 
-import nextTick from 'next-tick'
+import EventsMixin from './mixins/Events.js'
+import ObserveMixin from './mixins/Observe.js'
+
 import { isFunction, isReserved, isGalaxyElement } from '../utils/type-check.js'
-import { callHook, camelize, getName } from '../utils/generic.js'
+import { callHook, camelize, getName, applyMixins } from '../utils/generic.js'
 
 import GalaxyError, { galaxyError } from '../errors/GalaxyError.js'
 
@@ -274,5 +278,12 @@ export function extend (SuperElement) {
    */
   GalaxyElement.extendsBuiltIn = SuperElement !== HTMLElement
 
+  // Mix features
+  applyMixins(GalaxyElement, [
+    EventsMixin,
+    ObserveMixin
+  ])
+
+  // Return mixed
   return GalaxyElement
 }
