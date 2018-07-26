@@ -63,7 +63,7 @@ rollup(inputConfig)
 function minifyChunk ({ code }) {
   const bundle = babel.transformSync(code, {
     presets: [presetMinify],
-    plugins: [classProperties],
+    plugins: [classProperties, templateLiteralMinifier],
     babelrc: false,
     configFile: false,
     comments: false,
@@ -73,4 +73,34 @@ function minifyChunk ({ code }) {
   })
 
   return bundle.code
+}
+
+function templateLiteralMinifier ({ types: t }) {
+  const trimmed = []
+
+  return {
+    visitor: {
+      TemplateLiteral (path) {
+        if (trimmed.includes(path.node)) return
+
+        const TRIM_REGEX = /\r?\n/g
+
+        const quasis = []
+
+        for (const { value, tail } of path.node.quasis) {
+          quasis.push(
+            t.templateElement({
+              raw: value.raw.replace(TRIM_REGEX, ''),
+              cooked: value.cooked.replace(TRIM_REGEX, '')
+            }, tail)
+          )
+        }
+
+        const replacement = t.templateLiteral(quasis, path.node.expressions)
+
+        trimmed.push(replacement)
+        path.replaceWith(replacement)
+      }
+    }
+  }
 }
