@@ -20,44 +20,7 @@ import event, { isEvent } from '../directives/event.js'
 const REFERENCE_ATTRIBUTE = 'ref'
 
 /**
- * Taken from MDN
- *
- * @see https://developer.mozilla.org/en-US/docs/Glossary/Empty_element
- */
-const VOID_TAGS = [
-  'area',
-  'base',
-  'br',
-  'col',
-  'embed',
-  'hr',
-  'img',
-  'input',
-  'link',
-  'meta',
-  'param',
-  'source',
-  'track',
-  'wbr'
-]
-
-/**
  * Renderer for void elements or elements without childs like:
- *
- *  - area
- *  - base
- *  - br
- *  - col
- *  - embed
- *  - hr
- *  - img
- *  - input
- *  - link
- *  - meta
- *  - param
- *  - source
- *  - track
- *  - wbr
  */
 export default class VoidRenderer {
   constructor (element, scope, isolated) {
@@ -86,8 +49,8 @@ export default class VoidRenderer {
     this._initBindings(element)
   }
 
-  static is ({ tagName }) {
-    return VOID_TAGS.indexOf(tagName.toLowerCase()) > -1
+  static is ({ childNodes }) {
+    return childNodes.length === 0
   }
 
   get isRenderable () {

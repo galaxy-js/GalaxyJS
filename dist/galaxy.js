@@ -1351,44 +1351,7 @@
   const REFERENCE_ATTRIBUTE = 'ref';
 
   /**
-   * Taken from MDN
-   *
-   * @see https://developer.mozilla.org/en-US/docs/Glossary/Empty_element
-   */
-  const VOID_TAGS = [
-    'area',
-    'base',
-    'br',
-    'col',
-    'embed',
-    'hr',
-    'img',
-    'input',
-    'link',
-    'meta',
-    'param',
-    'source',
-    'track',
-    'wbr'
-  ];
-
-  /**
    * Renderer for void elements or elements without childs like:
-   *
-   *  - area
-   *  - base
-   *  - br
-   *  - col
-   *  - embed
-   *  - hr
-   *  - img
-   *  - input
-   *  - link
-   *  - meta
-   *  - param
-   *  - source
-   *  - track
-   *  - wbr
    */
   class VoidRenderer {
     constructor (element, scope, isolated) {
@@ -1417,8 +1380,8 @@
       this._initBindings(element);
     }
 
-    static is ({ tagName }) {
-      return VOID_TAGS.indexOf(tagName.toLowerCase()) > -1
+    static is ({ childNodes }) {
+      return childNodes.length === 0
     }
 
     get isRenderable () {
@@ -1552,65 +1515,64 @@
 
   const PROP_TOKEN = '.';
 
-  /**
-   * Renderer for custom elements (resolve props)
-   */
-  class CustomRenderer extends ElementRenderer {
-    constructor (ce, scope, isolated) {
-      super(ce, scope, isolated);
+  const CustomRenderer = generateCustom(ElementRenderer);
+  const CustomVoidRenderer = generateCustom(VoidRenderer);
 
-      this.properties = [];
+  function generateCustom (SuperRenderer) {
 
-      this._resolveProps(ce);
-    }
+    /**
+     * Renderer for custom elements (resolve props)
+     */
+    return class CustomRenderer extends SuperRenderer {
+      constructor (ce, scope, isolated) {
+        super(ce, scope, isolated);
 
-    static is (element) {
-      return isGalaxyElement(element)
-    }
+        this.properties = {};
 
-    _resolveProps ($el) {
-      const { constructor, attributes } = $el;
-      const { properties } = constructor;
+        this._resolveProps(ce);
+      }
 
-      for (const { name } of Array.from(attributes)) {
-        if (name.startsWith(PROP_TOKEN)) {
+      _resolveProps ($el) {
+        const { constructor, attributes } = $el;
+        const { properties } = constructor;
 
-          // Normalize prop name
-          const property = camelize(name.slice(1 /* skip `.` */));
+        for (const { name } of Array.from(attributes)) {
+          if (name.startsWith(PROP_TOKEN)) {
 
-          if (properties.hasOwnProperty(property)) {
+            // Normalize prop name
+            const property = camelize(name.slice(1 /* skip `.` */));
 
-            // Set initial property value
-            $el[property] = properties[property];
+            if (properties.hasOwnProperty(property)) {
 
-            // Push property to update
-            this.properties.push({
-              property,
+              // Set initial property value
+              $el[property] = properties[property];
 
-              // Get raw value (with references)
-              getter: compileScopedGetter(getAttr($el, name))
-            });
+              // Add property to update
+              this.properties[property] = compileScopedGetter(getAttr($el, name));
+            }
+
+            // TODO: Detect valid prop names (stuff like innerHTML, textContent, etc)
+            // TODO: Warn unknown prop
           }
-
-          // TODO: Detect valid prop names (stuff like innerHTML, textContent, etc)
-          // TODO: Warn unknown prop
         }
       }
-    }
 
-    render () {
-      // Resolve element bindings
-      super.render();
+      render () {
+        // Resolve element bindings
+        super.render();
 
-      // Resolve property values
-      for (const { property, getter } of this.properties) {
-        this.element[property] = getter(this.scope, this.isolated);
-      }
+        // Resolve property values
+        for (const property in this.properties) {
 
-      if (this.element.isConnected) {
+          // Set raw value with references
+          this.element[property] = this.properties[property](this.scope, this.isolated);
+        }
 
-        // Re-render (digest props)
-        this.element.$render();
+        if (this.element.isConnected) {
+
+          // Re-render (digest props)
+          this.element.$render();
+        }
       }
     }
   }
@@ -1630,7 +1592,7 @@
 
     static getRenderer (template) {
       return isGalaxyElement(template)
-        ? CustomRenderer
+        ? (CustomVoidRenderer.is(template) ? CustomVoidRenderer : CustomRenderer)
         : ElementRenderer
     }
 
@@ -1836,8 +1798,11 @@
           // The loop directive is resolved as a child
           if (LoopRenderer.is(child)) {
             this.renderers.push(new LoopRenderer(child, this));
-          } else if (CustomRenderer.is(child))  {
-            this.renderers.push(new CustomRenderer(child, this.scope, this.isolated));
+          } else if (isGalaxyElement(child))  {
+            this.renderers.push(new (
+              VoidRenderer.is(child)
+                ? CustomVoidRenderer
+                : CustomRenderer)(child, this.scope, this.isolated));
           } else {
             const element = new (
               VoidRenderer.is(child)

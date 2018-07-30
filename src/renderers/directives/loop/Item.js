@@ -1,4 +1,4 @@
-import CustomRenderer from '../../element/Custom.js'
+import { CustomRenderer, CustomVoidRenderer } from '../../element/Custom.js'
 import ElementRenderer from '../../element/Element.js'
 
 import { isGalaxyElement } from '../../../utils/type-check.js'
@@ -19,7 +19,7 @@ export default class ItemRenderer {
 
   static getRenderer (template) {
     return isGalaxyElement(template)
-      ? CustomRenderer
+      ? (CustomVoidRenderer.is(template) ? CustomVoidRenderer : CustomRenderer)
       : ElementRenderer
   }
 

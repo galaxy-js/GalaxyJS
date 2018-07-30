@@ -3,11 +3,11 @@ import config from '../../config.js'
 import TemplateRenderer from '../Template.js'
 import ElementRenderer from './Element.js'
 import VoidRenderer from './Void.js'
-import CustomRenderer from './Custom.js'
+import { CustomRenderer, CustomVoidRenderer } from './Custom.js'
 
 import LoopRenderer from '../directives/loop/Loop.js'
 
-import { isTextNode, isElementNode } from '../../utils/type-check.js'
+import { isTextNode, isElementNode, isGalaxyElement } from '../../utils/type-check.js'
 import { flatChildren } from '../../utils/generic.js'
 
 const SKIP_ATTRIBUTE = 'skip'
@@ -49,8 +49,11 @@ export default class ChildrenRenderer {
         // The loop directive is resolved as a child
         if (LoopRenderer.is(child)) {
           this.renderers.push(new LoopRenderer(child, this))
-        } else if (CustomRenderer.is(child))  {
-          this.renderers.push(new CustomRenderer(child, this.scope, this.isolated))
+        } else if (isGalaxyElement(child))  {
+          this.renderers.push(new (
+            VoidRenderer.is(child)
+              ? CustomVoidRenderer
+              : CustomRenderer)(child, this.scope, this.isolated))
         } else {
           const element = new (
             VoidRenderer.is(child)
