@@ -4,7 +4,6 @@ import BaseRenderer from '../../Base.js'
 import ItemRenderer from './Item.js'
 
 import { getAttr, createAnchor } from '../../../utils/generic.js'
-import { isDefined } from '../../../utils/type-check.js'
 
 // Note: to maintain consistence avoid `of` reserved word on iterators.
 

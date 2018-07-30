@@ -1,7 +1,7 @@
 import ElementRenderer from './Element.js'
 
 import { compileScopedGetter } from '../../compiler/index.js'
-import { camelize, getName, getAttr } from '../../utils/generic.js'
+import { camelize, getAttr } from '../../utils/generic.js'
 import { isGalaxyElement } from '../../utils/type-check.js'
 
 const PROP_TOKEN = '.'

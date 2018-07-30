@@ -1,7 +1,7 @@
 import BaseRenderer from './Base.js'
 
 import { differ } from '../utils/generic.js'
-import { isDefined, isObject } from '../utils/type-check.js'
+import { isDefined } from '../utils/type-check.js'
 import { getExpression, TEXT_TEMPLATE_REGEX } from '../compiler/index.js'
 
 /**

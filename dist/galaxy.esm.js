@@ -1154,19 +1154,16 @@ class BindingRenderer extends BaseRenderer {
     return name.startsWith(BIND_TOKEN)
   }
 
-  static getObserved (attribute, oneTime) {
-    const { name } = attribute;
-    const { attributes } = attribute.ownerElement;
+  static getObserved ({ name, ownerElement }, oneTime) {
+    const normalized = name.slice(oneTime ? 2 : 1);
 
-    const normalizedName = name.slice(oneTime ? 2 : 1);
+    let observed = ownerElement.getAttributeNode(normalized);
 
-    let observed = attributes.getNamedItem(normalizedName);
-
-    if (!config.debug) attributes.removeNamedItem(name);
+    if (!config.debug) ownerElement.removeAttribute(name);
 
     if (!observed) {
-      observed = document.createAttribute(normalizedName);
-      attributes.setNamedItem(observed);
+      observed = document.createAttribute(normalized);
+      ownerElement.setAttributeNode(observed);
     }
 
     return observed
