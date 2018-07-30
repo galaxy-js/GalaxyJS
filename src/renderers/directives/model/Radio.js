@@ -8,7 +8,7 @@ export default class RadioRenderer extends BindRenderer {
     return type === 'radio'
   }
 
-  onChange ({ target }) {
+  onChange = ({ target }) => {
     if (target.checked) {
       this.setValue(target.value)
     }

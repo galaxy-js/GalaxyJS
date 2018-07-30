@@ -8,7 +8,7 @@ export default class CheckboxRenderer extends BindRenderer {
     return type === 'checkbox'
   }
 
-  onChange ({ target }) {
+  onChange = ({ target }) => {
     const values = this.getter()
 
     if (!Array.isArray(values)) {

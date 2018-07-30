@@ -29,7 +29,7 @@ export default class InputRenderer extends BindRenderer {
   }
 
   // Change state (Input -> State)
-  onInput ({ target }) {
+  onInput = ({ target }) => {
     this.setValue(this.conversor(target.value))
   }
 

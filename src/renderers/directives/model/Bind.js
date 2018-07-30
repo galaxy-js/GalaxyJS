@@ -28,11 +28,11 @@ export default class BindRenderer extends BaseRenderer {
     }
 
     if (this.onInput) {
-      target.addEventListener('input', this.onInput.bind(this))
+      target.addEventListener('input', this.onInput)
     }
 
     if (this.onChange) {
-      target.addEventListener('change', this.onChange.bind(this))
+      target.addEventListener('change', this.onChange)
     }
   }
 

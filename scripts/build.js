@@ -16,6 +16,9 @@ const commonjs = require('rollup-plugin-commonjs')
 const inputConfig = {
   input: './src/index.js',
 
+  // Avoid: The 'this' keyword is equivalent to 'undefined' at the top level of an ES module, and has been rewritten
+  context: 'this',
+
   plugins: [
     resolve(),
     commonjs()

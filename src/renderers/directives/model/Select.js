@@ -10,7 +10,7 @@ export default class SelectRenderer extends BindRenderer {
     return element instanceof HTMLSelectElement
   }
 
-  onChange ({ target }) {
+  onChange = ({ target }) => {
     const { options, multiple } = target
 
     if (!multiple) {
