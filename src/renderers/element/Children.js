@@ -5,7 +5,7 @@ import ElementRenderer from './Element.js'
 import VoidRenderer from './Void.js'
 import { CustomRenderer, CustomVoidRenderer } from './Custom.js'
 
-import LoopRenderer from '../directives/loop/Loop.js'
+import LoopDirective from '../../directives/loop/Loop.js'
 
 import { isTextNode, isElementNode, isGalaxyElement } from '../../utils/type-check.js'
 import { flatChildren } from '../../utils/generic.js'
@@ -47,8 +47,8 @@ export default class ChildrenRenderer {
         }
 
         // The loop directive is resolved as a child
-        if (LoopRenderer.is(child)) {
-          this.renderers.push(new LoopRenderer(child, this))
+        if (LoopDirective.is(child)) {
+          this.renderers.push(new LoopDirective(child, this))
         } else if (isGalaxyElement(child))  {
           this.renderers.push(new (
             VoidRenderer.is(child)

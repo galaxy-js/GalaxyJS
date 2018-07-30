@@ -1,21 +1,21 @@
 /**
  * Directives
  */
-import ConditionalRenderer from '../directives/Conditional.js'
-import BindRenderer from '../directives/model/Bind.js'
-import InputRenderer from '../directives/model/Input.js'
-import CheckboxRenderer from '../directives/model/Checkbox.js'
-import RadioRenderer from '../directives/model/Radio.js'
-import SelectRenderer from '../directives/model/Select.js'
+import ConditionalDirective from '../../directives/Conditional.js'
+import BindDirective from '../../directives/model/Bind.js'
+import InputDirective from '../../directives/model/Input.js'
+import CheckboxDirective from '../../directives/model/Checkbox.js'
+import RadioDirective from '../../directives/model/Radio.js'
+import SelectDirective from '../../directives/model/Select.js'
 
 /**
  * Bindings
  */
 import TemplateRenderer from '../Template.js'
-import BindingRenderer from '../directives/binding/Binding.js'
-import ClassRenderer from '../directives/binding/Class.js'
-import StyleRenderer from '../directives/binding/Style.js'
-import event, { isEvent } from '../directives/event.js'
+import BindingDirective from '../../directives/binding/Binding.js'
+import ClassDirective from '../../directives/binding/Class.js'
+import StyleDirective from '../../directives/binding/Style.js'
+import event, { isEvent } from '../../directives/event.js'
 
 const REFERENCE_ATTRIBUTE = 'ref'
 
@@ -67,15 +67,15 @@ export default class VoidRenderer {
   }
 
   _initDirectives ($el) {
-    if (ConditionalRenderer.is($el)) {
-      this.directives.push(new ConditionalRenderer($el, this))
+    if (ConditionalDirective.is($el)) {
+      this.directives.push(new ConditionalDirective($el, this))
     }
 
-    if (BindRenderer.is($el)) {
-      const Renderer = CheckboxRenderer.is($el) ? CheckboxRenderer
-        : RadioRenderer.is($el) ? RadioRenderer
-        : InputRenderer.is($el) ? InputRenderer
-        : SelectRenderer.is($el) ? SelectRenderer
+    if (BindDirective.is($el)) {
+      const Renderer = CheckboxDirective.is($el) ? CheckboxDirective
+        : RadioDirective.is($el) ? RadioDirective
+        : InputDirective.is($el) ? InputDirective
+        : SelectDirective.is($el) ? SelectDirective
         : null
 
       if (Renderer) {
@@ -98,13 +98,13 @@ export default class VoidRenderer {
         this.bindings.push(new TemplateRenderer(attribute, this))
 
       // 3. Check :attribute or ::attribute
-      } else if (BindingRenderer.is(attribute)) {
+      } else if (BindingDirective.is(attribute)) {
         const binding = new (
-          ClassRenderer.is(attribute)
-            ? ClassRenderer
-            : StyleRenderer.is(attribute)
-              ? StyleRenderer
-              : BindingRenderer)(attribute, this)
+          ClassDirective.is(attribute)
+            ? ClassDirective
+            : StyleDirective.is(attribute)
+              ? StyleDirective
+              : BindingDirective)(attribute, this)
 
         // Enable quick access
         this.bindings[binding.name] = binding

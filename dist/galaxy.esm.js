@@ -861,7 +861,7 @@ class TemplateRenderer extends BaseRenderer {
 
 const CONDITIONAL_DIRECTIVE = '*if';
 
-class ConditionalRenderer extends BaseRenderer {
+class ConditionalDirective extends BaseRenderer {
   constructor (element, context) {
     super(
       element, context,
@@ -888,7 +888,7 @@ class ConditionalRenderer extends BaseRenderer {
 
 const BIND_DIRECTIVE = '*bind';
 
-class BindRenderer extends BaseRenderer {
+class BindDirective extends BaseRenderer {
   constructor (target, context) {
     super(
       target, context,
@@ -911,11 +911,11 @@ class BindRenderer extends BaseRenderer {
     };
 
     if (this.onInput) {
-      target.addEventListener('input', this.onInput);
+      target.addEventListener('input', this.onInput.bind(this));
     }
 
     if (this.onChange) {
-      target.addEventListener('change', this.onChange);
+      target.addEventListener('change', this.onChange.bind(this));
     }
   }
 
@@ -969,7 +969,7 @@ class BindRenderer extends BaseRenderer {
  *
  * And <textarea>
  */
-class InputRenderer extends BindRenderer {
+class InputDirective extends BindDirective {
   constructor (input, context) {
     super(input, context);
 
@@ -984,7 +984,7 @@ class InputRenderer extends BindRenderer {
   }
 
   // Change state (Input -> State)
-  onInput = ({ target }) => {
+  onInput ({ target }) {
     this.setValue(this.conversor(target.value));
   }
 
@@ -1000,19 +1000,19 @@ class InputRenderer extends BindRenderer {
 /**
  * Support for <input type="checkbox">
  */
-class CheckboxRenderer extends BindRenderer {
+class CheckboxDirective extends BindDirective {
   static is ({ type }) {
     return type === 'checkbox'
   }
 
-  onChange = ({ target }) => {
+  onChange ({ target }) {
     const values = this.getter();
 
     if (!Array.isArray(values)) {
       return this.setValue(target.checked)
     }
 
-    BindRenderer.setMultiple(
+    BindDirective.setMultiple(
       target.checked,
       target.value,
       values
@@ -1027,12 +1027,12 @@ class CheckboxRenderer extends BindRenderer {
 /**
  * Support for <input type="radio">
  */
-class RadioRenderer extends BindRenderer {
+class RadioDirective extends BindDirective {
   static is ({ type }) {
     return type === 'radio'
   }
 
-  onChange = ({ target }) => {
+  onChange ({ target }) {
     if (target.checked) {
       this.setValue(target.value);
     }
@@ -1064,12 +1064,12 @@ function galaxyError ({ message, stack }) {
 /**
  * Support for single and multiple <select>
  */
-class SelectRenderer extends BindRenderer {
+class SelectDirective extends BindDirective {
   static is (element) {
     return element instanceof HTMLSelectElement
   }
 
-  onChange = ({ target }) => {
+  onChange ({ target }) {
     const { options, multiple } = target;
 
     if (!multiple) {
@@ -1090,7 +1090,7 @@ class SelectRenderer extends BindRenderer {
       }
 
       for (const option of options) {
-        BindRenderer.setMultiple(
+        BindDirective.setMultiple(
           option.selected,
           option.value,
           values
@@ -1112,17 +1112,17 @@ const BIND_TOKEN = ':';
 const BIND_ONE_TIME_TOKEN = BIND_TOKEN.repeat(2);
 
 /**
- * Renderer for bindings:
+ * Directive for bindings:
  *
  *   1. :attribute
  *   2. ::attribute (one time)
  */
-class BindingRenderer extends BaseRenderer {
+class BindingDirective extends BaseRenderer {
   constructor (attribute, context) {
     let oneTime = attribute.name.startsWith(BIND_ONE_TIME_TOKEN);
 
     super(
-      BindingRenderer.getObserved(attribute, oneTime),
+      BindingDirective.getObserved(attribute, oneTime),
 
       context, attribute.value
     );
@@ -1178,7 +1178,7 @@ class BindingRenderer extends BaseRenderer {
 
 const CLASS_REGEX = /^:{1,2}class$/;
 
-class ClassRenderer extends BindingRenderer {
+class ClassDirective extends BindingDirective {
   static is ({ name }) {
     return CLASS_REGEX.test(name)
   }
@@ -1200,7 +1200,7 @@ class ClassRenderer extends BindingRenderer {
   }
 
   patch (attribute, value) {
-    value = ClassRenderer.getNormalized(value);
+    value = ClassDirective.getNormalized(value);
 
     // Fallback to normal attribute patching
     if (!isObject(value)) return super.patch(attribute, value)
@@ -1218,7 +1218,7 @@ class ClassRenderer extends BindingRenderer {
 const STYLE_REGEX = /^:{1,2}style$/;
 const UNIT_SEPARATOR = '.';
 
-class StyleRenderer extends BindingRenderer {
+class StyleDirective extends BindingDirective {
   constructor (...args) {
     super(...args);
 
@@ -1247,7 +1247,7 @@ class StyleRenderer extends BindingRenderer {
     // Remove actual props
     for (const rule in this.styles) {
       if (!styles.hasOwnProperty(rule)) {
-        $styles.delete(StyleRenderer.parseRule(rule).prop);
+        $styles.delete(StyleDirective.parseRule(rule).prop);
       }
     }
 
@@ -1256,7 +1256,7 @@ class StyleRenderer extends BindingRenderer {
       const value = styles[rule];
 
       if (this.styles[rule] !== value) {
-        const { prop, unit } = StyleRenderer.parseRule(rule);
+        const { prop, unit } = StyleDirective.parseRule(rule);
         $styles.set(prop, unit ? CSS[unit](value) : value);
       }
     }
@@ -1392,15 +1392,15 @@ class VoidRenderer {
   }
 
   _initDirectives ($el) {
-    if (ConditionalRenderer.is($el)) {
-      this.directives.push(new ConditionalRenderer($el, this));
+    if (ConditionalDirective.is($el)) {
+      this.directives.push(new ConditionalDirective($el, this));
     }
 
-    if (BindRenderer.is($el)) {
-      const Renderer = CheckboxRenderer.is($el) ? CheckboxRenderer
-        : RadioRenderer.is($el) ? RadioRenderer
-        : InputRenderer.is($el) ? InputRenderer
-        : SelectRenderer.is($el) ? SelectRenderer
+    if (BindDirective.is($el)) {
+      const Renderer = CheckboxDirective.is($el) ? CheckboxDirective
+        : RadioDirective.is($el) ? RadioDirective
+        : InputDirective.is($el) ? InputDirective
+        : SelectDirective.is($el) ? SelectDirective
         : null;
 
       if (Renderer) {
@@ -1423,13 +1423,13 @@ class VoidRenderer {
         this.bindings.push(new TemplateRenderer(attribute, this));
 
       // 3. Check :attribute or ::attribute
-      } else if (BindingRenderer.is(attribute)) {
+      } else if (BindingDirective.is(attribute)) {
         const binding = new (
-          ClassRenderer.is(attribute)
-            ? ClassRenderer
-            : StyleRenderer.is(attribute)
-              ? StyleRenderer
-              : BindingRenderer)(attribute, this);
+          ClassDirective.is(attribute)
+            ? ClassDirective
+            : StyleDirective.is(attribute)
+              ? StyleDirective
+              : BindingDirective)(attribute, this);
 
         // Enable quick access
         this.bindings[binding.name] = binding;
@@ -1647,7 +1647,7 @@ const LOOP_DIRECTIVE = '*for';
  */
 const LOOP_REGEX = /^\(?(?<value>\w+)(?:\s*,\s*(?<key>\w+)(?:\s*,\s*(?<index>\w+))?)?\)?\s+in\s+(?<expression>.+)$/;
 
-class LoopRenderer extends BaseRenderer {
+class LoopDirective extends BaseRenderer {
   constructor (template, context) {
     const expression = getAttr(template, LOOP_DIRECTIVE);
     const { groups } = expression.match(LOOP_REGEX);
@@ -1790,8 +1790,8 @@ class ChildrenRenderer {
         }
 
         // The loop directive is resolved as a child
-        if (LoopRenderer.is(child)) {
-          this.renderers.push(new LoopRenderer(child, this));
+        if (LoopDirective.is(child)) {
+          this.renderers.push(new LoopDirective(child, this));
         } else if (isGalaxyElement(child))  {
           this.renderers.push(new (
             VoidRenderer.is(child)

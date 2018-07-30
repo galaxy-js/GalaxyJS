@@ -6,7 +6,7 @@ import TodoApp from './todo-app/definition.js'
 Galaxy.setup({
 
   // Ready for prod
-  debug: false,
+  debug: true,
 
   plugins: {
     test: {
