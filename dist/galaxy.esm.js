@@ -1171,18 +1171,8 @@ class BindingDirective extends BaseRenderer {
 
   patch (attribute, value) {
     if (typeof value === 'boolean') {
-      const has = this.owner.hasAttribute(this.name);
-
-      if (value) {
-        !has && this.owner.setAttributeNode(attribute);
-      } else if (has) {
-        this.owner.removeAttributeNode(attribute);
-      }
-
-      return
-    }
-
-    if (differ(attribute, value)) {
+      this.owner[`${value ? 'set' : 'remove'}AttributeNode`](attribute);
+    } else if (differ(attribute, value)) {
       attribute.value = value;
     }
   }
