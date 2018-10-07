@@ -2,7 +2,7 @@
 
   The framework you need to craft your UI at galactic levels
 
-  *Based on [Web Components](https://developer.mozilla.org/es/docs/Web/Web_Components) technologies*
+  *Based on [Web Components](//developer.mozilla.org/en/docs/Web/Web_Components) technologies*
 
 ## Features
 
