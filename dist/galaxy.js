@@ -2154,7 +2154,6 @@
 
     // Change state (Input -> State)
     onInput ({ target }) {
-      console.log('On input:');
       this.setValue(this.conversor(target.value));
     }
 
@@ -2174,6 +2173,8 @@
     static match (_, { element }) {
       return element instanceof HTMLSelectElement
     }
+
+    // TODO: There are some rendering quirks, fix that!
 
     onChange ({ target }) {
       const { options, multiple } = target;

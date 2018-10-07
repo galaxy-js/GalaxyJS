@@ -2148,7 +2148,6 @@ class InputDirective extends BindDirective {
 
   // Change state (Input -> State)
   onInput ({ target }) {
-    console.log('On input:');
     this.setValue(this.conversor(target.value));
   }
 
@@ -2168,6 +2167,8 @@ class SelectDirective extends BindDirective {
   static match (_, { element }) {
     return element instanceof HTMLSelectElement
   }
+
+  // TODO: There are some rendering quirks, fix that!
 
   onChange ({ target }) {
     const { options, multiple } = target;
