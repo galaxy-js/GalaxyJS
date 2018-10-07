@@ -1,18 +1,12 @@
 # GalaxyJS
 
-  A framework fully based on native WebComponents API
+  The framework you need to craft your UI at galactic levels
 
-  Note: initial thoughts in Spanish (soon translated)
+  *Based on [Web Components](https://developer.mozilla.org/es/docs/Web/Web_Components) technologies*
 
-## Ideas iniciales
+## Features
 
-1. El framework utilizará complementamente las tecnologías que abarcan los [WebComponents](https://developer.mozilla.org/es/docs/Web/Web_Components)
-2. Reactividad... Un tema bastante necesario y usado por frameworks de la actualidad como VueJS, Angular (etc...)
-
-**Muchas más ideas pueden ser tomadas del mismo [Polymer](https://github.com/Polymer/polymer), el cuál tiene la iniciativa**
-
-## Progress
-
-  - [x] Data binding system (WIP)
-  - [x] Event binding system (WIP)
-  - [x] Element references (WIP)
+  - **No virtual DOM** - You only manipulate the **real** DOM.
+  - **Use your actual JS code** - No compilation time needed.
+  - **Fully class-based** - Elements and directives definitions.
+  - **Clean and easy to use** 😄
