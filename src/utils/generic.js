@@ -4,10 +4,25 @@ import nextTick from 'next-tick'
 
 import { isFunction } from './type-check.js'
 
+import escapeRegex from 'escape-string-regexp'
+
 const same = value => value
 
 const HYPHEN_REGEX = /-([a-z0-9])/gi
 const CAMEL_REGEX = /(?<=[a-z0-9])([A-Z])/g
+
+const NAME_WILDCARD_DIRECTIVE = '<name>'
+
+export function compileMatcher (name) {
+  name = escapeRegex(name)
+  const capture = name.replace(NAME_WILDCARD_DIRECTIVE, getWildcardCapture('[\\w-]+'))
+
+  return new RegExp(`^${capture === name ? getWildcardCapture(name) : capture}(?:.(?<args>.+))?$`)
+}
+
+function getWildcardCapture (name) {
+  return `(?${NAME_WILDCARD_DIRECTIVE}${name})`
+}
 
 /**
  * Converts hyphenated string to camelized

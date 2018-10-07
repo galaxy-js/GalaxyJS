@@ -1,26 +1,22 @@
-import BaseRenderer from '../../renderers/Base.js'
+import GalaxyDirective from '../../core/GalaxyDirective.js'
 
-import { getAttr } from '../../utils/generic.js'
 import { compileScopedSetter } from '../../compiler/index.js'
 
-const BIND_DIRECTIVE = '*bind'
+export default class BindDirective extends GalaxyDirective {
+  static get is () {
+    return '*bind'
+  }
 
-export default class BindDirective extends BaseRenderer {
-  constructor (target, context) {
-    super(
-      target, context,
-      getAttr(target, BIND_DIRECTIVE)
-    )
-
+  init () {
     this.setting = false
 
     // Input -> State
-    const setter = compileScopedSetter(this.expression)
+    const setter = compileScopedSetter(this.$value)
 
     this.setter = value => {
       setter(
-        // (scope, locals
-        context.scope, context.isolated,
+        // (scope, locals,
+        this.$scope, this.$renderer.isolated,
 
         // ...args[0])
         value
@@ -28,16 +24,12 @@ export default class BindDirective extends BaseRenderer {
     }
 
     if (this.onInput) {
-      target.addEventListener('input', this.onInput.bind(this))
+      this.$element.addEventListener('input', this.onInput.bind(this))
     }
 
     if (this.onChange) {
-      target.addEventListener('change', this.onChange.bind(this))
+      this.$element.addEventListener('change', this.onChange.bind(this))
     }
-  }
-
-  static is ({ attributes }) {
-    return BIND_DIRECTIVE in attributes
   }
 
   /**
@@ -64,12 +56,13 @@ export default class BindDirective extends BaseRenderer {
     this.setter(value)
   }
 
-  patch (target, value) {
+  render () {
+
     // Avoid re-dispatching render on updated values
     if (this.setting) {
       this.setting = false
     } else {
-      this.update(target, value)
+      this.update(this.$element, this.$getter())
     }
   }
 }

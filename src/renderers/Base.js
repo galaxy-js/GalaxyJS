@@ -8,8 +8,8 @@ export default class BaseRenderer {
 
     const getter = compileScopedGetter(expression)
 
-    this.getter = (locals = context.isolated) => {
-      return getter(context.scope, locals)
+    this.getter = locals => {
+      return getter(context.scope, Object.assign({}, context.isolated, locals))
     }
   }
 
@@ -18,9 +18,6 @@ export default class BaseRenderer {
   }
 
   render () {
-    this.patch(
-      this.target,
-      this.value
-    )
+    this.patch(this.target, this.value)
   }
 }

@@ -2,17 +2,19 @@ import BindingDirective from './Binding.js'
 
 import { isObject } from '../../utils/type-check.js'
 
-const CLASS_REGEX = /^:{1,2}class$/
+// TODO: Support single-class binding eg. :class.show="!hidden" and multiple :class.a.b="addBoth"
 
 export default class ClassDirective extends BindingDirective {
-  static is ({ name }) {
-    return CLASS_REGEX.test(name)
+  static get is () {
+    return ':class'
   }
 
-  static getNormalized (value) {
+  _getNormalized () {
+    const value = this.$getter()
+
     if (!Array.isArray(value)) return value
 
-    const result = {}
+    const normalized = {}
 
     value.forEach(item => {
       if (isObject(item)) {
@@ -22,20 +24,18 @@ export default class ClassDirective extends BindingDirective {
       }
     })
 
-    return result
+    return normalized
   }
 
-  patch (attribute, value) {
-    value = ClassDirective.getNormalized(value)
+  render () {
+    const value = this._getNormalized()
 
     // Fallback to normal attribute patching
-    if (!isObject(value)) return super.patch(attribute, value)
-
-    const { classList } = this.owner
+    if (!isObject(value)) return super.render()
 
     for (const key in value) {
       if (value.hasOwnProperty(key)) {
-        classList[value[key] ? 'add' : 'remove'](key)
+        this.$element.classList[value[key] ? 'add' : 'remove'](key)
       }
     }
   }

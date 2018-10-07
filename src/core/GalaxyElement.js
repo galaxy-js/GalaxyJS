@@ -64,14 +64,6 @@ export function extend (SuperElement) {
     $children = {}
 
     /**
-     * Hold element references
-     *
-     * @type {Map<string, HTMLElement>}
-     * @public
-     */
-    $refs = new Map()
-
-    /**
      * Determines whether we are in a rendering phase
      *
      * @type {boolean}
@@ -233,16 +225,14 @@ export function extend (SuperElement) {
      */
     $render () {
       if (!this.$rendering) {
+        this.$emit('$render:before')
+
         this.$rendering = true
 
         nextTick(() => {
 
           // Takes render error
           let renderError
-
-          // References are cleared before each render phase
-          // then they going to be filled up
-          this.$refs.clear()
 
           try {
             this.$renderer.render()

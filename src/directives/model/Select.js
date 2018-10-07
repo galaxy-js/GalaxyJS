@@ -6,9 +6,11 @@ import GalaxyError from '../../errors/GalaxyError.js'
  * Support for single and multiple <select>
  */
 export default class SelectDirective extends BindDirective {
-  static is (element) {
+  static match (_, { element }) {
     return element instanceof HTMLSelectElement
   }
+
+  // TODO: There are some rendering quirks, fix that!
 
   onChange ({ target }) {
     const { options, multiple } = target
@@ -21,7 +23,7 @@ export default class SelectDirective extends BindDirective {
         if (selected) return this.setValue(value)
       }
     } else {
-      const values = this.getter()
+      const values = this.$getter()
 
       if (!Array.isArray(values)) {
         throw new GalaxyError(

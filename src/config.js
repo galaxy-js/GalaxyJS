@@ -24,7 +24,14 @@ export default {
   /**
    * Elements holder
    *
-   * @type {Array.<GalaxyElement>}
+   * @type {Array<GalaxyElement>}
    */
-  elements: []
+  elements: [],
+
+  /**
+   * Directives holder
+   *
+   * @type {Array<Directive>}
+   */
+  directives: []
 }

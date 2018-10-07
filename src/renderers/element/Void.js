@@ -1,31 +1,22 @@
-/**
- * Directives
- */
-import ConditionalDirective from '../../directives/Conditional.js'
-import BindDirective from '../../directives/model/Bind.js'
-import InputDirective from '../../directives/model/Input.js'
-import CheckboxDirective from '../../directives/model/Checkbox.js'
-import RadioDirective from '../../directives/model/Radio.js'
-import SelectDirective from '../../directives/model/Select.js'
+import config from '../../config.js'
 
-/**
- * Bindings
- */
 import TemplateRenderer from '../Template.js'
-import BindingDirective from '../../directives/binding/Binding.js'
-import ClassDirective from '../../directives/binding/Class.js'
-import StyleDirective from '../../directives/binding/Style.js'
-import event, { isEvent } from '../../directives/event.js'
-
-const REFERENCE_ATTRIBUTE = 'ref'
 
 /**
  * Renderer for void elements or elements without childs like:
  */
 export default class VoidRenderer {
   constructor (element, scope, isolated) {
-    this.element = element
+
+    /**
+     *
+     */
     this.scope = scope
+
+    /**
+     *
+     */
+    this.element = element
 
     /**
      * Loop elements need an isolated scope
@@ -36,110 +27,59 @@ export default class VoidRenderer {
     this.isolated = isolated
 
     /**
+     *
+     */
+    this.locals = Object.create(null)
+
+    /**
      * Hold directives to digest
      */
     this.directives = []
 
-    /**
-     * Hold attribute and template bindings to digest
-     */
-    this.bindings = []
-
-    this._initDirectives(element)
-    this._initBindings(element)
-  }
-
-  static is ({ childNodes }) {
-    return childNodes.length === 0
+    this._init(element)
   }
 
   get isRenderable () {
-    return (
-      this.directives.length > 0 ||
-      this.bindings.length > 0 ||
-
-      /**
-       * Elements needs to be resolved included ones
-       * which are only referenced
-       */
-      this.element.hasAttribute(REFERENCE_ATTRIBUTE)
-    )
+    return this.directives.length
   }
 
-  _initDirectives ($el) {
-    if (ConditionalDirective.is($el)) {
-      this.directives.push(new ConditionalDirective($el, this))
-    }
-
-    if (BindDirective.is($el)) {
-      const Renderer = CheckboxDirective.is($el) ? CheckboxDirective
-        : RadioDirective.is($el) ? RadioDirective
-        : InputDirective.is($el) ? InputDirective
-        : SelectDirective.is($el) ? SelectDirective
-        : null
-
-      if (Renderer) {
-        this.directives.push(new Renderer($el, this))
-      }
-    }
-  }
-
-  _initBindings ($el) {
-    // Avoid live list
+  _init ($el) {
     const attributes = Array.from($el.attributes)
 
     for (const attribute of attributes) {
-      // 1. Check @binding
-      if (isEvent(attribute)) {
-        event(attribute, this)
+      const { name, value } = attribute
 
-      // 2. Check {{ binding }}
-      } else if (TemplateRenderer.is(attribute)) {
-        this.bindings.push(new TemplateRenderer(attribute, this))
+      if (TemplateRenderer.is(attribute)) {
+        this.directives.push(new TemplateRenderer(attribute, this))
+      }
 
-      // 3. Check :attribute or ::attribute
-      } else if (BindingDirective.is(attribute)) {
-        const binding = new (
-          ClassDirective.is(attribute)
-            ? ClassDirective
-            : StyleDirective.is(attribute)
-              ? StyleDirective
-              : BindingDirective)(attribute, this)
+      for (const Directive of config.directives) {
 
-        // Enable quick access
-        this.bindings[binding.name] = binding
+        // 1. Private match filter
+        const match = Directive._match(name, $el)
 
-        this.bindings.push(binding)
+        if (match) {
+          const init = {
+            name: match.name,
+            args: match.args && match.args.split('.'),
+            value
+          }
+
+          // 2. Public match filter
+          if (Directive.match(init, this)) {
+            this.directives.push(new Directive(init, this))
+
+            if (!config.debug) $el.removeAttribute(name)
+            break
+          }
+        }
       }
     }
   }
 
   render () {
-    const $el = this.element
-
     for (const directive of this.directives) {
       directive.render()
-    }
-
-    // Don't perform updates on disconnected element
-    if ($el.isConnected) {
-      for (const binding of this.bindings) {
-        binding.render()
-      }
-
-      /**
-       * ref: It's a special directive/attribute which holds
-       * native elements instantiation within the scope
-       */
-      const ref = $el.getAttribute(REFERENCE_ATTRIBUTE)
-
-      // We need to resolve the reference first
-      // since possible childs may need access to
-      if (ref) {
-
-        // Reference attribute isn't removed
-        this.scope.$refs.set(ref, $el)
-      }
     }
   }
 }

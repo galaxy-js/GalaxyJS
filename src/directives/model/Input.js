@@ -15,17 +15,18 @@ import { differ } from '../../utils/generic.js'
  * And <textarea>
  */
 export default class InputDirective extends BindDirective {
-  constructor (input, context) {
-    super(input, context)
-
-    this.conversor = input.type === 'number' ? Number : String
-  }
-
-  static is (element) {
+  static match (_, { element }) {
     return (
       element instanceof HTMLInputElement ||
       element instanceof HTMLTextAreaElement
     )
+  }
+
+  init () {
+    super.init()
+
+    // TODO: Check conversors
+    this.conversor = this.$element.type === 'number' ? Number : String
   }
 
   // Change state (Input -> State)

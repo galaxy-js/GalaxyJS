@@ -1,16 +1,11 @@
-import config from '../../config.js'
-
 import TemplateRenderer from '../Template.js'
 import ElementRenderer from './Element.js'
 import VoidRenderer from './Void.js'
-import { CustomRenderer, CustomVoidRenderer } from './Custom.js'
 
-import LoopDirective from '../../directives/loop/Loop.js'
+import LoopDirective from '../loop/Loop.js'
 
-import { isTextNode, isElementNode, isGalaxyElement } from '../../utils/type-check.js'
+import { isTextNode, isElementNode } from '../../utils/type-check.js'
 import { flatChildren } from '../../utils/generic.js'
-
-const SKIP_ATTRIBUTE = 'skip'
 
 export default class ChildrenRenderer {
   constructor (children, scope, isolated) {
@@ -24,10 +19,10 @@ export default class ChildrenRenderer {
     this.renderers = []
 
     // Attach children
-    this._initChildren()
+    this._init()
   }
 
-  _initChildren () {
+  _init () {
     for (const child of this.children) {
 
       // 1. Check {{ interpolation }}
@@ -37,28 +32,11 @@ export default class ChildrenRenderer {
       // 2. Element binding
       } else if (isElementNode(child)) {
 
-        if (child.hasAttribute(SKIP_ATTRIBUTE)) {
-          if (!config.debug) {
-            child.removeAttribute(SKIP_ATTRIBUTE)
-          }
-
-          // Skip construction/compilation phase
-          continue
-        }
-
         // The loop directive is resolved as a child
         if (LoopDirective.is(child)) {
           this.renderers.push(new LoopDirective(child, this))
-        } else if (isGalaxyElement(child))  {
-          this.renderers.push(new (
-            VoidRenderer.is(child)
-              ? CustomVoidRenderer
-              : CustomRenderer)(child, this.scope, this.isolated))
         } else {
-          const element = new (
-            VoidRenderer.is(child)
-              ? VoidRenderer
-              : ElementRenderer)(child, this.scope, this.isolated)
+          const element = new (child.childNodes.length ? ElementRenderer : VoidRenderer)(child, this.scope, this.isolated)
 
           // Only consider a render element if its childs
           // or attributes has something to bind/update

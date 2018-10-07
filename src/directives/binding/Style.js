@@ -2,18 +2,13 @@ import BindingDirective from './Binding.js'
 
 import { isObject } from '../../utils/type-check.js'
 
-const STYLE_REGEX = /^:{1,2}style$/
 const UNIT_SEPARATOR = '.'
 
+// TODO: Support single-styleb binding eg. :style.height.px="height", without unit :style.display="'block'"
+
 export default class StyleDirective extends BindingDirective {
-  constructor (...args) {
-    super(...args)
-
-    this.styles = {}
-  }
-
-  static is ({ name }) {
-    return STYLE_REGEX.test(name)
+  static get is () {
+    return ':style'
   }
 
   static parseRule (rule) {
@@ -25,11 +20,19 @@ export default class StyleDirective extends BindingDirective {
     }
   }
 
-  patch (style, styles) {
-    // Fallback to normal styles patching
-    if (!isObject(styles)) return super.patch(style, styles)
+  init () {
 
-    const $styles = this.owner.attributeStyleMap
+    // Cached styles
+    this.styles = {}
+  }
+
+  render () {
+    const styles = this.$getter()
+
+    // Fallback to normal styles patching
+    if (!isObject(styles)) return super.render()
+
+    const $styles = this.$element.attributeStyleMap
 
     // Remove actual props
     for (const rule in this.styles) {
