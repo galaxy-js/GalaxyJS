@@ -23,20 +23,15 @@ export default class ElementRenderer extends VoidRenderer {
   get isFlattenable () {
     return (
       this.childrenRenderer.renderers.length > 0 &&
-      !this.directives.length &&
-      !this.bindings.length
+      !this.directives.length
     )
   }
 
   render () {
-    // Render directives/bindings
+    // Render directives
     super.render()
 
-    // Don't perform updates on disconnected element
-    if (this.element.isConnected) {
-
-      // Render children
-      this.childrenRenderer.render()
-    }
+    // Render children
+    this.childrenRenderer.render()
   }
 }

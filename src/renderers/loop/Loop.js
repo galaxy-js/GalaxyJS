@@ -1,15 +1,15 @@
 import config from '../../config.js'
 
-import BaseRenderer from '../../renderers/Base.js'
+import BaseRenderer from '../Base.js'
 import ItemRenderer from './Item.js'
 
 import { getAttr, createAnchor } from '../../utils/generic.js'
 
 // Note: to maintain consistence avoid `of` reserved word on iterators.
 
-// TODO: Add anchor delimiters
-
 const LOOP_DIRECTIVE = '*for'
+
+// TODO: Move to children directives
 
 /**
  * Captures:
@@ -31,7 +31,7 @@ const LOOP_DIRECTIVE = '*for'
  */
 const LOOP_REGEX = /^\(?(?<value>\w+)(?:\s*,\s*(?<key>\w+)(?:\s*,\s*(?<index>\w+))?)?\)?\s+in\s+(?<expression>.+)$/
 
-export default class LoopDirective extends BaseRenderer {
+export default class LoopRenderer extends BaseRenderer {
   constructor (template, context) {
     const expression = getAttr(template, LOOP_DIRECTIVE)
     const { groups } = expression.match(LOOP_REGEX)
@@ -48,21 +48,19 @@ export default class LoopDirective extends BaseRenderer {
     this.startAnchor = createAnchor(`start for: ${groups.expression}`)
     this.endAnchor = createAnchor(`end for: ${groups.expression}`)
 
-    const parent = template.parentNode
+    // Remove template with an anchor
+    template.replaceWith(this.startAnchor)
+    this.startAnchor.nextSibling.before(this.endAnchor)
 
-    // Remove `template` since is just a template
-    parent.replaceChild(this.startAnchor, template)
-    parent.insertBefore(this.endAnchor, this.startAnchor.nextSibling)
-
-    if (!template.hasAttribute(':by')) {
+    if (!template.hasAttribute('by')) {
       if (config.debug) {
         console.warn(
           'The element with the loop expression `' + expression + '` ' +
-          'doesn\'t have a `by` binding, defaulting to `$index` tracking.'
+          'doesn\'t have a `by` attribute, fallbacking to `$index` tracking.'
         )
       }
 
-      template.setAttribute(':by', '$index')
+      template.setAttribute('by', '$index')
     }
   }
 
@@ -94,11 +92,11 @@ export default class LoopDirective extends BaseRenderer {
         // Insert before end anchor
         item.insert(this.endAnchor)
 
-        this.values.set(item.key.value, item)
+        this.values.set(item.key, item)
       } else {
         const newKey = item.by(isolated)
 
-        if ((item.key.value /* oldKey */) !== newKey) {
+        if ((item.key /* oldKey */) !== newKey) {
           const newItem = this.values.get(newKey)
           const from = newItem.next
 

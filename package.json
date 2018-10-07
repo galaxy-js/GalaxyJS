@@ -20,6 +20,7 @@
     "rollup-plugin-node-resolve": "^3.3.0"
   },
   "dependencies": {
+    "escape-string-regexp": "^1.0.5",
     "next-tick": "LosMaquios/next-tick",
     "proxy-observer": "LosMaquios/ProxyObserver"
   }

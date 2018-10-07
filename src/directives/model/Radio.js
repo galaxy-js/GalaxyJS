@@ -4,8 +4,8 @@ import BindDirective from './Bind.js'
  * Support for <input type="radio">
  */
 export default class RadioDirective extends BindDirective {
-  static is ({ type }) {
-    return type === 'radio'
+  static match (_, { element }) {
+    return element.type === 'radio'
   }
 
   onChange ({ target }) {

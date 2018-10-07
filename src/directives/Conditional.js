@@ -1,30 +1,25 @@
-import BaseRenderer from '../renderers/Base.js'
+import GalaxyDirective from '../core/GalaxyDirective.js'
 
-import { getAttr, createAnchor } from '../utils/generic.js'
+import { createAnchor } from '../utils/generic.js'
 
-const CONDITIONAL_DIRECTIVE = '*if'
-
-export default class ConditionalDirective extends BaseRenderer {
-  constructor (element, context) {
-    super(
-      element, context,
-      getAttr(element, CONDITIONAL_DIRECTIVE)
-    )
-
-    this.anchor = createAnchor(`if: ${this.condition}`)
+export default class ConditionalDirective extends GalaxyDirective {
+  static get is () {
+    return '*if'
   }
 
-  static is ({ attributes }) {
-    return CONDITIONAL_DIRECTIVE in attributes
+  init () {
+    this.anchor = createAnchor(`if: ${this.$value}`)
   }
 
-  patch (element, value) {
-    if (value) {
-      if (!element.isConnected) {
-        this.anchor.parentNode.replaceChild(element, this.anchor)
-      }
-    } else if (element.isConnected) {
-      element.parentNode.replaceChild(this.anchor, element)
+  render () {
+    // TODO: Add hooks for future transitions
+
+    const { parentElement } = this.$element
+
+    if (this.$value) {
+      !parentElement && this.anchor.replaceWith(this.$element)
+    } else if (parentElement) {
+      this.$element.replaceWith(this.anchor)
     }
   }
 }

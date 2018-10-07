@@ -4,9 +4,24 @@ import { extend } from './core/GalaxyElement.js'
 
 import GalaxyError, { galaxyError } from './errors/GalaxyError.js'
 
-import { getName } from './utils/generic.js'
+import { getName, compileMatcher } from './utils/generic.js'
 
 export { extend, config }
+
+/**
+ * Directives
+ */
+import ConditionalDirective from './directives/Conditional.js'
+import EventDirective from './directives/Event.js'
+import PropertyDirective from './directives/Property.js'
+import ReferenceDirective from './directives/Reference.js'
+import ClassDirective from './directives/binding/Class.js'
+import StyleDirective from './directives/binding/Style.js'
+import BindingDirective from './directives/binding/Binding.js'
+import CheckboxDirective from './directives/model/Checkbox.js'
+import RadioDirective from './directives/model/Radio.js'
+import InputDirective from './directives/model/Input.js'
+import SelectDirective from './directives/model/Select.js'
 
 export const GalaxyElement = extend(HTMLElement)
 
@@ -49,12 +64,36 @@ export function setup (options) {
   // Merge rest options with default configuration
   Object.assign(config, options)
 
-  if ('plugins' in options) {
+  if ('plugins' in config) {
     installPlugins(options.plugins)
   }
 
+  // Add core directives
+  config.directives.unshift(...[
+    ConditionalDirective,
+    EventDirective,
+    PropertyDirective,
+    ReferenceDirective,
+
+    // Bindings
+    ClassDirective,
+    StyleDirective,
+    BindingDirective,
+
+    // Model
+    CheckboxDirective,
+    RadioDirective,
+    InputDirective,
+    SelectDirective
+  ])
+
+  // Compile matchers
+  for (const Directive of config.directives) {
+    Directive._matcher = compileMatcher(Directive.is)
+  }
+
   // Register element classes
-  for (const GalaxyElement of options.elements) {
+  for (const GalaxyElement of config.elements) {
     let defineOptions = {}
     const name = getName(GalaxyElement)
 

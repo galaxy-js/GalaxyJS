@@ -12,10 +12,7 @@ import { getExpression, TEXT_TEMPLATE_REGEX } from '../compiler/index.js'
  */
 export default class TemplateRenderer extends BaseRenderer {
   constructor (node, context) {
-    super(
-      node, context,
-      getExpression(node.nodeValue)
-    )
+    super(node, context, getExpression(node.nodeValue))
   }
 
   static is ({ nodeValue }) {

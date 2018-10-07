@@ -30,9 +30,16 @@
     /**
      * Elements holder
      *
-     * @type {Array.<GalaxyElement>}
+     * @type {Array<GalaxyElement>}
      */
-    elements: []
+    elements: [],
+
+    /**
+     * Directives holder
+     *
+     * @type {Array<Directive>}
+     */
+    directives: []
   }
 
   var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
@@ -707,8 +714,8 @@
 
       const getter = compileScopedGetter(expression);
 
-      this.getter = (locals = context.isolated) => {
-        return getter(context.scope, locals)
+      this.getter = locals => {
+        return getter(context.scope, Object.assign({}, context.isolated, locals))
       };
     }
 
@@ -717,17 +724,37 @@
     }
 
     render () {
-      this.patch(
-        this.target,
-        this.value
-      );
+      this.patch(this.target, this.value);
     }
   }
+
+  var matchOperatorsRe = /[|\\{}()[\]^$+*?.]/g;
+
+  var escapeStringRegexp = function (str) {
+  	if (typeof str !== 'string') {
+  		throw new TypeError('Expected a string');
+  	}
+
+  	return str.replace(matchOperatorsRe, '\\$&');
+  };
 
   const same = value => value;
 
   const HYPHEN_REGEX = /-([a-z0-9])/gi;
   const CAMEL_REGEX = /(?<=[a-z0-9])([A-Z])/g;
+
+  const NAME_WILDCARD_DIRECTIVE = '<name>';
+
+  function compileMatcher (name) {
+    name = escapeStringRegexp(name);
+    const capture = name.replace(NAME_WILDCARD_DIRECTIVE, getWildcardCapture('[\\w-]+'));
+
+    return new RegExp(`^${capture === name ? getWildcardCapture(name) : capture}(?:.(?<args>.+))?$`)
+  }
+
+  function getWildcardCapture (name) {
+    return `(?${NAME_WILDCARD_DIRECTIVE}${name})`
+  }
 
   /**
    * Converts hyphenated string to camelized
@@ -845,10 +872,7 @@
    */
   class TemplateRenderer extends BaseRenderer {
     constructor (node, context) {
-      super(
-        node, context,
-        getExpression(node.nodeValue)
-      );
+      super(node, context, getExpression(node.nodeValue));
     }
 
     static is ({ nodeValue }) {
@@ -865,500 +889,21 @@
     }
   }
 
-  const CONDITIONAL_DIRECTIVE = '*if';
-
-  class ConditionalDirective extends BaseRenderer {
-    constructor (element, context) {
-      super(
-        element, context,
-        getAttr(element, CONDITIONAL_DIRECTIVE)
-      );
-
-      this.anchor = createAnchor(`if: ${this.condition}`);
-    }
-
-    static is ({ attributes }) {
-      return CONDITIONAL_DIRECTIVE in attributes
-    }
-
-    patch (element, value) {
-      if (value) {
-        if (!element.isConnected) {
-          this.anchor.parentNode.replaceChild(element, this.anchor);
-        }
-      } else if (element.isConnected) {
-        element.parentNode.replaceChild(this.anchor, element);
-      }
-    }
-  }
-
-  const BIND_DIRECTIVE = '*bind';
-
-  class BindDirective extends BaseRenderer {
-    constructor (target, context) {
-      super(
-        target, context,
-        getAttr(target, BIND_DIRECTIVE)
-      );
-
-      this.setting = false;
-
-      // Input -> State
-      const setter = compileScopedSetter(this.expression);
-
-      this.setter = value => {
-        setter(
-          // (scope, locals
-          context.scope, context.isolated,
-
-          // ...args[0])
-          value
-        );
-      };
-
-      if (this.onInput) {
-        target.addEventListener('input', this.onInput.bind(this));
-      }
-
-      if (this.onChange) {
-        target.addEventListener('change', this.onChange.bind(this));
-      }
-    }
-
-    static is ({ attributes }) {
-      return BIND_DIRECTIVE in attributes
-    }
-
-    /**
-     * Helper to set multiple values
-     *
-     * @param {boolean} active
-     * @param {string} value
-     * @param {Array<*>} values
-     *
-     * @return void
-     */
-    static setMultiple (active, value, values) {
-      const index = values.indexOf(value);
-
-      if (active) {
-        index === -1 && values.push(value);
-      } else if (index > -1) {
-        values.splice(index, 1);
-      }
-    }
-
-    setValue (value) {
-      this.setting = true;
-      this.setter(value);
-    }
-
-    patch (target, value) {
-      // Avoid re-dispatching render on updated values
-      if (this.setting) {
-        this.setting = false;
-      } else {
-        this.update(target, value);
-      }
-    }
-  }
-
-  /**
-   * With support just for input types:
-   *
-   *   - Password
-   *   - Text
-   *   - Email
-   *   - Search
-   *   - URL
-   *   - Number
-   *
-   * And <textarea>
-   */
-  class InputDirective extends BindDirective {
-    constructor (input, context) {
-      super(input, context);
-
-      this.conversor = input.type === 'number' ? Number : String;
-    }
-
-    static is (element) {
-      return (
-        element instanceof HTMLInputElement ||
-        element instanceof HTMLTextAreaElement
-      )
-    }
-
-    // Change state (Input -> State)
-    onInput ({ target }) {
-      this.setValue(this.conversor(target.value));
-    }
-
-    update (input, value) {
-      value = String(value);
-
-      if (differ(input, value)) {
-        input.value = value;
-      }
-    }
-  }
-
-  /**
-   * Support for <input type="checkbox">
-   */
-  class CheckboxDirective extends BindDirective {
-    static is ({ type }) {
-      return type === 'checkbox'
-    }
-
-    onChange ({ target }) {
-      const values = this.getter();
-
-      if (!Array.isArray(values)) {
-        return this.setValue(target.checked)
-      }
-
-      BindDirective.setMultiple(
-        target.checked,
-        target.value,
-        values
-      );
-    }
-
-    update (checkbox, value) {
-      checkbox.checked = Boolean(value);
-    }
-  }
-
-  /**
-   * Support for <input type="radio">
-   */
-  class RadioDirective extends BindDirective {
-    static is ({ type }) {
-      return type === 'radio'
-    }
-
-    onChange ({ target }) {
-      if (target.checked) {
-        this.setValue(target.value);
-      }
-    }
-
-    update (radio, value) {
-      radio.checked = String(value) === radio.value;
-    }
-  }
-
-  class GalaxyError$1 extends Error {}
-
-  /**
-   * Converts given `error`
-   *
-   * @param {Error} error
-   *
-   * @return {GalaxyError}
-   */
-  function galaxyError ({ message, stack }) {
-    const galaxyError = new GalaxyError$1(message);
-
-    // Setting up correct stack
-    galaxyError.stack = stack;
-
-    return galaxyError
-  }
-
-  /**
-   * Support for single and multiple <select>
-   */
-  class SelectDirective extends BindDirective {
-    static is (element) {
-      return element instanceof HTMLSelectElement
-    }
-
-    onChange ({ target }) {
-      const { options, multiple } = target;
-
-      if (!multiple) {
-        for (const { value, selected } of options) {
-
-          // In non-multiple select we need to set
-          // the raw value since there's no reference
-          if (selected) return this.setValue(value)
-        }
-      } else {
-        const values = this.getter();
-
-        if (!Array.isArray(values)) {
-          throw new GalaxyError$1(
-            'Invalid bound value. ' +
-            '*bind directive on select elements with a `multiple` attribute must have an array bound value.'
-          )
-        }
-
-        for (const option of options) {
-          BindDirective.setMultiple(
-            option.selected,
-            option.value,
-            values
-          );
-        }
-      }
-    }
-
-    update (select, value) {
-      for (const option of select.options) {
-        option.selected = select.multiple
-          ? value.indexOf(option.value) > -1
-          : value === option.value;
-      }
-    }
-  }
-
-  const BIND_TOKEN = ':';
-  const BIND_ONE_TIME_TOKEN = BIND_TOKEN.repeat(2);
-
-  /**
-   * Directive for bindings:
-   *
-   *   1. :attribute
-   *   2. ::attribute (one time)
-   */
-  class BindingDirective extends BaseRenderer {
-    constructor (attribute, context) {
-      let oneTime = attribute.name.startsWith(BIND_ONE_TIME_TOKEN);
-
-      super(
-        BindingDirective.getObserved(attribute, oneTime),
-
-        context, attribute.value
-      );
-
-      /**
-       * Specific binding attributes
-       */
-      this.oneTime = oneTime;
-      this.owner = this.target.ownerElement;
-      this.name = this.target.name;
-
-      if (oneTime) {
-        const patch = this.patch;
-
-        this.patch = value => {
-          const { bindings } = context;
-
-          patch.call(this, value);
-
-          // Schedule remove to queue end
-          nextTick(() => {
-            bindings.splice(bindings.indexOf(this), 1);
-          });
-        };
-      }
-    }
-
-    static is ({ name }) {
-      return name.startsWith(BIND_TOKEN)
-    }
-
-    static getObserved ({ name, ownerElement }, oneTime) {
-      const normalized = name.slice(oneTime ? 2 : 1);
-
-      let observed = ownerElement.getAttributeNode(normalized);
-
-      if (!config.debug) ownerElement.removeAttribute(name);
-
-      if (!observed) {
-        observed = document.createAttribute(normalized);
-        ownerElement.setAttributeNode(observed);
-      }
-
-      return observed
-    }
-
-    patch (attribute, value) {
-      if (typeof value === 'boolean') {
-        this.owner[`${value ? 'set' : 'remove'}AttributeNode`](attribute);
-      } else if (differ(attribute, value)) {
-        attribute.value = value;
-      }
-    }
-  }
-
-  const CLASS_REGEX = /^:{1,2}class$/;
-
-  class ClassDirective extends BindingDirective {
-    static is ({ name }) {
-      return CLASS_REGEX.test(name)
-    }
-
-    static getNormalized (value) {
-      if (!Array.isArray(value)) return value
-
-      const result = {};
-
-      value.forEach(item => {
-        if (isObject(item)) {
-          Object.assign(result, item);
-        } else {
-          result[item] = 1;
-        }
-      });
-
-      return result
-    }
-
-    patch (attribute, value) {
-      value = ClassDirective.getNormalized(value);
-
-      // Fallback to normal attribute patching
-      if (!isObject(value)) return super.patch(attribute, value)
-
-      const { classList } = this.owner;
-
-      for (const key in value) {
-        if (value.hasOwnProperty(key)) {
-          classList[value[key] ? 'add' : 'remove'](key);
-        }
-      }
-    }
-  }
-
-  const STYLE_REGEX = /^:{1,2}style$/;
-  const UNIT_SEPARATOR = '.';
-
-  class StyleDirective extends BindingDirective {
-    constructor (...args) {
-      super(...args);
-
-      this.styles = {};
-    }
-
-    static is ({ name }) {
-      return STYLE_REGEX.test(name)
-    }
-
-    static parseRule (rule) {
-      const segments = rule.split(UNIT_SEPARATOR);
-
-      return {
-        prop: segments[0],
-        unit: segments[1]
-      }
-    }
-
-    patch (style, styles) {
-      // Fallback to normal styles patching
-      if (!isObject(styles)) return super.patch(style, styles)
-
-      const $styles = this.owner.attributeStyleMap;
-
-      // Remove actual props
-      for (const rule in this.styles) {
-        if (!styles.hasOwnProperty(rule)) {
-          $styles.delete(StyleDirective.parseRule(rule).prop);
-        }
-      }
-
-      // Add/set props
-      for (const rule in styles) {
-        const value = styles[rule];
-
-        if (this.styles[rule] !== value) {
-          const { prop, unit } = StyleDirective.parseRule(rule);
-          $styles.set(prop, unit ? CSS[unit](value) : value);
-        }
-      }
-
-      this.styles = Object.assign({}, styles);
-    }
-  }
-
-  const EVENT_TOKEN = '@';
-  const EVENT_MODIFIER_TOKEN = '.';
-
-  function isEvent ({ name }) {
-    return name.startsWith(EVENT_TOKEN)
-  }
-
-  function event ({ name }, { element, scope, isolated }) {
-    const expression = getAttr(element, name);
-    const evaluator = compileScopedEvaluator(rewriteMethods(expression));
-
-    const parsed = parseEvent(name);
-    const { modifiers } = parsed;
-
-    let attachMethod = 'addEventListener';
-
-    let actual;
-    let handler = event => {
-      // Externalize event
-      scope.$event = event;
-
-      evaluator(scope, isolated);
-
-      scope.$event = null;
-    };
-
-    if (modifiers.self) {
-      actual = handler;
-      handler = event => {
-        if (event.target === event.currentTarget) {
-          actual(event);
-        }
-      };
-    }
-
-    if (modifiers.prevent) {
-      actual = handler;
-      handler = event => {
-        event.preventDefault();
-        actual(event);
-      };
-    }
-
-    if (isGalaxyElement(element)) {
-      attachMethod = `$on${modifiers.once ? 'ce' : ''}`;
-    } else if (modifiers.once) {
-      actual = handler;
-      handler = event => {
-        element.removeEventListener(parsed.name, handler);
-        actual(event);
-      };
-    }
-
-    element[attachMethod](parsed.name, handler);
-  }
-
-  function parseEvent (name) {
-    const modifiers = {};
-    const segments = name.split(EVENT_MODIFIER_TOKEN);
-
-    // Setup modifiers
-    if (segments.length > 1) {
-      for (let i = 1; i < segments.length; i++) {
-        modifiers[segments[i]] = true;
-      }
-    }
-
-    return {
-      name: segments[0].slice(1)/* Skip @ */,
-      modifiers
-    }
-  }
-
-  /**
-   * Directives
-   */
-
-  const REFERENCE_ATTRIBUTE = 'ref';
-
   /**
    * Renderer for void elements or elements without childs like:
    */
   class VoidRenderer {
     constructor (element, scope, isolated) {
-      this.element = element;
+
+      /**
+       *
+       */
       this.scope = scope;
+
+      /**
+       *
+       */
+      this.element = element;
 
       /**
        * Loop elements need an isolated scope
@@ -1369,110 +914,59 @@
       this.isolated = isolated;
 
       /**
+       *
+       */
+      this.locals = Object.create(null);
+
+      /**
        * Hold directives to digest
        */
       this.directives = [];
 
-      /**
-       * Hold attribute and template bindings to digest
-       */
-      this.bindings = [];
-
-      this._initDirectives(element);
-      this._initBindings(element);
-    }
-
-    static is ({ childNodes }) {
-      return childNodes.length === 0
+      this._init(element);
     }
 
     get isRenderable () {
-      return (
-        this.directives.length > 0 ||
-        this.bindings.length > 0 ||
-
-        /**
-         * Elements needs to be resolved included ones
-         * which are only referenced
-         */
-        this.element.hasAttribute(REFERENCE_ATTRIBUTE)
-      )
+      return this.directives.length
     }
 
-    _initDirectives ($el) {
-      if (ConditionalDirective.is($el)) {
-        this.directives.push(new ConditionalDirective($el, this));
-      }
-
-      if (BindDirective.is($el)) {
-        const Renderer = CheckboxDirective.is($el) ? CheckboxDirective
-          : RadioDirective.is($el) ? RadioDirective
-          : InputDirective.is($el) ? InputDirective
-          : SelectDirective.is($el) ? SelectDirective
-          : null;
-
-        if (Renderer) {
-          this.directives.push(new Renderer($el, this));
-        }
-      }
-    }
-
-    _initBindings ($el) {
-      // Avoid live list
+    _init ($el) {
       const attributes = Array.from($el.attributes);
 
       for (const attribute of attributes) {
-        // 1. Check @binding
-        if (isEvent(attribute)) {
-          event(attribute, this);
+        const { name, value } = attribute;
 
-        // 2. Check {{ binding }}
-        } else if (TemplateRenderer.is(attribute)) {
-          this.bindings.push(new TemplateRenderer(attribute, this));
+        if (TemplateRenderer.is(attribute)) {
+          this.directives.push(new TemplateRenderer(attribute, this));
+        }
 
-        // 3. Check :attribute or ::attribute
-        } else if (BindingDirective.is(attribute)) {
-          const binding = new (
-            ClassDirective.is(attribute)
-              ? ClassDirective
-              : StyleDirective.is(attribute)
-                ? StyleDirective
-                : BindingDirective)(attribute, this);
+        for (const Directive of config.directives) {
 
-          // Enable quick access
-          this.bindings[binding.name] = binding;
+          // 1. Private match filter
+          const match = Directive._match(name, $el);
 
-          this.bindings.push(binding);
+          if (match) {
+            const init = {
+              name: match.name,
+              args: match.args && match.args.split('.'),
+              value
+            };
+
+            // 2. Public match filter
+            if (Directive.match(init, this)) {
+              this.directives.push(new Directive(init, this));
+
+              if (!config.debug) $el.removeAttribute(name);
+              break
+            }
+          }
         }
       }
     }
 
     render () {
-      const $el = this.element;
-
       for (const directive of this.directives) {
         directive.render();
-      }
-
-      // Don't perform updates on disconnected element
-      if ($el.isConnected) {
-        for (const binding of this.bindings) {
-          binding.render();
-        }
-
-        /**
-         * ref: It's a special directive/attribute which holds
-         * native elements instantiation within the scope
-         */
-        const ref = $el.getAttribute(REFERENCE_ATTRIBUTE);
-
-        // We need to resolve the reference first
-        // since possible childs may need access to
-        if (ref) {
-
-          // Reference attribute isn't removed
-          this.scope.$refs.set(ref, $el);
-        }
       }
     }
   }
@@ -1497,143 +991,66 @@
     get isFlattenable () {
       return (
         this.childrenRenderer.renderers.length > 0 &&
-        !this.directives.length &&
-        !this.bindings.length
+        !this.directives.length
       )
     }
 
     render () {
-      // Render directives/bindings
+      // Render directives
       super.render();
 
-      // Don't perform updates on disconnected element
-      if (this.element.isConnected) {
-
-        // Render children
-        this.childrenRenderer.render();
-      }
+      // Render children
+      this.childrenRenderer.render();
     }
   }
 
-  const PROP_TOKEN = '.';
-
-  const CustomRenderer = generateCustom(ElementRenderer);
-  const CustomVoidRenderer = generateCustom(VoidRenderer);
-
-  function generateCustom (SuperRenderer) {
-
-    /**
-     * Renderer for custom elements (resolve props)
-     */
-    return class CustomRenderer extends SuperRenderer {
-      constructor (ce, scope, isolated) {
-        super(ce, scope, isolated);
-
-        this.properties = {};
-
-        this._resolveProps(ce);
-      }
-
-      _resolveProps ($el) {
-        const { constructor, attributes } = $el;
-        const { properties } = constructor;
-
-        for (const { name } of Array.from(attributes)) {
-          if (name.startsWith(PROP_TOKEN)) {
-
-            // Normalize prop name
-            const property = camelize(name.slice(1 /* skip `.` */));
-
-            if (properties.hasOwnProperty(property)) {
-
-              // Set initial property value
-              $el[property] = properties[property];
-
-              // Add property to update
-              this.properties[property] = compileScopedGetter(getAttr($el, name));
-            }
-
-            // TODO: Detect valid prop names (stuff like innerHTML, textContent, etc)
-            // TODO: Warn unknown prop
-          }
-        }
-      }
-
-      render () {
-        // Resolve element bindings
-        super.render();
-
-        // Resolve property values
-        for (const property in this.properties) {
-
-          // Set raw value with references
-          this.element[property] = this.properties[property](this.scope, this.isolated);
-        }
-
-        if (this.element.isConnected) {
-
-          // Re-render (digest props)
-          this.element.$render();
-        }
-      }
-    }
-  }
-
-  class ItemRenderer {
+  class ItemRenderer extends ElementRenderer {
     constructor (template, context, isolated) {
-      const Renderer = ItemRenderer.getRenderer(template);
+      super(
+        template.cloneNode(true), context.scope,
 
-      this.renderer = new Renderer(
-        template.cloneNode(true),
-        context.scope,
+        // Scope inheritance
         newIsolated(context.isolated, isolated)
       );
+
+      const indexBy = compileScopedGetter(this.element.getAttribute('by'));
+
+      // TODO: Reuse implementation from BaseRenderer
+      this.by = isolated => {
+        return indexBy(context.scope, Object.assign({}, this.isolated, isolated))
+      };
 
       this.reused = false;
     }
 
-    static getRenderer (template) {
-      return isGalaxyElement(template)
-        ? (CustomVoidRenderer.is(template) ? CustomVoidRenderer : CustomRenderer)
-        : ElementRenderer
-    }
-
     get key () {
-      return this.renderer.bindings.by
+      return this.by()
     }
 
     get next () {
-      return this.renderer.element.nextSibling
-    }
-
-    by (isolated) {
-      return this.key.getter(isolated)
+      return this.element.nextSibling
     }
 
     update (isolated) {
       this.reused = true;
 
-      Object.assign(this.renderer.isolated, isolated);
+      Object.assign(this.isolated, isolated);
     }
 
     insert (item) {
-      item.parentNode.insertBefore(this.renderer.element, item);
+      item.before(this.element);
     }
 
     remove () {
-      this.renderer.element.remove();
-    }
-
-    render () {
-      this.renderer.render();
+      this.element.remove();
     }
   }
 
   // Note: to maintain consistence avoid `of` reserved word on iterators.
 
-  // TODO: Add anchor delimiters
-
   const LOOP_DIRECTIVE = '*for';
+
+  // TODO: Move to children directives
 
   /**
    * Captures:
@@ -1655,7 +1072,7 @@
    */
   const LOOP_REGEX = /^\(?(?<value>\w+)(?:\s*,\s*(?<key>\w+)(?:\s*,\s*(?<index>\w+))?)?\)?\s+in\s+(?<expression>.+)$/;
 
-  class LoopDirective extends BaseRenderer {
+  class LoopRenderer extends BaseRenderer {
     constructor (template, context) {
       const expression = getAttr(template, LOOP_DIRECTIVE);
       const { groups } = expression.match(LOOP_REGEX);
@@ -1672,21 +1089,19 @@
       this.startAnchor = createAnchor(`start for: ${groups.expression}`);
       this.endAnchor = createAnchor(`end for: ${groups.expression}`);
 
-      const parent = template.parentNode;
+      // Remove template with an anchor
+      template.replaceWith(this.startAnchor);
+      this.startAnchor.nextSibling.before(this.endAnchor);
 
-      // Remove `template` since is just a template
-      parent.replaceChild(this.startAnchor, template);
-      parent.insertBefore(this.endAnchor, this.startAnchor.nextSibling);
-
-      if (!template.hasAttribute(':by')) {
+      if (!template.hasAttribute('by')) {
         if (config.debug) {
           console.warn(
             'The element with the loop expression `' + expression + '` ' +
-            'doesn\'t have a `by` binding, defaulting to `$index` tracking.'
+            'doesn\'t have a `by` attribute, fallbacking to `$index` tracking.'
           );
         }
 
-        template.setAttribute(':by', '$index');
+        template.setAttribute('by', '$index');
       }
     }
 
@@ -1718,11 +1133,11 @@
           // Insert before end anchor
           item.insert(this.endAnchor);
 
-          this.values.set(item.key.value, item);
+          this.values.set(item.key, item);
         } else {
           const newKey = item.by(isolated);
 
-          if ((item.key.value /* oldKey */) !== newKey) {
+          if ((item.key /* oldKey */) !== newKey) {
             const newItem = this.values.get(newKey);
             const from = newItem.next;
 
@@ -1761,8 +1176,6 @@
     }
   }
 
-  const SKIP_ATTRIBUTE = 'skip';
-
   class ChildrenRenderer {
     constructor (children, scope, isolated) {
       this.children = Array.from(children);
@@ -1775,10 +1188,10 @@
       this.renderers = [];
 
       // Attach children
-      this._initChildren();
+      this._init();
     }
 
-    _initChildren () {
+    _init () {
       for (const child of this.children) {
 
         // 1. Check {{ interpolation }}
@@ -1788,28 +1201,11 @@
         // 2. Element binding
         } else if (isElementNode(child)) {
 
-          if (child.hasAttribute(SKIP_ATTRIBUTE)) {
-            if (!config.debug) {
-              child.removeAttribute(SKIP_ATTRIBUTE);
-            }
-
-            // Skip construction/compilation phase
-            continue
-          }
-
           // The loop directive is resolved as a child
-          if (LoopDirective.is(child)) {
-            this.renderers.push(new LoopDirective(child, this));
-          } else if (isGalaxyElement(child))  {
-            this.renderers.push(new (
-              VoidRenderer.is(child)
-                ? CustomVoidRenderer
-                : CustomRenderer)(child, this.scope, this.isolated));
+          if (LoopRenderer.is(child)) {
+            this.renderers.push(new LoopRenderer(child, this));
           } else {
-            const element = new (
-              VoidRenderer.is(child)
-                ? VoidRenderer
-                : ElementRenderer)(child, this.scope, this.isolated);
+            const element = new (child.childNodes.length ? ElementRenderer : VoidRenderer)(child, this.scope, this.isolated);
 
             // Only consider a render element if its childs
             // or attributes has something to bind/update
@@ -1988,6 +1384,24 @@
     }
   }
 
+  class GalaxyError$1 extends Error {}
+
+  /**
+   * Converts given `error`
+   *
+   * @param {Error} error
+   *
+   * @return {GalaxyError}
+   */
+  function galaxyError ({ message, stack }) {
+    const galaxyError = new GalaxyError$1(message);
+
+    // Setting up correct stack
+    galaxyError.stack = stack;
+
+    return galaxyError
+  }
+
   /**
    * Internal
    */
@@ -2037,14 +1451,6 @@
        * @public
        */
       $children = {}
-
-      /**
-       * Hold element references
-       *
-       * @type {Map<string, HTMLElement>}
-       * @public
-       */
-      $refs = new Map()
 
       /**
        * Determines whether we are in a rendering phase
@@ -2208,16 +1614,14 @@
        */
       $render () {
         if (!this.$rendering) {
+          this.$emit('$render:before');
+
           this.$rendering = true;
 
           nextTick(() => {
 
             // Takes render error
             let renderError;
-
-            // References are cleared before each render phase
-            // then they going to be filled up
-            this.$refs.clear();
 
             try {
               this.$renderer.render();
@@ -2263,6 +1667,553 @@
     return GalaxyElement
   }
 
+  class GalaxyDirective {
+
+    constructor (init, renderer) {
+
+      /**
+       *
+       */
+      this.$name = init.name;
+
+      /**
+       *
+       */
+      this.$args = new Set(init.args);
+
+      /**
+       *
+       */
+      this.$value = init.value;
+
+      /**
+       *
+       */
+      this.$renderer = renderer;
+
+      /**
+       *
+       */
+      this.$scope = renderer.scope;
+
+      /**
+       *
+       */
+      this.$element = renderer.element;
+
+      // TODO: Remove rewrite methods, when state binding has been removed
+      const getter = compileScopedGetter(rewriteMethods(init.value));
+
+      /**
+       *
+       */
+      this.$getter = locals => {
+        return getter(renderer.scope, Object.assign(
+          Object.create(null),
+          renderer.isolated,
+          locals
+        ))
+      };
+
+      // Initialize directive
+      this.init();
+    }
+
+    /**
+     * @noop
+     */
+    static get is () {
+      return ''
+    }
+
+    /**
+     * @noop
+     */
+    static match () {
+      return true
+    }
+
+    /**
+     * @noop
+     */
+    init () {
+
+    }
+
+    /**
+     * @noop
+     */
+    render () {
+
+    }
+  }
+
+  /**
+   * Filled in registration time
+   */
+  GalaxyDirective._matcher = null;
+
+  /**
+   * Fill match
+   */
+  GalaxyDirective._match = function (name) {
+    const match = this._matcher.exec(name);
+
+    return match && match.groups
+  };
+
+  class ConditionalDirective extends GalaxyDirective {
+    static get is () {
+      return '*if'
+    }
+
+    init () {
+      this.anchor = createAnchor(`if: ${this.$value}`);
+    }
+
+    render () {
+      // TODO: Add hooks for future transitions
+
+      const { parentElement } = this.$element;
+
+      if (this.$value) {
+        !parentElement && this.anchor.replaceWith(this.$element);
+      } else if (parentElement) {
+        this.$element.replaceWith(this.anchor);
+      }
+    }
+  }
+
+  class EventDirective extends GalaxyDirective {
+    static get is () {
+      return '@<name>'
+    }
+
+    init () {
+      const { $args, $scope, $name, $element } = this;
+      const once = $args.has('once');
+
+      let attachMethod = 'addEventListener';
+
+      let actual;
+      let handler = event => {
+        // Externalize event
+        $scope.$event = event;
+
+        // TODO: Call $getter directly when rewriteMethods has been removed
+        this.$getter();
+
+        $scope.$event = null;
+      };
+
+      if ($args.has('self')) {
+        actual = handler;
+
+        handler = event => {
+          if (event.target === event.currentTarget) {
+            actual(event);
+          }
+        };
+      }
+
+      if ($args.has('prevent')) {
+        actual = handler;
+
+        handler = event => {
+          event.preventDefault();
+          actual(event);
+        };
+      }
+
+      if (isGalaxyElement($element)) {
+        attachMethod = `$on${once ? 'ce' : ''}`;
+      } else if (once) {
+        actual = handler;
+
+        handler = event => {
+          $element.removeEventListener($name, handler);
+          actual(event);
+        };
+      }
+
+      $element[attachMethod]($name, handler);
+    }
+  }
+
+  class PropertyDirective extends GalaxyDirective {
+    static get is () {
+      return '.<name>'
+    }
+
+    init () {
+      this._inCustom = isGalaxyElement(this.$element);
+
+      // Init with default value
+      this.$element[this.$name] = null;
+    }
+
+    render () {
+      this.$element[this.$name] = this.$getter();
+
+      if (this._inCustom) {
+        this.$element.$render();
+      }
+    }
+  }
+
+  class ReferenceDirective extends GalaxyDirective {
+    static get is () {
+      return 'ref'
+    }
+
+    init () {
+      if (!this.$scope.$refs) {
+        this.$scope.$refs = new Map();
+
+        this.$scope.$on('$render:before', () => {
+          this.$scope.$refs.clear();
+        });
+      }
+    }
+
+    render () {
+      if (this.$element.isConnected) {
+        this.$scope.$refs.set(this.$value, this.$element);
+      }
+    }
+  }
+
+  /**
+   * Directive for bindings:
+   *
+   *   1. :attribute
+   *   2. ::attribute (one time)
+   */
+  class BindingDirective extends GalaxyDirective {
+    static get is () {
+      return ':<name>'
+    }
+
+    _getObserved () {
+      let observed = this.$element.getAttributeNode(this.$name);
+
+      if (!config.debug) this.$element.removeAttribute(this.$name);
+
+      if (!observed) {
+        observed = document.createAttribute(this.$name);
+        this.$element.setAttributeNode(observed);
+      }
+
+      return observed
+    }
+
+    init () {
+      this.attribute = this._getObserved();
+    }
+
+    render () {
+      const value = this.$getter();
+
+      if (typeof value === 'boolean') {
+        this.element[`${value ? 'set' : 'remove'}AttributeNode`](this.attribute);
+      } else if (differ(this.attribute, value)) {
+        this.attribute.value = value;
+      }
+    }
+  }
+
+  // TODO: Support single-class binding eg. :class.show="!hidden" and multiple :class.a.b="addBoth"
+
+  class ClassDirective extends BindingDirective {
+    static get is () {
+      return ':class'
+    }
+
+    _getNormalized () {
+      const value = this.$getter();
+
+      if (!Array.isArray(value)) return value
+
+      const normalized = {};
+
+      value.forEach(item => {
+        if (isObject(item)) {
+          Object.assign(result, item);
+        } else {
+          result[item] = 1;
+        }
+      });
+
+      return normalized
+    }
+
+    render () {
+      const value = this._getNormalized();
+
+      // Fallback to normal attribute patching
+      if (!isObject(value)) return super.render()
+
+      for (const key in value) {
+        if (value.hasOwnProperty(key)) {
+          this.$element.classList[value[key] ? 'add' : 'remove'](key);
+        }
+      }
+    }
+  }
+
+  const UNIT_SEPARATOR = '.';
+
+  // TODO: Support single-styleb binding eg. :style.height.px="height", without unit :style.display="'block'"
+
+  class StyleDirective extends BindingDirective {
+    static get is () {
+      return ':style'
+    }
+
+    static parseRule (rule) {
+      const segments = rule.split(UNIT_SEPARATOR);
+
+      return {
+        prop: segments[0],
+        unit: segments[1]
+      }
+    }
+
+    init () {
+
+      // Cached styles
+      this.styles = {};
+    }
+
+    render () {
+      const styles = this.$getter();
+
+      // Fallback to normal styles patching
+      if (!isObject(styles)) return super.render()
+
+      const $styles = this.$element.attributeStyleMap;
+
+      // Remove actual props
+      for (const rule in this.styles) {
+        if (!styles.hasOwnProperty(rule)) {
+          $styles.delete(StyleDirective.parseRule(rule).prop);
+        }
+      }
+
+      // Add/set props
+      for (const rule in styles) {
+        const value = styles[rule];
+
+        if (this.styles[rule] !== value) {
+          const { prop, unit } = StyleDirective.parseRule(rule);
+          $styles.set(prop, unit ? CSS[unit](value) : value);
+        }
+      }
+
+      this.styles = Object.assign({}, styles);
+    }
+  }
+
+  class BindDirective extends GalaxyDirective {
+    static get is () {
+      return '*bind'
+    }
+
+    init () {
+      this.setting = false;
+
+      // Input -> State
+      const setter = compileScopedSetter(this.$value);
+
+      this.setter = value => {
+        setter(
+          // (scope, locals,
+          this.$scope, this.$renderer.isolated,
+
+          // ...args[0])
+          value
+        );
+      };
+
+      if (this.onInput) {
+        this.$element.addEventListener('input', this.onInput.bind(this));
+      }
+
+      if (this.onChange) {
+        this.$element.addEventListener('change', this.onChange.bind(this));
+      }
+    }
+
+    /**
+     * Helper to set multiple values
+     *
+     * @param {boolean} active
+     * @param {string} value
+     * @param {Array<*>} values
+     *
+     * @return void
+     */
+    static setMultiple (active, value, values) {
+      const index = values.indexOf(value);
+
+      if (active) {
+        index === -1 && values.push(value);
+      } else if (index > -1) {
+        values.splice(index, 1);
+      }
+    }
+
+    setValue (value) {
+      this.setting = true;
+      this.setter(value);
+    }
+
+    render () {
+
+      // Avoid re-dispatching render on updated values
+      if (this.setting) {
+        this.setting = false;
+      } else {
+        this.update(this.$element, this.$getter());
+      }
+    }
+  }
+
+  /**
+   * Support for <input type="checkbox">
+   */
+  class CheckboxDirective extends BindDirective {
+    static match (_, { element }) {
+      return element.type === 'checkbox'
+    }
+
+    onChange ({ target }) {
+      const values = this.$getter();
+
+      if (!Array.isArray(values)) {
+        return this.setValue(target.checked)
+      }
+
+      BindDirective.setMultiple(
+        target.checked,
+        target.value,
+        values
+      );
+    }
+
+    update (checkbox, value) {
+      checkbox.checked = Boolean(value);
+    }
+  }
+
+  /**
+   * Support for <input type="radio">
+   */
+  class RadioDirective extends BindDirective {
+    static match (_, { element }) {
+      return element.type === 'radio'
+    }
+
+    onChange ({ target }) {
+      if (target.checked) {
+        this.setValue(target.value);
+      }
+    }
+
+    update (radio, value) {
+      radio.checked = String(value) === radio.value;
+    }
+  }
+
+  /**
+   * With support just for input types:
+   *
+   *   - Password
+   *   - Text
+   *   - Email
+   *   - Search
+   *   - URL
+   *   - Number
+   *
+   * And <textarea>
+   */
+  class InputDirective extends BindDirective {
+    static match (_, { element }) {
+      return (
+        element instanceof HTMLInputElement ||
+        element instanceof HTMLTextAreaElement
+      )
+    }
+
+    init () {
+      super.init();
+
+      // TODO: Check conversors
+      this.conversor = this.$element.type === 'number' ? Number : String;
+    }
+
+    // Change state (Input -> State)
+    onInput ({ target }) {
+      console.log('On input:');
+      this.setValue(this.conversor(target.value));
+    }
+
+    update (input, value) {
+      value = String(value);
+
+      if (differ(input, value)) {
+        input.value = value;
+      }
+    }
+  }
+
+  /**
+   * Support for single and multiple <select>
+   */
+  class SelectDirective extends BindDirective {
+    static match (_, { element }) {
+      return element instanceof HTMLSelectElement
+    }
+
+    onChange ({ target }) {
+      const { options, multiple } = target;
+
+      if (!multiple) {
+        for (const { value, selected } of options) {
+
+          // In non-multiple select we need to set
+          // the raw value since there's no reference
+          if (selected) return this.setValue(value)
+        }
+      } else {
+        const values = this.$getter();
+
+        if (!Array.isArray(values)) {
+          throw new GalaxyError$1(
+            'Invalid bound value. ' +
+            '*bind directive on select elements with a `multiple` attribute must have an array bound value.'
+          )
+        }
+
+        for (const option of options) {
+          BindDirective.setMultiple(
+            option.selected,
+            option.value,
+            values
+          );
+        }
+      }
+    }
+
+    update (select, value) {
+      for (const option of select.options) {
+        option.selected = select.multiple
+          ? value.indexOf(option.value) > -1
+          : value === option.value;
+      }
+    }
+  }
+
   const GalaxyElement = extend(HTMLElement);
 
   /**
@@ -2304,12 +2255,36 @@
     // Merge rest options with default configuration
     Object.assign(config, options);
 
-    if ('plugins' in options) {
+    if ('plugins' in config) {
       installPlugins(options.plugins);
     }
 
+    // Add core directives
+    config.directives.unshift(...[
+      ConditionalDirective,
+      EventDirective,
+      PropertyDirective,
+      ReferenceDirective,
+
+      // Bindings
+      ClassDirective,
+      StyleDirective,
+      BindingDirective,
+
+      // Model
+      CheckboxDirective,
+      RadioDirective,
+      InputDirective,
+      SelectDirective
+    ]);
+
+    // Compile matchers
+    for (const Directive of config.directives) {
+      Directive._matcher = compileMatcher(Directive.is);
+    }
+
     // Register element classes
-    for (const GalaxyElement of options.elements) {
+    for (const GalaxyElement of config.elements) {
       let defineOptions = {};
       const name = getName(GalaxyElement);
 
