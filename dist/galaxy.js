@@ -948,7 +948,7 @@
           if (match) {
             const init = {
               name: match.name,
-              args: match.args && match.args.split('.'),
+              args: match.args ? match.args.split('.') : [],
               value
             };
 
@@ -1679,7 +1679,7 @@
       /**
        *
        */
-      this.$args = new Set(init.args);
+      this.$args = init.args;
 
       /**
        *
@@ -1791,7 +1791,7 @@
 
     init () {
       const { $args, $scope, $name, $element } = this;
-      const once = $args.has('once');
+      const once = $args.includes('once');
 
       let attachMethod = 'addEventListener';
 
@@ -1806,7 +1806,7 @@
         $scope.$event = null;
       };
 
-      if ($args.has('self')) {
+      if ($args.includes('self')) {
         actual = handler;
 
         handler = event => {
@@ -1816,7 +1816,7 @@
         };
       }
 
-      if ($args.has('prevent')) {
+      if ($args.includes('prevent')) {
         actual = handler;
 
         handler = event => {

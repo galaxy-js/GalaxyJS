@@ -942,7 +942,7 @@ class VoidRenderer {
         if (match) {
           const init = {
             name: match.name,
-            args: match.args && match.args.split('.'),
+            args: match.args ? match.args.split('.') : [],
             value
           };
 
@@ -1673,7 +1673,7 @@ class GalaxyDirective {
     /**
      *
      */
-    this.$args = new Set(init.args);
+    this.$args = init.args;
 
     /**
      *
@@ -1785,7 +1785,7 @@ class EventDirective extends GalaxyDirective {
 
   init () {
     const { $args, $scope, $name, $element } = this;
-    const once = $args.has('once');
+    const once = $args.includes('once');
 
     let attachMethod = 'addEventListener';
 
@@ -1800,7 +1800,7 @@ class EventDirective extends GalaxyDirective {
       $scope.$event = null;
     };
 
-    if ($args.has('self')) {
+    if ($args.includes('self')) {
       actual = handler;
 
       handler = event => {
@@ -1810,7 +1810,7 @@ class EventDirective extends GalaxyDirective {
       };
     }
 
-    if ($args.has('prevent')) {
+    if ($args.includes('prevent')) {
       actual = handler;
 
       handler = event => {

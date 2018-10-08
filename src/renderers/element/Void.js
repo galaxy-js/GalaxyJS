@@ -61,7 +61,7 @@ export default class VoidRenderer {
         if (match) {
           const init = {
             name: match.name,
-            args: match.args && match.args.split('.'),
+            args: match.args ? match.args.split('.') : [],
             value
           }
 

@@ -9,7 +9,7 @@ export default class EventDirective extends GalaxyDirective {
 
   init () {
     const { $args, $scope, $name, $element } = this
-    const once = $args.has('once')
+    const once = $args.includes('once')
 
     let attachMethod = 'addEventListener'
 
@@ -24,7 +24,7 @@ export default class EventDirective extends GalaxyDirective {
       $scope.$event = null
     }
 
-    if ($args.has('self')) {
+    if ($args.includes('self')) {
       actual = handler
 
       handler = event => {
@@ -34,7 +34,7 @@ export default class EventDirective extends GalaxyDirective {
       }
     }
 
-    if ($args.has('prevent')) {
+    if ($args.includes('prevent')) {
       actual = handler
 
       handler = event => {

@@ -12,7 +12,7 @@ export default class GalaxyDirective {
     /**
      *
      */
-    this.$args = new Set(init.args)
+    this.$args = init.args
 
     /**
      *
