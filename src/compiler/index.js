@@ -56,9 +56,9 @@ export function compileScopedEvaluator (body) {
      * and `scope` is going to be overriden by `scope.state` data.
      */
     evaluator = new Function(
-      '__global__', '__scope__', '__locals__', '...__args__',
+      '__global__', '__locals__', '...__args__',
       `with (__global__) {
-        with (__scope__) {
+        with (this) {
           with (state) {
             with (__locals__) {
               ${body}
@@ -73,6 +73,6 @@ export function compileScopedEvaluator (body) {
   }
 
   return (scope, locals, ...args) => {
-    return evaluator(global, scope, locals, ...args)
+    return evaluator.call(scope, global, locals, ...args)
   }
 }
