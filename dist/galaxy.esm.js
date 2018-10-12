@@ -1318,67 +1318,7 @@ var EventsMixin = {
   }
 }
 
-/**
- * Observe - Watching mechanism
- *
- * @mixin
- */
-var ObserveMixin = {
-
-  /**
-   * Watch a given `path` from the state
-   *
-   * @param {string} path
-   * @param {Function} watcher
-   *
-   * @return {Function}
-   */
-  $watch (path, watcher) {
-    let $observer;
-    let dispatch;
-
-    let { state } = this;
-    const keys = path.split('.');
-
-    keys.forEach((key, index) => {
-      if (index !== keys.length - 1) {
-        state = state[key];
-
-        if (!state) throw new GalaxyError(`Wrong path at segment: '.${key}'`)
-      } else {
-        $observer = proxyObserver.get(state);
-
-        if (key === '*') {
-          dispatch = change => {
-            watcher(
-              change.value, change.old,
-
-              // We need to pass extra properties
-              // for deep observing.
-              change.property, change.target
-            );
-          };
-        } else {
-          dispatch = change => {
-            if (change.property === key) {
-              watcher(change.value, change.old);
-            }
-          };
-        }
-      }
-    });
-
-    if ($observer && dispatch) {
-      $observer.subscribe(dispatch);
-
-      return () => {
-        $observer.unsubscribe(dispatch);
-      }
-    }
-  }
-}
-
-class GalaxyError$1 extends Error {}
+class GalaxyError extends Error {}
 
 /**
  * Converts given `error`
@@ -1388,7 +1328,7 @@ class GalaxyError$1 extends Error {}
  * @return {GalaxyError}
  */
 function galaxyError ({ message, stack }) {
-  const galaxyError = new GalaxyError$1(message);
+  const galaxyError = new GalaxyError(message);
 
   // Setting up correct stack
   galaxyError.stack = stack;
@@ -1469,14 +1409,14 @@ function extend (SuperElement) {
       }
 
       if (style instanceof HTMLStyleElement) {
-        if (!shadow) throw new GalaxyError$1('style cannot be attached')
+        if (!shadow) throw new GalaxyError('style cannot be attached')
 
         // Prepend styles
         shadow.appendChild(style.cloneNode(true));
       }
 
       if (template instanceof HTMLTemplateElement) {
-        if (!shadow) throw new GalaxyError$1('template cannot be attached')
+        if (!shadow) throw new GalaxyError('template cannot be attached')
 
         // We need to append content before setting up the main renderer
         shadow.appendChild(template.content.cloneNode(true));
@@ -1590,11 +1530,11 @@ function extend (SuperElement) {
     $commit (method, ...args) {
       if (method in this) {
         if (!isFunction(this[method])) {
-          throw new GalaxyError$1(`Method '${method}' must be a function`)
+          throw new GalaxyError(`Method '${method}' must be a function`)
         }
 
         if (isReserved(method)) {
-          throw new GalaxyError$1(`Could no call reserved method '${method}'`)
+          throw new GalaxyError(`Could no call reserved method '${method}'`)
         }
 
         this[method](this.state, ...args);
@@ -1620,7 +1560,7 @@ function extend (SuperElement) {
           try {
             this.$renderer.render();
           } catch (e) {
-            if (!(e instanceof GalaxyError$1)) {
+            if (!(e instanceof GalaxyError)) {
               e = galaxyError(e);
             }
 
@@ -1653,8 +1593,7 @@ function extend (SuperElement) {
 
   // Mix features
   applyMixins(GalaxyElement, [
-    EventsMixin,
-    ObserveMixin
+    EventsMixin
   ]);
 
   // Return mixed
@@ -2184,7 +2123,7 @@ class SelectDirective extends BindDirective {
       const values = this.$getter();
 
       if (!Array.isArray(values)) {
-        throw new GalaxyError$1(
+        throw new GalaxyError(
           'Invalid bound value. ' +
           '*bind directive on select elements with a `multiple` attribute must have an array bound value.'
         )
@@ -2284,11 +2223,11 @@ function setup (options) {
     const name = getName(GalaxyElement);
 
     if (!name) {
-      throw new GalaxyError$1('Unknown element tag name')
+      throw new GalaxyError('Unknown element tag name')
     }
 
     if (GalaxyElement.extendsBuiltIn && !(defineOptions.extends = GalaxyElement.extends)) {
-      throw new GalaxyError$1('Extended customized built-in elements must have an `extends` property')
+      throw new GalaxyError('Extended customized built-in elements must have an `extends` property')
     }
 
     try {
@@ -2334,7 +2273,7 @@ function installPlugins (plugins) {
     } else if (typeof plugin === 'function') {
       plugin(GalaxyElement);
     } else {
-      throw new GalaxyError$1(`plugin '${pluginName}' must be an object or function`)
+      throw new GalaxyError(`plugin '${pluginName}' must be an object or function`)
     }
   }
 }

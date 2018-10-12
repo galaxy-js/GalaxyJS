@@ -6,7 +6,6 @@ import ProxyObserver from 'proxy-observer'
 import ChildrenRenderer from '../renderers/element/Children.js'
 
 import EventsMixin from './mixins/Events.js'
-import ObserveMixin from './mixins/Observe.js'
 
 import { isFunction, isReserved, isGalaxyElement } from '../utils/type-check.js'
 import { callHook, camelize, getName, applyMixins } from '../utils/generic.js'
@@ -270,8 +269,7 @@ export function extend (SuperElement) {
 
   // Mix features
   applyMixins(GalaxyElement, [
-    EventsMixin,
-    ObserveMixin
+    EventsMixin
   ])
 
   // Return mixed
