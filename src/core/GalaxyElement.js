@@ -39,6 +39,14 @@ export function extend (SuperElement) {
     $event = null
 
     /**
+     * Hold element references
+     *
+     * @type {Object.<Element>}
+     * @public
+     */
+    $refs = Object.create(null)
+
+    /**
      * Attached events
      *
      * @type {Object.<Array>}
