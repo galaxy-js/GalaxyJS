@@ -1374,14 +1374,6 @@ function extend (SuperElement) {
   class GalaxyElement extends SuperElement {
 
     /**
-     * Actual DOM event being dispatched
-     *
-     * @type {Event}
-     * @public
-     */
-    $event = null
-
-    /**
      * Hold element references
      *
      * @type {Object.<Element>}
@@ -1758,13 +1750,8 @@ class EventDirective extends GalaxyDirective {
     let attachMethod = 'addEventListener';
 
     let actual;
-    let handler = event => {
-      // Externalize event
-      $scope.$event = event;
-
-      evaluate($scope, $renderer.isolated);
-
-      $scope.$event = null;
+    let handler = $event => {
+      evaluate($scope, newIsolated($renderer.isolated, { $event }));
     };
 
     if ($args.includes('self')) {

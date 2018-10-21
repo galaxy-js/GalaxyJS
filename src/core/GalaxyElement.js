@@ -31,14 +31,6 @@ export function extend (SuperElement) {
   class GalaxyElement extends SuperElement {
 
     /**
-     * Actual DOM event being dispatched
-     *
-     * @type {Event}
-     * @public
-     */
-    $event = null
-
-    /**
      * Hold element references
      *
      * @type {Object.<Element>}

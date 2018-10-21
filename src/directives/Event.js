@@ -2,6 +2,7 @@ import GalaxyDirective from '../core/GalaxyDirective.js'
 
 import { compileEvent } from '../compiler/index.js'
 import { isGalaxyElement } from '../utils/type-check.js'
+import { newIsolated } from '../utils/generic.js'
 
 export default class EventDirective extends GalaxyDirective {
   static get is () {
@@ -16,13 +17,8 @@ export default class EventDirective extends GalaxyDirective {
     let attachMethod = 'addEventListener'
 
     let actual
-    let handler = event => {
-      // Externalize event
-      $scope.$event = event
-
-      evaluate($scope, $renderer.isolated)
-
-      $scope.$event = null
+    let handler = $event => {
+      evaluate($scope, newIsolated($renderer.isolated, { $event }))
     }
 
     if ($args.includes('self')) {
