@@ -1,8 +1,4 @@
-import BaseRenderer from './Base.js'
-
-import { differ } from '../utils/generic.js'
-import { isDefined } from '../utils/type-check.js'
-import { getExpression, TEXT_TEMPLATE_REGEX } from '../compiler/index.js'
+import { compileTemplate, TEXT_TEMPLATE_REGEX } from '../compiler/index.js'
 
 /**
  * Renderer for inline tag template binding:
@@ -10,21 +6,23 @@ import { getExpression, TEXT_TEMPLATE_REGEX } from '../compiler/index.js'
  *   1. Within text node: <h1>Hello {{ world }}</h1>
  *   2. As attribute interpolation: <input class="some-class {{ klass }}"/>
  */
-export default class TemplateRenderer extends BaseRenderer {
-  constructor (node, context) {
-    super(node, context, getExpression(node.nodeValue))
+export default class TemplateRenderer {
+  constructor (node, renderer) {
+    this.node = node
+    this.renderer = renderer
+
+    this.getter = compileTemplate(node.nodeValue)
   }
 
   static is ({ nodeValue }) {
     return TEXT_TEMPLATE_REGEX.test(nodeValue)
   }
 
-  patch (node, value) {
-    // Normalized value to avoid null or undefined
-    const normalized = isDefined(value) ? String(value) : ''
+  render () {
+    const value = this.getter(this.renderer.scope, this.renderer.isolated)
 
-    if (differ(node, normalized)) {
-      node.nodeValue = normalized
+    if (this.node.nodeValue !== value) {
+      this.node.nodeValue = value
     }
   }
 }

@@ -492,6 +492,92 @@
   }
 
   /**
+   * Match filters to split within a template interpolation
+   *
+   * @type {RegExp}
+   */
+  const FILTER_SPLIT_REGEX = /(?<!\|)\|(?!\|)/;
+
+  /**
+   * @type {RegExp}
+   */
+  const FILTER_REGEX = /^(?<name>\w+)(?:\((?<args>.*)\))?$/;
+
+  /**
+   * Get filter expression
+   *
+   * @param {string} expression
+   *
+   * @return {string}
+   */
+  function getFilterExpression (expression) {
+    const parts = expression.split(FILTER_SPLIT_REGEX);
+
+    return parts.length > 1
+      ? `_$f(${parts[0]}, [${getDescriptors(parts.slice(1)).join()}])`
+      : expression
+  }
+
+  /**
+   * Get filter descriptors
+   *
+   * @param {Array.<string>} filters
+   *
+   * @return {Array.<string>}
+   */
+  function getDescriptors (filters) {
+    return filters.map(filter => {
+      const { groups } = FILTER_REGEX.exec(filter.trim());
+
+      // Compose filter applier
+      return `{
+      name: '${groups.name}',
+      args: ${groups.args ? `[${groups.args}]` : 'null'}
+    }`
+    })
+  }
+
+  /**
+   * Match text template interpolation
+   *
+   * @type {RegExp}
+   */
+  const TEXT_TEMPLATE_REGEX = /{{(?<expression>.*?)}}/;
+
+  /**
+   * Get an inlined JavaScript expression
+   *
+   * @param {string} template - String with interpolation tags
+   *
+   * @return {string}
+   */
+  function getTemplateExpression (template) {
+    let match;
+
+    // Hold inlined expressions
+    const expressions = [];
+
+    while (match = TEXT_TEMPLATE_REGEX.exec(template)) {
+      const rawLeft = template.slice(0, match.index);
+      let expression = match.groups.expression.trim();
+
+      // Push wrapped left context
+      if (rawLeft) expressions.push(`\`${rawLeft}\``);
+
+      // TODO: Throw an error on empty template expressions
+      // Push isolated expression itself
+      if (expression) expressions.push(`_$n(${getFilterExpression(expression)})`);
+
+      template = template.slice(match.index + match[0].length);
+    }
+
+    // Push residual template expression
+    if (template) expressions.push(`\`${template}\``);
+
+    return expressions.join(' + ')
+  }
+
+  /**
    * For event call rewriting
    *
    * @type {RegExp}
@@ -551,94 +637,47 @@
   }
 
   /**
-   * Match text template interpolation
-   *
-   * @type {RegExp}
-   */
-  const TEXT_TEMPLATE_REGEX = /{{(?<expression>.*?)}}/;
-
-  /**
-   * Match filters to split within a template interpolation
-   *
-   * @type {RegExp}
-   */
-  const FILTER_SPLIT_REGEX = /(?<!\|)\|(?!\|)/;
-
-  /**
-   * @type {RegExp}
-   */
-  const FILTER_REGEX = /^(?<name>\w+)(?:\((?<args>.*)\))?$/;
-
-  // TODO: Check for invalid expressions like {{{ html }}}
-
-  /**
-   * Get an inlined JavaScript expression
-   *
-   * @param {string} template - String with interpolation tags
-   *
-   * @return {string}
-   */
-  function getExpression (template) {
-    let match;
-
-    // Hold inlined expressions
-    const expressions = [];
-
-    while (match = TEXT_TEMPLATE_REGEX.exec(template)) {
-      const rawLeft = template.slice(0, match.index);
-      let expression = match.groups.expression.trim();
-
-      // Push wrapped left context
-      if (rawLeft) expressions.push(`\`${rawLeft}\``);
-
-      // Push isolated expression itself
-      if (expression) {
-        const parts = expression.split(FILTER_SPLIT_REGEX);
-
-        expressions.push(
-          `_$n(${
-          parts.length > 1
-            ? `_$f(${parts[0]}, [${getDescriptors(parts.slice(1)).join()}])`
-            : expression
-        })`
-        );
-      }
-
-      template = template.slice(match.index + match[0].length);
-    }
-
-    // Push residual template expression
-    if (template) expressions.push(`\`${template}\``);
-
-    return expressions.join(' + ')
-  }
-
-  /**
-   * Get filter descriptors
-   *
-   * @param {Array.<string>} filters
-   *
-   * @return {Array.<string>}
-   */
-  function getDescriptors (filters) {
-    return filters.map(filter => {
-      const { groups } = FILTER_REGEX.exec(filter.trim());
-
-      // Compose filter applier
-      return `{
-      name: '${groups.name}',
-      args: ${groups.args ? `[${groups.args}]` : 'null'}
-    }`
-    })
-  }
-
-  /**
    * Cache evaluators
    *
    * @type {Map<string, Function>}
    * @private
    */
   const __evaluators__ = new Map();
+
+  /**
+   * Compile a given template expression
+   *
+   * A template expression looks like this: 'Hello, {{ firstName }} {{ lastName }}'
+   *
+   * @param {string} template
+   *
+   * @return {Function}
+   */
+  function compileTemplate (template) {
+    return compileScopedGetter(getTemplateExpression(template))
+  }
+
+  /**
+   * Compile a given expression
+   *
+   * @param {string} expression
+   *
+   * @return {Function}
+   */
+  function compileExpression (expression) {
+    return compileScopedGetter(getFilterExpression(expression))
+  }
+
+  /**
+   * Compile a given event expression
+   *
+   * @param {string} expression
+   *
+   * @return {Function}
+   */
+  function compileEvent (expression) {
+    return compileScopedEvaluator(rewriteMethods(expression))
+  }
 
   /**
    * Compile an scoped getter with given `expression`
@@ -706,25 +745,112 @@
     }
   }
 
-  class BaseRenderer {
-    constructor (target, context, expression) {
-      this.target = target;
-      this.context = context;
-      this.expression = expression;
+  /**
+   * Renderer for inline tag template binding:
+   *
+   *   1. Within text node: <h1>Hello {{ world }}</h1>
+   *   2. As attribute interpolation: <input class="some-class {{ klass }}"/>
+   */
+  class TemplateRenderer {
+    constructor (node, renderer) {
+      this.node = node;
+      this.renderer = renderer;
 
-      const getter = compileScopedGetter(expression);
-
-      this.getter = locals => {
-        return getter(context.scope, Object.assign({}, context.isolated, locals))
-      };
+      this.getter = compileTemplate(node.nodeValue);
     }
 
-    get value () {
-      return this.getter()
+    static is ({ nodeValue }) {
+      return TEXT_TEMPLATE_REGEX.test(nodeValue)
     }
 
     render () {
-      this.patch(this.target, this.value);
+      const value = this.getter(this.renderer.scope, this.renderer.isolated);
+
+      if (this.node.nodeValue !== value) {
+        this.node.nodeValue = value;
+      }
+    }
+  }
+
+  /**
+   * Renderer for void elements or elements without childs like:
+   */
+  class VoidRenderer {
+    constructor (element, scope, isolated) {
+
+      /**
+       *
+       */
+      this.scope = scope;
+
+      /**
+       *
+       */
+      this.element = element;
+
+      /**
+       * Loop elements need an isolated scope
+       *
+       * Note: We need to create a shallow copy
+       * to avoid overrides a parent isolated scope
+       */
+      this.isolated = isolated;
+
+      /**
+       *
+       */
+      this.locals = Object.create(null);
+
+      /**
+       * Hold directives to digest
+       */
+      this.directives = [];
+
+      this._init(element);
+    }
+
+    get isRenderable () {
+      return this.directives.length
+    }
+
+    _init ($el) {
+      const attributes = Array.from($el.attributes);
+
+      for (const attribute of attributes) {
+        const { name, value } = attribute;
+
+        if (TemplateRenderer.is(attribute)) {
+          this.directives.push(new TemplateRenderer(attribute, this));
+        }
+
+        for (const Directive of config.directives) {
+
+          // 1. Private match filter
+          const match = Directive._match(name, $el);
+
+          if (match) {
+            const init = {
+              name: match.name,
+              args: match.args ? match.args.split('.') : [],
+              value
+            };
+
+            // 2. Public match filter
+            if (Directive.match(init, this)) {
+              this.directives.push(new Directive(init, this));
+
+              if (!config.debug) $el.removeAttribute(name);
+              break
+            }
+          }
+        }
+      }
+    }
+
+    render () {
+      for (const directive of this.directives) {
+        directive.render();
+      }
     }
   }
 
@@ -864,113 +990,6 @@
     return Object.assign(Class.prototype, ...mixins)
   }
 
-  /**
-   * Renderer for inline tag template binding:
-   *
-   *   1. Within text node: <h1>Hello {{ world }}</h1>
-   *   2. As attribute interpolation: <input class="some-class {{ klass }}"/>
-   */
-  class TemplateRenderer extends BaseRenderer {
-    constructor (node, context) {
-      super(node, context, getExpression(node.nodeValue));
-    }
-
-    static is ({ nodeValue }) {
-      return TEXT_TEMPLATE_REGEX.test(nodeValue)
-    }
-
-    patch (node, value) {
-      // Normalized value to avoid null or undefined
-      const normalized = isDefined(value) ? String(value) : '';
-
-      if (differ(node, normalized)) {
-        node.nodeValue = normalized;
-      }
-    }
-  }
-
-  /**
-   * Renderer for void elements or elements without childs like:
-   */
-  class VoidRenderer {
-    constructor (element, scope, isolated) {
-
-      /**
-       *
-       */
-      this.scope = scope;
-
-      /**
-       *
-       */
-      this.element = element;
-
-      /**
-       * Loop elements need an isolated scope
-       *
-       * Note: We need to create a shallow copy
-       * to avoid overrides a parent isolated scope
-       */
-      this.isolated = isolated;
-
-      /**
-       *
-       */
-      this.locals = Object.create(null);
-
-      /**
-       * Hold directives to digest
-       */
-      this.directives = [];
-
-      this._init(element);
-    }
-
-    get isRenderable () {
-      return this.directives.length
-    }
-
-    _init ($el) {
-      const attributes = Array.from($el.attributes);
-
-      for (const attribute of attributes) {
-        const { name, value } = attribute;
-
-        if (TemplateRenderer.is(attribute)) {
-          this.directives.push(new TemplateRenderer(attribute, this));
-        }
-
-        for (const Directive of config.directives) {
-
-          // 1. Private match filter
-          const match = Directive._match(name, $el);
-
-          if (match) {
-            const init = {
-              name: match.name,
-              args: match.args ? match.args.split('.') : [],
-              value
-            };
-
-            // 2. Public match filter
-            if (Directive.match(init, this)) {
-              this.directives.push(new Directive(init, this));
-
-              if (!config.debug) $el.removeAttribute(name);
-              break
-            }
-          }
-        }
-      }
-    }
-
-    render () {
-      for (const directive of this.directives) {
-        directive.render();
-      }
-    }
-  }
-
   class ElementRenderer extends VoidRenderer {
     constructor (element, scope, isolated) {
       super(element, scope, newIsolated(isolated));
@@ -1005,19 +1024,18 @@
   }
 
   class ItemRenderer extends ElementRenderer {
-    constructor (template, context, isolated) {
+    constructor (template, renderer, isolated) {
       super(
-        template.cloneNode(true), context.scope,
+        template.cloneNode(true), renderer.scope,
 
         // Scope inheritance
-        newIsolated(context.isolated, isolated)
+        newIsolated(renderer.isolated, isolated)
       );
 
       const indexBy = compileScopedGetter(this.element.getAttribute('by'));
 
-      // TODO: Reuse implementation from BaseRenderer
       this.by = isolated => {
-        return indexBy(context.scope, Object.assign({}, this.isolated, isolated))
+        return indexBy(this.scope, newIsolated(this.isolated, isolated))
       };
 
       this.reused = false;
@@ -1046,11 +1064,7 @@
     }
   }
 
-  // Note: to maintain consistence avoid `of` reserved word on iterators.
-
   const LOOP_DIRECTIVE = '*for';
-
-  // TODO: Move to children directives
 
   /**
    * Captures:
@@ -1072,22 +1086,25 @@
    */
   const LOOP_REGEX = /^\(?(?<value>\w+)(?:\s*,\s*(?<key>\w+)(?:\s*,\s*(?<index>\w+))?)?\)?\s+in\s+(?<expression>.+)$/;
 
-  class LoopRenderer extends BaseRenderer {
-    constructor (template, context) {
-      const expression = getAttr(template, LOOP_DIRECTIVE);
-      const { groups } = expression.match(LOOP_REGEX);
-
-      super(template, context, groups.expression);
+  class LoopRenderer {
+    constructor (template, renderer) {
+      this.template = template;
+      this.renderer = renderer;
 
       this.items = [];
       this.values = new Map();
+
+      const expression = getAttr(template, LOOP_DIRECTIVE);
+      const { groups } = expression.match(LOOP_REGEX);
 
       this.keyName = groups.key;
       this.indexName = groups.index;
       this.valueName = groups.value;
 
-      this.startAnchor = createAnchor(`start for: ${groups.expression}`);
-      this.endAnchor = createAnchor(`end for: ${groups.expression}`);
+      this.startAnchor = createAnchor(`start for: ${expression}`);
+      this.endAnchor = createAnchor(`end for: ${expression}`);
+
+      this.getter = compileExpression(groups.expression);
 
       // Remove template with an anchor
       template.replaceWith(this.startAnchor);
@@ -1109,7 +1126,9 @@
       return LOOP_DIRECTIVE in attributes
     }
 
-    patch (template, collection) {
+    render () {
+      const collection = this.getter(this.renderer.scope, this.renderer.isolated);
+
       const items = [];
       const keys = Object.keys(collection);
 
@@ -1128,7 +1147,7 @@
         };
 
         if (!item) {
-          item = new ItemRenderer(template, this.context, isolated);
+          item = new ItemRenderer(this.template, this.renderer, isolated);
 
           // Insert before end anchor
           item.insert(this.endAnchor);
@@ -1649,7 +1668,8 @@
       this.$element = renderer.element;
 
       // TODO: Remove rewrite methods, when state binding has been removed
-      const getter = compileScopedGetter(rewriteMethods(init.value));
+
+      const getter = compileExpression(rewriteMethods(init.value));
 
       /**
        *
@@ -1737,8 +1757,9 @@
     }
 
     init () {
-      const { $args, $scope, $name, $element } = this;
+      const { $args, $scope, $name, $element, $renderer } = this;
       const once = $args.includes('once');
+      const evaluate = compileEvent(this.$value);
 
       let attachMethod = 'addEventListener';
 
@@ -1747,8 +1768,7 @@
         // Externalize event
         $scope.$event = event;
 
-        // TODO: Call $getter directly when rewriteMethods has been removed
-        this.$getter();
+        evaluate($scope, $renderer.isolated);
 
         $scope.$event = null;
       };

@@ -1,5 +1,6 @@
 import GalaxyDirective from '../core/GalaxyDirective.js'
 
+import { compileEvent } from '../compiler/index.js'
 import { isGalaxyElement } from '../utils/type-check.js'
 
 export default class EventDirective extends GalaxyDirective {
@@ -8,8 +9,9 @@ export default class EventDirective extends GalaxyDirective {
   }
 
   init () {
-    const { $args, $scope, $name, $element } = this
+    const { $args, $scope, $name, $element, $renderer } = this
     const once = $args.includes('once')
+    const evaluate = compileEvent(this.$value)
 
     let attachMethod = 'addEventListener'
 
@@ -18,8 +20,7 @@ export default class EventDirective extends GalaxyDirective {
       // Externalize event
       $scope.$event = event
 
-      // TODO: Call $getter directly when rewriteMethods has been removed
-      this.$getter()
+      evaluate($scope, $renderer.isolated)
 
       $scope.$event = null
     }

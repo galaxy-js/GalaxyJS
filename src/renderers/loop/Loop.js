@@ -1,15 +1,11 @@
 import config from '../../config.js'
 
-import BaseRenderer from '../Base.js'
 import ItemRenderer from './Item.js'
 
+import { compileExpression } from '../../compiler/index.js'
 import { getAttr, createAnchor } from '../../utils/generic.js'
 
-// Note: to maintain consistence avoid `of` reserved word on iterators.
-
 const LOOP_DIRECTIVE = '*for'
-
-// TODO: Move to children directives
 
 /**
  * Captures:
@@ -31,22 +27,25 @@ const LOOP_DIRECTIVE = '*for'
  */
 const LOOP_REGEX = /^\(?(?<value>\w+)(?:\s*,\s*(?<key>\w+)(?:\s*,\s*(?<index>\w+))?)?\)?\s+in\s+(?<expression>.+)$/
 
-export default class LoopRenderer extends BaseRenderer {
-  constructor (template, context) {
-    const expression = getAttr(template, LOOP_DIRECTIVE)
-    const { groups } = expression.match(LOOP_REGEX)
-
-    super(template, context, groups.expression)
+export default class LoopRenderer {
+  constructor (template, renderer) {
+    this.template = template
+    this.renderer = renderer
 
     this.items = []
     this.values = new Map()
+
+    const expression = getAttr(template, LOOP_DIRECTIVE)
+    const { groups } = expression.match(LOOP_REGEX)
 
     this.keyName = groups.key
     this.indexName = groups.index
     this.valueName = groups.value
 
-    this.startAnchor = createAnchor(`start for: ${groups.expression}`)
-    this.endAnchor = createAnchor(`end for: ${groups.expression}`)
+    this.startAnchor = createAnchor(`start for: ${expression}`)
+    this.endAnchor = createAnchor(`end for: ${expression}`)
+
+    this.getter = compileExpression(groups.expression)
 
     // Remove template with an anchor
     template.replaceWith(this.startAnchor)
@@ -68,7 +67,9 @@ export default class LoopRenderer extends BaseRenderer {
     return LOOP_DIRECTIVE in attributes
   }
 
-  patch (template, collection) {
+  render () {
+    const collection = this.getter(this.renderer.scope, this.renderer.isolated)
+
     const items = []
     const keys = Object.keys(collection)
 
@@ -87,7 +88,7 @@ export default class LoopRenderer extends BaseRenderer {
       }
 
       if (!item) {
-        item = new ItemRenderer(template, this.context, isolated)
+        item = new ItemRenderer(this.template, this.renderer, isolated)
 
         // Insert before end anchor
         item.insert(this.endAnchor)

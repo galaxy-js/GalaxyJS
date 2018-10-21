@@ -1,4 +1,5 @@
-import { compileScopedGetter, rewriteMethods } from '../compiler/index.js'
+import { compileExpression } from '../compiler/index.js'
+import { rewriteMethods } from '../compiler/method.js'
 
 export default class GalaxyDirective {
 
@@ -35,7 +36,8 @@ export default class GalaxyDirective {
     this.$element = renderer.element
 
     // TODO: Remove rewrite methods, when state binding has been removed
-    const getter = compileScopedGetter(rewriteMethods(init.value))
+
+    const getter = compileExpression(rewriteMethods(init.value))
 
     /**
      *

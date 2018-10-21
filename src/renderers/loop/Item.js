@@ -1,22 +1,21 @@
 import ElementRenderer from '../../renderers/element/Element.js'
 
 import { newIsolated } from '../../utils/generic.js'
-import { compileScopedGetter } from '../../compiler/index.js';
+import { compileScopedGetter } from '../../compiler/index.js'
 
 export default class ItemRenderer extends ElementRenderer {
-  constructor (template, context, isolated) {
+  constructor (template, renderer, isolated) {
     super(
-      template.cloneNode(true), context.scope,
+      template.cloneNode(true), renderer.scope,
 
       // Scope inheritance
-      newIsolated(context.isolated, isolated)
+      newIsolated(renderer.isolated, isolated)
     )
 
     const indexBy = compileScopedGetter(this.element.getAttribute('by'))
 
-    // TODO: Reuse implementation from BaseRenderer
     this.by = isolated => {
-      return indexBy(context.scope, Object.assign({}, this.isolated, isolated))
+      return indexBy(this.scope, newIsolated(this.isolated, isolated))
     }
 
     this.reused = false

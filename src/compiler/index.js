@@ -1,7 +1,10 @@
 import global from '../core/global.js'
 
-export { rewriteMethods } from './method.js'
-export { getExpression, TEXT_TEMPLATE_REGEX } from './template.js'
+import { getTemplateExpression } from './template.js'
+import { getFilterExpression } from './filter.js'
+import { rewriteMethods } from './method.js'
+
+export { TEXT_TEMPLATE_REGEX } from './template.js'
 
 /**
  * Cache evaluators
@@ -10,6 +13,41 @@ export { getExpression, TEXT_TEMPLATE_REGEX } from './template.js'
  * @private
  */
 const __evaluators__ = new Map()
+
+/**
+ * Compile a given template expression
+ *
+ * A template expression looks like this: 'Hello, {{ firstName }} {{ lastName }}'
+ *
+ * @param {string} template
+ *
+ * @return {Function}
+ */
+export function compileTemplate (template) {
+  return compileScopedGetter(getTemplateExpression(template))
+}
+
+/**
+ * Compile a given expression
+ *
+ * @param {string} expression
+ *
+ * @return {Function}
+ */
+export function compileExpression (expression) {
+  return compileScopedGetter(getFilterExpression(expression))
+}
+
+/**
+ * Compile a given event expression
+ *
+ * @param {string} expression
+ *
+ * @return {Function}
+ */
+export function compileEvent (expression) {
+  return compileScopedEvaluator(rewriteMethods(expression))
+}
 
 /**
  * Compile an scoped getter with given `expression`
