@@ -998,6 +998,22 @@
     return Object.assign(Class.prototype, ...mixins)
   }
 
+  function mergeEventHandlers (handlers) {
+    return (...args) => {
+      let i = 0;
+
+      const next = (...args) => {
+        const current = handlers[i++];
+
+        if (current) {
+          current(next, ...args);
+        }
+      };
+
+      next(...args);
+    }
+  }
+
   class ElementRenderer extends VoidRenderer {
     constructor (element, scope, isolated) {
       super(element, scope, newIsolated(isolated));
@@ -1776,44 +1792,40 @@
       const once = $args.includes('once');
       const evaluate = compileEvent(this.$value);
 
+      const handlers = [];
+
       let attachMethod = 'addEventListener';
 
-      let actual;
-      let handler = $event => {
-        evaluate($scope, newIsolated($renderer.isolated, { $event }));
-      };
-
       if ($args.includes('self')) {
-        actual = handler;
-
-        handler = event => {
-          if (event.target === event.currentTarget) {
-            actual(event);
+        handlers.push((next, $event) => {
+          if ($event.target === $event.currentTarget) {
+            next($event);
           }
-        };
+        });
       }
 
       if ($args.includes('prevent')) {
-        actual = handler;
-
-        handler = event => {
-          event.preventDefault();
-          actual(event);
-        };
+        handlers.push((next, $event) => {
+          $event.preventDefault();
+          next($event);
+        });
       }
 
       if (isGalaxyElement($element)) {
         attachMethod = `$on${once ? 'ce' : ''}`;
       } else if (once) {
-        actual = handler;
-
-        handler = event => {
+        handlers.push((next, $event) => {
           $element.removeEventListener($name, handler);
-          actual(event);
-        };
+          next($event);
+        });
       }
 
-      $element[attachMethod]($name, handler);
+      handlers.push((end, $event) => {
+        evaluate($scope, newIsolated($renderer.isolated, { $event }));
+        end();
+      });
+
+      $element[attachMethod]($name, mergeEventHandlers(handlers));
     }
   }
 

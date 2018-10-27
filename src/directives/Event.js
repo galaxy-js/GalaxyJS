@@ -2,7 +2,7 @@ import GalaxyDirective from '../core/GalaxyDirective.js'
 
 import { compileEvent } from '../compiler/index.js'
 import { isGalaxyElement } from '../utils/type-check.js'
-import { newIsolated } from '../utils/generic.js'
+import { newIsolated, mergeEventHandlers } from '../utils/generic.js'
 
 export default class EventDirective extends GalaxyDirective {
   static get is () {
@@ -21,43 +21,39 @@ export default class EventDirective extends GalaxyDirective {
     const once = $args.includes('once')
     const evaluate = compileEvent(this.$value)
 
+    const handlers = []
+
     let attachMethod = 'addEventListener'
 
-    let actual
-    let handler = $event => {
-      evaluate($scope, newIsolated($renderer.isolated, { $event }))
-    }
-
     if ($args.includes('self')) {
-      actual = handler
-
-      handler = event => {
-        if (event.target === event.currentTarget) {
-          actual(event)
+      handlers.push((next, $event) => {
+        if ($event.target === $event.currentTarget) {
+          next($event)
         }
-      }
+      })
     }
 
     if ($args.includes('prevent')) {
-      actual = handler
-
-      handler = event => {
-        event.preventDefault()
-        actual(event)
-      }
+      handlers.push((next, $event) => {
+        $event.preventDefault()
+        next($event)
+      })
     }
 
     if (isGalaxyElement($element)) {
       attachMethod = `$on${once ? 'ce' : ''}`
     } else if (once) {
-      actual = handler
-
-      handler = event => {
+      handlers.push((next, $event) => {
         $element.removeEventListener($name, handler)
-        actual(event)
-      }
+        next($event)
+      })
     }
 
-    $element[attachMethod]($name, handler)
+    handlers.push((end, $event) => {
+      evaluate($scope, newIsolated($renderer.isolated, { $event }))
+      end()
+    })
+
+    $element[attachMethod]($name, mergeEventHandlers(handlers))
   }
 }

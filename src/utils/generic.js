@@ -135,3 +135,19 @@ export function ensureListeners (events, event) {
 export function applyMixins (Class, mixins) {
   return Object.assign(Class.prototype, ...mixins)
 }
+
+export function mergeEventHandlers (handlers) {
+  return (...args) => {
+    let i = 0
+
+    const next = (...args) => {
+      const current = handlers[i++]
+
+      if (current) {
+        current(next, ...args)
+      }
+    }
+
+    next(...args)
+  }
+}
