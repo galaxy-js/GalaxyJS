@@ -1759,11 +1759,11 @@ class ConditionalDirective extends GalaxyDirective {
   render () {
     // TODO: Add hooks for future transitions
 
-    const { parentElement } = this.$element;
+    const { parentNode } = this.$element;
 
     if (this.$getter()) {
-      !parentElement && this.anchor.replaceWith(this.$element);
-    } else if (parentElement) {
+      !parentNode && this.anchor.replaceWith(this.$element);
+    } else if (parentNode) {
       this.$element.replaceWith(this.anchor);
     }
   }

@@ -22,6 +22,13 @@ export default class TestProps extends GalaxyElement {
         <option value="" disabled>Sport</option>
         <option *for="_sport in sports" :value="_sport">{{ _sport.toUpperCase() }}</option>
       </select>
+
+      <div>
+        <br>
+        <span *if="showText">Some text</span>
+        <br>
+        <button @click="showText = !showText">Toggle text</button>
+      </div>
     `
   }
 
@@ -39,6 +46,7 @@ export default class TestProps extends GalaxyElement {
     this.colorIndex = 0
 
     this.state = {
+      showText: false,
       color: this.colors[this.colorIndex],
       fruits: ['apple', 'strawberry', 'lemon'],
       fruit: null,
