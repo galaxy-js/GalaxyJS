@@ -1,5 +1,16 @@
 import { compileExpression } from '../compiler/index.js'
 import { rewriteMethods } from '../compiler/method.js'
+import { newIsolated } from '../utils/generic.js';
+
+/**
+ * Default directive options
+ *
+ * @enum {*}
+ */
+const options = {
+  $plain: false,
+  $render: true
+}
 
 export default class GalaxyDirective {
 
@@ -35,23 +46,21 @@ export default class GalaxyDirective {
      */
     this.$element = renderer.element
 
-    // TODO: Remove rewrite methods, when state binding has been removed
-
-    const getter = compileExpression(rewriteMethods(init.value))
-
     /**
      *
      */
-    this.$getter = locals => {
-      return getter(renderer.scope, Object.assign(
-        Object.create(null),
-        renderer.isolated,
-        locals
-      ))
-    }
+    this.$options = Object.assign({}, options, this.constructor.options)
 
-    // Initialize directive
-    this.init()
+    if (!this.$options.$plain) {
+      const getter = compileExpression(init.value)
+
+      /**
+       *
+       */
+      this.$getter = locals => {
+        return getter(renderer.scope, newIsolated(renderer.isolated, locals))
+      }
+    }
   }
 
   /**

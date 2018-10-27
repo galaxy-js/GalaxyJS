@@ -67,7 +67,15 @@ export default class VoidRenderer {
 
           // 2. Public match filter
           if (Directive.match(init, this)) {
-            this.directives.push(new Directive(init, this))
+            const directive = new Directive(init, this)
+
+            // Initialize directive
+            directive.init()
+
+            // Check for renderable directives
+            if (directive.$options.$render) {
+              this.directives.push(directive)
+            }
 
             if (!config.debug) $el.removeAttribute(name)
             break

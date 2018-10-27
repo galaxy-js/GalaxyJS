@@ -16,7 +16,7 @@ export default class ConditionalDirective extends GalaxyDirective {
 
     const { parentElement } = this.$element
 
-    if (this.$value) {
+    if (this.$getter()) {
       !parentElement && this.anchor.replaceWith(this.$element)
     } else if (parentElement) {
       this.$element.replaceWith(this.anchor)

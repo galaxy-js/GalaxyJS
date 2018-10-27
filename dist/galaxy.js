@@ -837,7 +837,15 @@
 
             // 2. Public match filter
             if (Directive.match(init, this)) {
-              this.directives.push(new Directive(init, this));
+              const directive = new Directive(init, this);
+
+              // Initialize directive
+              directive.init();
+
+              // Check for renderable directives
+              if (directive.$options.$render) {
+                this.directives.push(directive);
+              }
 
               if (!config.debug) $el.removeAttribute(name);
               break
@@ -1625,6 +1633,16 @@
     return GalaxyElement
   }
 
+  /**
+   * Default directive options
+   *
+   * @enum {*}
+   */
+  const options = {
+    $plain: false,
+    $render: true
+  };
+
   class GalaxyDirective {
 
     constructor (init, renderer) {
@@ -1659,23 +1677,21 @@
        */
       this.$element = renderer.element;
 
-      // TODO: Remove rewrite methods, when state binding has been removed
-
-      const getter = compileExpression(rewriteMethods(init.value));
-
       /**
        *
        */
-      this.$getter = locals => {
-        return getter(renderer.scope, Object.assign(
-          Object.create(null),
-          renderer.isolated,
-          locals
-        ))
-      };
+      this.$options = Object.assign({}, options, this.constructor.options);
 
-      // Initialize directive
-      this.init();
+      if (!this.$options.$plain) {
+        const getter = compileExpression(init.value);
+
+        /**
+         *
+         */
+        this.$getter = locals => {
+          return getter(renderer.scope, newIsolated(renderer.isolated, locals))
+        };
+      }
     }
 
     /**
@@ -1735,7 +1751,7 @@
 
       const { parentElement } = this.$element;
 
-      if (this.$value) {
+      if (this.$getter()) {
         !parentElement && this.anchor.replaceWith(this.$element);
       } else if (parentElement) {
         this.$element.replaceWith(this.anchor);
@@ -1746,6 +1762,13 @@
   class EventDirective extends GalaxyDirective {
     static get is () {
       return '@<name>'
+    }
+
+    static get options () {
+      return {
+        $plain: true,
+        $render: false
+      }
     }
 
     init () {

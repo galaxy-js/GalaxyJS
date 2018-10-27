@@ -9,6 +9,13 @@ export default class EventDirective extends GalaxyDirective {
     return '@<name>'
   }
 
+  static get options () {
+    return {
+      $plain: true,
+      $render: false
+    }
+  }
+
   init () {
     const { $args, $scope, $name, $element, $renderer } = this
     const once = $args.includes('once')
