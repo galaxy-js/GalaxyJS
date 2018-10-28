@@ -1,7 +1,7 @@
 import ElementRenderer from '../../renderers/element/Element.js'
 
 import { newIsolated } from '../../utils/generic.js'
-import { compileScopedGetter } from '../../compiler/index.js'
+import { compileExpression } from '../../compiler/index.js'
 
 export default class ItemRenderer extends ElementRenderer {
   constructor (template, renderer, isolated) {
@@ -12,13 +12,13 @@ export default class ItemRenderer extends ElementRenderer {
       newIsolated(renderer.isolated, isolated)
     )
 
-    const indexBy = compileScopedGetter(this.element.getAttribute('by'))
+    this.reused = false
+
+    const indexBy = compileExpression(this.element.getAttribute('by'))
 
     this.by = isolated => {
       return indexBy(this.scope, newIsolated(this.isolated, isolated))
     }
-
-    this.reused = false
   }
 
   get key () {

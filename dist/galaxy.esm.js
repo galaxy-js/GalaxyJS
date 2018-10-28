@@ -1050,13 +1050,13 @@ class ItemRenderer extends ElementRenderer {
       newIsolated(renderer.isolated, isolated)
     );
 
-    const indexBy = compileScopedGetter(this.element.getAttribute('by'));
+    this.reused = false;
+
+    const indexBy = compileExpression(this.element.getAttribute('by'));
 
     this.by = isolated => {
       return indexBy(this.scope, newIsolated(this.isolated, isolated))
     };
-
-    this.reused = false;
   }
 
   get key () {
