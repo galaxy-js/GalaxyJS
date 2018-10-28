@@ -1091,24 +1091,18 @@
   const LOOP_DIRECTIVE = '*for';
 
   /**
-   * Captures:
+   * Capture:
    *
-   *  1. Simple
+   *  (<value>[, <key>[, <index>]]) in/of <expression>
    *
-   *   [item] in [expression]
-   *   ([item]) in [expression]
+   *  - value: A value of the array or object
+   *  - key: A key of the array or object
+   *  - index: An index of the array or object
+   *  - expression: Can be any JavaScript expression
    *
-   *  2. With key
-   *
-   *   [item], [key] in [expression]
-   *   [item], [key], [index] in [expression]
-   *
-   *  3. With index
-   *
-   *   ([item], [key]) in [expression]
-   *   ([item], [key], [index]) in [expression]
+   *  Note: Parens can be omitted.
    */
-  const LOOP_REGEX = /^\(?(?<value>\w+)(?:\s*,\s*(?<key>\w+)(?:\s*,\s*(?<index>\w+))?)?\)?\s+in\s+(?<expression>.+)$/;
+  const LOOP_REGEX = /^\(?(?<value>\w+)(?:\s*,\s*(?<key>\w+)(?:\s*,\s*(?<index>\w+))?)?\)?\s+(?:in|of)\s+(?<expression>.+)$/;
 
   class LoopRenderer {
     constructor (template, renderer) {
