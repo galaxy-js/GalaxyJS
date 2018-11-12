@@ -21,6 +21,9 @@ export default class EventDirective extends GalaxyDirective {
     const once = $args.includes('once')
     const evaluate = compileEvent(this.$value)
 
+    // Merged handlers
+    let mainHandler
+
     const handlers = []
 
     let attachMethod = 'addEventListener'
@@ -44,7 +47,7 @@ export default class EventDirective extends GalaxyDirective {
       attachMethod = `$on${once ? 'ce' : ''}`
     } else if (once) {
       handlers.push((next, $event) => {
-        $element.removeEventListener($name, handler)
+        $element.removeEventListener($name, mainHandler)
         next($event)
       })
     }
@@ -54,6 +57,6 @@ export default class EventDirective extends GalaxyDirective {
       end()
     })
 
-    $element[attachMethod]($name, mergeEventHandlers(handlers))
+    $element[attachMethod]($name, mainHandler = mergeEventHandlers(handlers))
   }
 }
