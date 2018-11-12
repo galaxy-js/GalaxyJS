@@ -31,7 +31,11 @@ export default class ElementRenderer extends VoidRenderer {
     // Render directives
     super.render()
 
-    // Render children
-    this.childrenRenderer.render()
+    // Render correctly on conditional flow
+    if (this.element.isConnected) {
+
+      // Render children
+      this.childrenRenderer.render()
+    }
   }
 }

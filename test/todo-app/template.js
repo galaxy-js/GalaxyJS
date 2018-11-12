@@ -12,7 +12,7 @@ export default html`
 
   <ul>
     <li>Wrapped (Start)</li>
-    <li *for="todo in todos" :by="todo">
+    <li *for="todo in todos" by="todo">
       {{ todo.name }}
       <input id="done-{{ $index }}" type="checkbox" *bind="todo.done" @change="showStatus()">
       <button @click="#removeTodo(todo)">&times;</button>

@@ -1036,8 +1036,12 @@ class ElementRenderer extends VoidRenderer {
     // Render directives
     super.render();
 
-    // Render children
-    this.childrenRenderer.render();
+    // Render correctly on conditional flow
+    if (this.element.isConnected) {
+
+      // Render children
+      this.childrenRenderer.render();
+    }
   }
 }
 
@@ -1753,11 +1757,11 @@ class ConditionalDirective extends GalaxyDirective {
   render () {
     // TODO: Add hooks for future transitions
 
-    const { parentNode } = this.$element;
+    const { isConnected } = this.$element;
 
     if (this.$getter()) {
-      !parentNode && this.anchor.replaceWith(this.$element);
-    } else if (parentNode) {
+      !isConnected && this.anchor.replaceWith(this.$element);
+    } else if (isConnected) {
       this.$element.replaceWith(this.anchor);
     }
   }
