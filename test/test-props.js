@@ -29,6 +29,9 @@ export default class TestProps extends GalaxyElement {
         <br>
         <button @click="showText = !showText">Toggle text</button>
       </div>
+
+      <input @change="#showDate()" *bind.date="date" type="date">
+      <input @change="#showNumber()" *bind.number="number" type="number">
     `
   }
 
@@ -51,7 +54,9 @@ export default class TestProps extends GalaxyElement {
       fruits: ['apple', 'strawberry', 'lemon'],
       fruit: null,
       sports: ['football', 'soccer', 'basketball', 'tennis'],
-      selectedSports: ['tennis']
+      selectedSports: ['tennis'],
+      date: new Date(),
+      number: 10
     }
   }
 
@@ -78,5 +83,13 @@ export default class TestProps extends GalaxyElement {
 
   showSport ({ selectedSports }) {
     console.log('Sports:', selectedSports)
+  }
+
+  showDate ({ date }) {
+    console.log('Date:', date)
+  }
+
+  showNumber ({ number }) {
+    console.log('Number:', number)
   }
 }

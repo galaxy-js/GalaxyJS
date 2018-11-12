@@ -2125,20 +2125,22 @@
     init () {
       super.init();
 
-      // TODO: Check conversors
-      this.conversor = this.$element.type === 'number' ? Number : String;
+      this.valueKey = 'value';
+
+      switch (this.$args[0]) {
+        case 'number': this.valueKey += 'AsNumber'; break
+        case 'date': this.valueKey += 'AsDate'; break
+      }
     }
 
     // Change state (Input -> State)
     onInput ({ target }) {
-      this.setValue(this.conversor(target.value));
+      this.setValue(target[this.valueKey]);
     }
 
     update (input, value) {
-      value = String(value);
-
-      if (differ(input, value)) {
-        input.value = value;
+      if (input[this.valueKey] !== value) {
+        input[this.valueKey] = value;
       }
     }
   }
