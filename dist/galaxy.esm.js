@@ -2325,4 +2325,4 @@ function installPlugins (plugins) {
   }
 }
 
-export { extend, config, GalaxyElement, html, css, setup };
+export { extend, config, GalaxyElement, html, css, setup, GalaxyDirective };

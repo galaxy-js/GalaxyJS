@@ -2337,6 +2337,7 @@
   exports.html = html;
   exports.css = css;
   exports.setup = setup;
+  exports.GalaxyDirective = GalaxyDirective;
 
   Object.defineProperty(exports, '__esModule', { value: true });
 

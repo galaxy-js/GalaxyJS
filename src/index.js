@@ -6,6 +6,7 @@ import GalaxyError, { galaxyError } from './errors/GalaxyError.js'
 
 import { getName, compileMatcher } from './utils/generic.js'
 
+export { default as GalaxyDirective } from './core/GalaxyDirective.js'
 export { extend, config }
 
 /**
