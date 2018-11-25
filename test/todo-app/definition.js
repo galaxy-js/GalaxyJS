@@ -1,5 +1,6 @@
 import { GalaxyElement } from '../../dist/galaxy.esm.js'
 import template from './template.js'
+import TestProps from '../test-props.js'
 
 export default class TodoApp extends GalaxyElement {
   constructor () {
@@ -69,3 +70,7 @@ export default class TodoApp extends GalaxyElement {
 
 // Static template
 TodoApp.template = template
+
+TodoApp.children = [
+  TestProps
+]

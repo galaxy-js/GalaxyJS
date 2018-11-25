@@ -18,6 +18,11 @@ import GalaxyError, { galaxyError } from '../errors/GalaxyError.js'
 const __proxies__ = new WeakMap()
 
 /**
+ * Allows element check
+ */
+export const __symbol__ = Symbol('GalaxyElement')
+
+/**
  * Creates a customized built-in element
  *
  * @param {HTMLElement} SuperElement
@@ -266,6 +271,18 @@ export function extend (SuperElement) {
    * @type {boolean}
    */
   GalaxyElement.extendsBuiltIn = SuperElement !== HTMLElement
+
+  /**
+   * Is this element resolved?
+   *
+   * @type {boolean}
+   */
+  GalaxyElement.resolved = false
+
+  /**
+   * Mark as GalaxyElement
+   */
+  GalaxyElement[__symbol__] = true
 
   // Mix features
   applyMixins(GalaxyElement, [

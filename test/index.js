@@ -21,10 +21,6 @@ Galaxy.setup({
   },
 
   elements: [
-
-    // Correct elements registration
-    // From childs -> parents
-    TestProps,
     TodoApp
   ]
 })

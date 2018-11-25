@@ -1,4 +1,4 @@
-import config from '../config.js'
+import { __symbol__ } from '../core/GalaxyElement.js'
 
 export function isObject (value) {
   return value !== null && typeof value === 'object'
@@ -24,6 +24,6 @@ export function isReserved (name) {
   return name.startsWith('$') || name.startsWith('_')
 }
 
-export function isGalaxyElement ({ constructor }) {
-  return config.elements.indexOf(constructor) > -1
+export function isGalaxyElement (element) {
+  return element.constructor[__symbol__] || false
 }

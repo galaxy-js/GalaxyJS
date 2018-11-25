@@ -37,7 +37,7 @@
     /**
      * Directives holder
      *
-     * @type {Array<Directive>}
+     * @type {Array<GalaxyDirective>}
      */
     directives: []
   }
@@ -452,8 +452,8 @@
     return name.startsWith('$') || name.startsWith('_')
   }
 
-  function isGalaxyElement ({ constructor }) {
-    return config.elements.indexOf(constructor) > -1
+  function isGalaxyElement (element) {
+    return element.constructor[__symbol__] || false
   }
 
   /**
@@ -1389,6 +1389,11 @@
   const __proxies__ = new WeakMap();
 
   /**
+   * Allows element check
+   */
+  const __symbol__ = Symbol('GalaxyElement');
+
+  /**
    * Creates a customized built-in element
    *
    * @param {HTMLElement} SuperElement
@@ -1637,6 +1642,18 @@
      * @type {boolean}
      */
     GalaxyElement.extendsBuiltIn = SuperElement !== HTMLElement;
+
+    /**
+     * Is this element resolved?
+     *
+     * @type {boolean}
+     */
+    GalaxyElement.resolved = false;
+
+    /**
+     * Mark as GalaxyElement
+     */
+    GalaxyElement[__symbol__] = true;
 
     // Mix features
     applyMixins(GalaxyElement, [
@@ -2271,24 +2288,7 @@
     }
 
     // Register element classes
-    for (const GalaxyElement of config.elements) {
-      let defineOptions = {};
-      const name = getName(GalaxyElement);
-
-      if (!name) {
-        throw new GalaxyError('Unknown element tag name')
-      }
-
-      if (GalaxyElement.extendsBuiltIn && !(defineOptions.extends = GalaxyElement.extends)) {
-        throw new GalaxyError('Extended customized built-in elements must have an `extends` property')
-      }
-
-      try {
-        customElements.define(name, GalaxyElement, defineOptions);
-      } catch (e) {
-        throw galaxyError(e)
-      }
-    }
+    resolveElements(config.elements);
   }
 
   /**
@@ -2306,6 +2306,57 @@
     element.innerHTML = String.raw(...args);
 
     return element
+  }
+
+  /**
+   * Register GalaxyElements recursively
+   *
+   * @param {Array<GalaxyElement>} elements
+   *
+   * @return void
+   * @private
+   */
+  function resolveElements (elements) {
+    const definitions = [];
+
+    for (const GalaxyElement of elements) {
+
+      // Skip resolved elements
+      if (GalaxyElement.resolved) continue
+
+      let childrenDefinitions = [];
+
+      const elementOptions = {};
+      const name = getName(GalaxyElement);
+
+      if (!name) {
+        throw new GalaxyError('Unknown element tag name')
+      }
+
+      if (GalaxyElement.extendsBuiltIn && !(elementOptions.extends = GalaxyElement.extends)) {
+        throw new GalaxyError('Extended customized built-in elements must have an `extends` property')
+      }
+
+      // Resolve inner elements before resolve this
+      if (Array.isArray(GalaxyElement.children)) {
+        childrenDefinitions = resolveElements(GalaxyElement.children);
+      }
+
+      try {
+        definitions.push(customElements.whenDefined(name));
+
+        // Mark element as resolved
+        GalaxyElement.resolved = true;
+
+        Promise
+          .all(childrenDefinitions)
+          .then(() => { customElements.define(name, GalaxyElement, elementOptions); });
+      } catch (e) {
+        throw galaxyError(e)
+      }
+    }
+
+    return definitions
   }
 
   /**

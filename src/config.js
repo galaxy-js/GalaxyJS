@@ -31,7 +31,7 @@ export default {
   /**
    * Directives holder
    *
-   * @type {Array<Directive>}
+   * @type {Array<GalaxyDirective>}
    */
   directives: []
 }
