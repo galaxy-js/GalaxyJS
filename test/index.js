@@ -1,9 +1,10 @@
 import * as Galaxy from '../dist/galaxy.esm.js'
 
-import TestProps from './test-props.js'
 import TodoApp from './todo-app/definition.js'
 
 Galaxy.setup({
+
+  root: TodoApp,
 
   // Ready for prod
   debug: true,
@@ -18,9 +19,5 @@ Galaxy.setup({
     reverse (value, ...args) {
       return value.split('').reverse().join('')
     }
-  },
-
-  elements: [
-    TodoApp
-  ]
+  }
 })

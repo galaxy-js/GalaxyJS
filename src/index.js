@@ -93,8 +93,12 @@ export function setup (options) {
     Directive._matcher = compileMatcher(Directive.is)
   }
 
-  // Register element classes
-  resolveElements(config.elements)
+  if (!config.root) {
+    throw new GalaxyError('You must include a `root` option')
+  }
+
+  // Register root element
+  resolveElements([config.root])
 }
 
 /**

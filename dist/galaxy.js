@@ -7,6 +7,13 @@
   var config = {
 
     /**
+     * Main element
+     *
+     * @type {Array<GalaxyElement>}
+     */
+    root: null,
+
+    /**
      * Debug mode
      *
      * @type {boolean}
@@ -26,13 +33,6 @@
      * @enum {Function}
      */
     filters: {},
-
-    /**
-     * Elements holder
-     *
-     * @type {Array<GalaxyElement>}
-     */
-    elements: [],
 
     /**
      * Directives holder
@@ -2287,8 +2287,12 @@
       Directive._matcher = compileMatcher(Directive.is);
     }
 
-    // Register element classes
-    resolveElements(config.elements);
+    if (!config.root) {
+      throw new GalaxyError('You must include a `root` option')
+    }
+
+    // Register root element
+    resolveElements([config.root]);
   }
 
   /**

@@ -1,6 +1,13 @@
 export default {
 
   /**
+   * Main element
+   *
+   * @type {Array<GalaxyElement>}
+   */
+  root: null,
+
+  /**
    * Debug mode
    *
    * @type {boolean}
@@ -20,13 +27,6 @@ export default {
    * @enum {Function}
    */
   filters: {},
-
-  /**
-   * Elements holder
-   *
-   * @type {Array<GalaxyElement>}
-   */
-  elements: [],
 
   /**
    * Directives holder
