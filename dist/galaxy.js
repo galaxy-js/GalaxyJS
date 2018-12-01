@@ -873,6 +873,8 @@
   };
 
   const same = value => value;
+
+  const HYPHEN_REGEX = /-([a-z0-9])/gi;
   const CAMEL_REGEX = /(?<=[a-z0-9])([A-Z])/g;
 
   const NAME_WILDCARD_DIRECTIVE = '<name>';
@@ -886,6 +888,17 @@
 
   function getWildcardCapture (name) {
     return `(?${NAME_WILDCARD_DIRECTIVE}${name})`
+  }
+
+  /**
+   * Converts hyphenated string to camelized
+   *
+   * @param {string} hyphenated
+   *
+   * @return {string}
+   */
+  function camelize (hyphenated) {
+    return hyphenated.replace(HYPHEN_REGEX, (_, letter) => letter.toUpperCase())
   }
 
   /**
@@ -1511,9 +1524,7 @@
         let $parent = this;
 
         do {
-          $parent = $parent instanceof ShadowRoot
-            ? $parent.host
-            : $parent.parentNode;
+          $parent = $parent instanceof ShadowRoot ? $parent.host : $parent.parentNode;
         } while ($parent && !isGalaxyElement($parent))
 
         // Set parent communication
@@ -1837,13 +1848,17 @@
       return 'ref'
     }
 
+    init () {
+      this.refName = camelize(this.$value);
+    }
+
     render () {
-      const { $scope, $element, $value } = this;
+      const { $scope, $element, refName } = this;
 
       if ($element.isConnected) {
-        $scope.$refs[$value] = $element;
+        $scope.$refs[refName] = $element;
       } else {
-        delete $scope.$refs[$value];
+        delete $scope.$refs[refName];
       }
     }
   }

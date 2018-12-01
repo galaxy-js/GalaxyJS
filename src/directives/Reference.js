@@ -1,17 +1,22 @@
 import GalaxyDirective from '../core/GalaxyDirective.js'
+import { camelize } from '../utils/generic.js'
 
 export default class ReferenceDirective extends GalaxyDirective {
   static get is () {
     return 'ref'
   }
 
+  init () {
+    this.refName = camelize(this.$value)
+  }
+
   render () {
-    const { $scope, $element, $value } = this
+    const { $scope, $element, refName } = this
 
     if ($element.isConnected) {
-      $scope.$refs[$value] = $element
+      $scope.$refs[refName] = $element
     } else {
-      delete $scope.$refs[$value]
+      delete $scope.$refs[refName]
     }
   }
 }
