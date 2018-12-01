@@ -873,8 +873,6 @@
   };
 
   const same = value => value;
-
-  const HYPHEN_REGEX = /-([a-z0-9])/gi;
   const CAMEL_REGEX = /(?<=[a-z0-9])([A-Z])/g;
 
   const NAME_WILDCARD_DIRECTIVE = '<name>';
@@ -888,17 +886,6 @@
 
   function getWildcardCapture (name) {
     return `(?${NAME_WILDCARD_DIRECTIVE}${name})`
-  }
-
-  /**
-   * Converts hyphenated string to camelized
-   *
-   * @param {string} hyphenated
-   *
-   * @return {string}
-   */
-  function camelize (hyphenated) {
-    return hyphenated.replace(HYPHEN_REGEX, (_, letter) => letter.toUpperCase())
   }
 
   /**
@@ -1431,14 +1418,6 @@
       $parent = null
 
       /**
-       * Give access to children galaxy elements
-       *
-       * @type {Object.<GalaxyElement>}
-       * @public
-       */
-      $children = {}
-
-      /**
        * Determines whether we are in a rendering phase
        *
        * @type {boolean}
@@ -1529,9 +1508,6 @@
        * Hooks that catch changes properly
        */
       connectedCallback () {
-        // TODO: For testing environments maybe we don't want to
-        // leave this only works on in-document elements
-
         let $parent = this;
 
         do {
@@ -1540,27 +1516,15 @@
             : $parent.parentNode;
         } while ($parent && !isGalaxyElement($parent))
 
-        if ($parent && isGalaxyElement($parent)) {
-
-          // Set parent communication
-          this.$parent = $parent;
-
-          // Set children communication
-          $parent.$children[camelize(this.$name)] = this;
-        }
+        // Set parent communication
+        this.$parent = $parent;
 
         callHook(this, 'attached');
       }
 
       disconnectedCallback () {
-        if (this.$parent) {
-
-          // Cut-out children communication
-          delete this.$parent.$children[camelize(this.$name)];
-
-          // Cut-out parent communication
-          this.$parent = null;
-        }
+        // Cut-out parent communication
+        this.$parent = null;
 
         callHook(this, 'detached');
       }
