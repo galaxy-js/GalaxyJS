@@ -10,3 +10,7 @@
   - **Use your actual JS code** - No compilation time needed.
   - **Fully class-based** - Elements and directives definitions.
   - **Clean and easy to use** 😄
+
+## Getting started
+
+  To get started with Galaxy go to the [wiki page](https://github.com/LosMaquios/GalaxyJS/wiki/Getting-Started-Guide)
