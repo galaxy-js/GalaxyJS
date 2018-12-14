@@ -2263,7 +2263,7 @@
 
     // Compile matchers
     for (const Directive of config.directives) {
-      Directive._matcher = compileMatcher(Directive.is);
+      Directive._matcher = compileMatcher(getName(Directive));
     }
 
     if (!config.root) {
