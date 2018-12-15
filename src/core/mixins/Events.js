@@ -1,4 +1,4 @@
-import { ensureListeners } from '../../utils/generic.js'
+import { ensureListeners, removeListener } from '../../utils/generic.js'
 
 /**
  * Events - Custom and native events API
@@ -12,14 +12,14 @@ export default {
    *
    * @param {string} event
    * @param {Function} listener
-   * @param {boolean} [useCapture]
+   * @param {Object|boolean} [options]
    *
    * @return void
    */
-  $on (event, listener, useCapture) {
+  $on (event, listener, options) {
     (this.$events[event] = ensureListeners(this.$events, event)).push(listener)
 
-    this.addEventListener(event, listener, useCapture)
+    this.addEventListener(event, listener, options)
   },
 
   /**
@@ -27,22 +27,27 @@ export default {
    *
    * @param {string} event
    * @param {Function} listener
-   * @param {boolean} [useCapture]
+   * @param {Object|boolean} [options]
    *
    * @return void
    */
-  $once (event, listener, useCapture) {
-
-    // Once called wrapper
-    const onceCalled = $event => {
-      this.$off(event, onceCalled)
-      listener($event)
+  $once (event, listener, options = {}) {
+    if (typeof options === 'boolean') {
+      options = { capture: options }
     }
+
+    const onceCalled = $event => {
+      removeListener(listener)
+      listener.call(this, $event)
+    }
+
+    // Once called option
+    options.once = true
 
     // Reference to original listener
     onceCalled.listener = listener
 
-    this.$on(event, onceCalled, useCapture)
+    this.$on(event, onceCalled, options)
   },
 
   /**
@@ -68,14 +73,7 @@ export default {
 
       // .$off('event', listener)
       default: {
-        const alive = ensureListeners(this.$events, event).filter(_ => _ !== listener)
-
-        if (alive.length) {
-          this.$events[event] = alive
-        } else {
-          delete this.$events[event]
-        }
-
+        removeListener(this.$events, event, listener)
         this.removeEventListener(event, listener)
       }
     }

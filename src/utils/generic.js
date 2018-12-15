@@ -132,6 +132,16 @@ export function ensureListeners (events, event) {
   return events[event] || []
 }
 
+export function removeListener (events, event, listener) {
+  const alive = ensureListeners(events, event).filter(_ => _ !== listener)
+
+  if (alive.length) {
+    events[event] = alive
+  } else {
+    delete events[event]
+  }
+}
+
 export function applyMixins (Class, mixins) {
   return Object.assign(Class.prototype, ...mixins)
 }
