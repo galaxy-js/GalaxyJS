@@ -14,3 +14,7 @@
 ## Getting started
 
   To get started with Galaxy go to the [wiki page](https://github.com/LosMaquios/GalaxyJS/wiki/Getting-Started-Guide)
+
+## Experimental extension libraries
+
+  - [GalaxyRouter](https://github.com/aeroxmotion/GalaxyRouter): Router for GalaxyJS
