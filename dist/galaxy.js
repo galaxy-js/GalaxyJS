@@ -2227,6 +2227,20 @@
   }
 
   /**
+   * Extend built-in element and perform plugins installation
+   *
+   * @param {HTMLElement.constructor} BuiltInElement
+   *
+   * @return {GalaxyElement}
+   */
+  function extend$1 (BuiltInElement) {
+    const GalaxyElement = extend(BuiltInElement);
+    installPlugins(GalaxyElement, config.plugins);
+
+    return GalaxyElement
+  }
+
+  /**
    * Initialize galaxy
    *
    * @param {Object} options
@@ -2239,7 +2253,7 @@
     Object.assign(config, options);
 
     if ('plugins' in config) {
-      installPlugins(options.plugins);
+      installPlugins(GalaxyElement, config.plugins);
     }
 
     // Add core directives
@@ -2345,11 +2359,12 @@
   /**
    * Perform plugins installation
    *
+   * @param {GalaxyElement.constructor} GalaxyElement
    * @param {Array<Object|Function>} plugins
    *
    * @return void
    */
-  function installPlugins (plugins) {
+  function installPlugins (GalaxyElement, plugins) {
     const install = Object.assign.bind(null, GalaxyElement.prototype);
 
     for (const pluginName in plugins) {
@@ -2365,11 +2380,11 @@
     }
   }
 
-  exports.extend = extend;
   exports.config = config;
   exports.GalaxyElement = GalaxyElement;
   exports.html = html;
   exports.css = css;
+  exports.extend = extend$1;
   exports.setup = setup;
   exports.GalaxyDirective = GalaxyDirective;
 

@@ -1,13 +1,10 @@
 import config from './config.js'
 
-import { extend } from './core/GalaxyElement.js'
+import { extend as extendElement } from './core/GalaxyElement.js'
 
 import GalaxyError, { galaxyError } from './errors/GalaxyError.js'
 
 import { getName, compileMatcher } from './utils/generic.js'
-
-export { default as GalaxyDirective } from './core/GalaxyDirective.js'
-export { extend, config }
 
 /**
  * Directives
@@ -24,7 +21,10 @@ import RadioDirective from './directives/model/Radio.js'
 import InputDirective from './directives/model/Input.js'
 import SelectDirective from './directives/model/Select.js'
 
-export const GalaxyElement = extend(HTMLElement)
+export { default as GalaxyDirective } from './core/GalaxyDirective.js'
+export { config }
+
+export const GalaxyElement = extendElement(HTMLElement)
 
 /**
  * Generates a new template
@@ -54,6 +54,20 @@ export function css (...args) {
 }
 
 /**
+ * Extend built-in element and perform plugins installation
+ *
+ * @param {HTMLElement.constructor} BuiltInElement
+ *
+ * @return {GalaxyElement}
+ */
+export function extend (BuiltInElement) {
+  const GalaxyElement = extendElement(BuiltInElement)
+  installPlugins(GalaxyElement, config.plugins)
+
+  return GalaxyElement
+}
+
+/**
  * Initialize galaxy
  *
  * @param {Object} options
@@ -66,7 +80,7 @@ export function setup (options) {
   Object.assign(config, options)
 
   if ('plugins' in config) {
-    installPlugins(options.plugins)
+    installPlugins(GalaxyElement, config.plugins)
   }
 
   // Add core directives
@@ -172,11 +186,12 @@ function resolveElements (elements) {
 /**
  * Perform plugins installation
  *
+ * @param {GalaxyElement.constructor} GalaxyElement
  * @param {Array<Object|Function>} plugins
  *
  * @return void
  */
-function installPlugins (plugins) {
+function installPlugins (GalaxyElement, plugins) {
   const install = Object.assign.bind(null, GalaxyElement.prototype)
 
   for (const pluginName in plugins) {
