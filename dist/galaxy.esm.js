@@ -2237,7 +2237,7 @@ function css (...args) {
  */
 function extend$1 (BuiltInElement) {
   const GalaxyElement = extend(BuiltInElement);
-  installPlugins(GalaxyElement, config.plugins);
+  installPlugins(GalaxyElement, config);
 
   return GalaxyElement
 }
@@ -2255,7 +2255,7 @@ function setup (options) {
   Object.assign(config, options);
 
   if ('plugins' in config) {
-    installPlugins(GalaxyElement, config.plugins);
+    installPlugins(GalaxyElement, config);
   }
 
   // Add core directives
@@ -2362,22 +2362,18 @@ function resolveElements (elements) {
  * Perform plugins installation
  *
  * @param {GalaxyElement.constructor} GalaxyElement
- * @param {Array<Object|Function>} plugins
+ * @param {Object} config
  *
  * @return void
  */
-function installPlugins (GalaxyElement, plugins) {
-  const install = Object.assign.bind(null, GalaxyElement.prototype);
+function installPlugins (GalaxyElement, config$$1) {
+  for (const pluginName in config$$1.plugins) {
+    const plugin = config$$1.plugins[pluginName];
 
-  for (const pluginName in plugins) {
-    const plugin = plugins[pluginName];
-
-    if (plugin !== null && typeof plugin === 'object') {
-      install(plugin);
-    } else if (typeof plugin === 'function') {
-      plugin(GalaxyElement);
+    if (typeof plugin === 'function') {
+      plugin(GalaxyElement, pluginName, config$$1);
     } else {
-      throw new GalaxyError(`plugin '${pluginName}' must be an object or function`)
+      GalaxyElement.prototype[pluginName] = plugin;
     }
   }
 }

@@ -10,9 +10,7 @@ Galaxy.setup({
   debug: true,
 
   plugins: {
-    test: {
-      $test: 'plugins working!'
-    }
+    $test: 'plugins working!'
   },
 
   filters: {
