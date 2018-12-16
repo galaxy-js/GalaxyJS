@@ -18,3 +18,4 @@
 ## Experimental extension libraries
 
   - [GalaxyRouter](https://github.com/aeroxmotion/GalaxyRouter): Router for GalaxyJS
+  - [GalaxyAnimate](https://github.com/aeroxmotion/GalaxyAnimate): Native web animations for Galaxy
