@@ -8,7 +8,7 @@ import ChildrenRenderer from '../renderers/element/Children.js'
 import EventsMixin from './mixins/Events.js'
 
 import { isFunction, isReserved, isGalaxyElement } from '../utils/type-check.js'
-import { callHook, camelize, getName, applyMixins } from '../utils/generic.js'
+import { callHook, getName, applyMixins } from '../utils/generic.js'
 
 import GalaxyError, { galaxyError } from '../errors/GalaxyError.js'
 
@@ -16,11 +16,6 @@ import GalaxyError, { galaxyError } from '../errors/GalaxyError.js'
  * Internal
  */
 const __proxies__ = new WeakMap()
-
-/**
- * Allows element check
- */
-export const __symbol__ = Symbol('GalaxyElement')
 
 /**
  * Creates a customized built-in element
@@ -255,9 +250,9 @@ export function extend (SuperElement) {
   GalaxyElement.resolved = false
 
   /**
-   * Mark as GalaxyElement
+   * Mark (both constructor and __proto__) as GalaxyElement
    */
-  GalaxyElement[__symbol__] = true
+  Galaxy.prototype.$galaxy = GalaxyElement.$galaxy = true
 
   // Mix features
   applyMixins(GalaxyElement, [

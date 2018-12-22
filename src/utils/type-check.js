@@ -1,5 +1,3 @@
-import { __symbol__ } from '../core/GalaxyElement.js'
-
 export function isObject (value) {
   return value !== null && typeof value === 'object'
 }
@@ -25,5 +23,5 @@ export function isReserved (name) {
 }
 
 export function isGalaxyElement (element) {
-  return element.constructor[__symbol__] || false
+  return !!element.$galaxy
 }
