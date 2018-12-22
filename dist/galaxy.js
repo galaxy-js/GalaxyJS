@@ -453,7 +453,7 @@
   }
 
   function isGalaxyElement (element) {
-    return element.constructor[__symbol__] || false
+    return !!element.$galaxy
   }
 
   /**
@@ -1397,11 +1397,6 @@
   const __proxies__ = new WeakMap();
 
   /**
-   * Allows element check
-   */
-  const __symbol__ = Symbol('GalaxyElement');
-
-  /**
    * Creates a customized built-in element
    *
    * @param {HTMLElement} SuperElement
@@ -1634,9 +1629,9 @@
     GalaxyElement.resolved = false;
 
     /**
-     * Mark as GalaxyElement
+     * Mark (both constructor and __proto__) as GalaxyElement
      */
-    GalaxyElement[__symbol__] = true;
+    GalaxyElement.prototype.$galaxy = GalaxyElement.$galaxy = true;
 
     // Mix features
     applyMixins(GalaxyElement, [
