@@ -252,7 +252,7 @@ export function extend (SuperElement) {
   /**
    * Mark (both constructor and __proto__) as GalaxyElement
    */
-  Galaxy.prototype.$galaxy = GalaxyElement.$galaxy = true
+  GalaxyElement.prototype.$galaxy = GalaxyElement.$galaxy = true
 
   // Mix features
   applyMixins(GalaxyElement, [
