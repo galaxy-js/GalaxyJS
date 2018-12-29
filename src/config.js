@@ -17,9 +17,9 @@ export default {
   /**
    * Plugins to install
    *
-   * @type {Array<Object|Function>}
+   * @type {Array<GalaxyPlugin>}
    */
-  plugins: {},
+  plugins: [],
 
   /**
    * Filters holder

@@ -29,12 +29,14 @@ const inputConfig = {
    */
   acorn: {
     plugins: {
-      classFields: true
+      classFields: true,
+      staticClassPropertyInitializer: true
     }
   },
 
   acornInjectPlugins: [
-    require('acorn-class-fields/inject')
+    require('acorn-class-fields/inject'),
+    require('acorn-static-class-property-initializer/inject')
   ]
 }
 
