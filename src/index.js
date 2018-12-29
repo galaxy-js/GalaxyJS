@@ -22,6 +22,7 @@ import InputDirective from './directives/model/Input.js'
 import SelectDirective from './directives/model/Select.js'
 
 export { default as GalaxyDirective } from './core/GalaxyDirective.js'
+export { default as GalaxyPlugin, withCachedInstance } from './core/GalaxyPlugin.js'
 export { config }
 
 export const GalaxyElement = extendElement(HTMLElement)
@@ -62,7 +63,10 @@ export function css (...args) {
  */
 export function extend (BuiltInElement) {
   const GalaxyElement = extendElement(BuiltInElement)
-  installPlugins(GalaxyElement, config)
+
+  if (config.plugins) {
+    installPlugins(GalaxyElement, config.plugins)
+  }
 
   return GalaxyElement
 }
@@ -79,8 +83,15 @@ export function setup (options) {
   // Merge rest options with default configuration
   Object.assign(config, options)
 
-  if ('plugins' in config) {
-    installPlugins(GalaxyElement, config)
+  if (config.plugins) {
+    for (const GalaxyPlugin of config.plugins) {
+
+      // Perform plugin initialization
+      GalaxyPlugin.init(config)
+
+      // Install first customized element
+      GalaxyPlugin.install(GalaxyElement)
+    }
   }
 
   // Add core directives
@@ -191,14 +202,8 @@ function resolveElements (elements) {
  *
  * @return void
  */
-function installPlugins (GalaxyElement, config) {
-  for (const pluginName in config.plugins) {
-    const plugin = config.plugins[pluginName]
-
-    if (typeof plugin === 'function') {
-      plugin(GalaxyElement, pluginName, config)
-    } else {
-      GalaxyElement.prototype[pluginName] = plugin
-    }
+function installPlugins (GalaxyElement, plugins) {
+  for (const GalaxyPlugin of plugins) {
+    GalaxyPlugin.install(GalaxyElement)
   }
 }

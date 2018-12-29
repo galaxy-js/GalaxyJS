@@ -17,9 +17,9 @@ var config = {
   /**
    * Plugins to install
    *
-   * @type {Array<Object|Function>}
+   * @type {Array<GalaxyPlugin>}
    */
-  plugins: {},
+  plugins: [],
 
   /**
    * Filters holder
@@ -2194,6 +2194,74 @@ class SelectDirective extends BindDirective {
   }
 }
 
+class GalaxyPlugin {
+
+  /**
+   * User's options
+   *
+   * @type {Object}
+   */
+  static $options = {}
+
+  /**
+   * Default options
+   *
+   * @type {Object}
+   */
+  static $defaults = {}
+
+  /**
+   * Hook for plugin initialization
+   *
+   * @type {Function}
+   * @noop
+   */
+  static init (config) {
+    // TODO: Initialize plugin
+  }
+
+  /**
+   * Perform installation process
+   *
+   * @type {Function}
+   * @noop
+   */
+  static install (GalaxyElement) {
+    // TODO: Install process here
+  }
+
+  /**
+   * Set options for plugin installation
+   *
+   * @param {Object} options
+   *
+   * @return {GalaxyPlugin}
+   */
+  static with (options) {
+    Object.assign(this.$options, this.$defaults, options);
+
+    return this
+  }
+}
+
+/**
+ * Utility for cache plugin instance on initialization
+ *
+ * @param {*} GalaxyPlugin
+ *
+ * @return void
+ */
+function withCachedInstance (GalaxyPlugin) {
+  const initiliaze = GalaxyPlugin.init;
+
+  GalaxyPlugin.init = function (config) {
+    this.$instance = new GalaxyPlugin(this.$options);
+    initiliaze.call(this, config);
+  };
+
+  return GalaxyPlugin
+}
+
 const GalaxyElement = extend(HTMLElement);
 
 /**
@@ -2232,7 +2300,10 @@ function css (...args) {
  */
 function extend$1 (BuiltInElement) {
   const GalaxyElement = extend(BuiltInElement);
-  installPlugins(GalaxyElement, config);
+
+  if (config.plugins) {
+    installPlugins(GalaxyElement, config.plugins);
+  }
 
   return GalaxyElement
 }
@@ -2249,8 +2320,15 @@ function setup (options) {
   // Merge rest options with default configuration
   Object.assign(config, options);
 
-  if ('plugins' in config) {
-    installPlugins(GalaxyElement, config);
+  if (config.plugins) {
+    for (const GalaxyPlugin of config.plugins) {
+
+      // Perform plugin initialization
+      GalaxyPlugin.init(config);
+
+      // Install first customized element
+      GalaxyPlugin.install(GalaxyElement);
+    }
   }
 
   // Add core directives
@@ -2361,16 +2439,10 @@ function resolveElements (elements) {
  *
  * @return void
  */
-function installPlugins (GalaxyElement, config$$1) {
-  for (const pluginName in config$$1.plugins) {
-    const plugin = config$$1.plugins[pluginName];
-
-    if (typeof plugin === 'function') {
-      plugin(GalaxyElement, pluginName, config$$1);
-    } else {
-      GalaxyElement.prototype[pluginName] = plugin;
-    }
+function installPlugins (GalaxyElement, plugins) {
+  for (const GalaxyPlugin of plugins) {
+    GalaxyPlugin.install(GalaxyElement);
   }
 }
 
-export { config, GalaxyElement, html, css, extend$1 as extend, setup, GalaxyDirective };
+export { config, GalaxyElement, html, css, extend$1 as extend, setup, GalaxyDirective, GalaxyPlugin, withCachedInstance };
