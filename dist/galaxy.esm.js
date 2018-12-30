@@ -961,10 +961,6 @@ function flatChildren (element) {
   return flat
 }
 
-function getName (GalaxyElement) {
-  return GalaxyElement.is || GalaxyElement.name && hyphenate(GalaxyElement.name)
-}
-
 function callHook (ce, hook, extra) {
 
   // Emit sync
@@ -1435,6 +1431,15 @@ function extend (SuperElement) {
      */
     $rendering = false
 
+    /**
+     * Galaxy element name
+     *
+     * @type {string}
+     * @public
+     */
+    static get is () { return hyphenate(this.name) }
+    get $name () { return this.constructor.is }
+
     constructor () {
       super();
 
@@ -1462,14 +1467,6 @@ function extend (SuperElement) {
         // We need to append content before setting up the main renderer
         shadow.appendChild(template.content.cloneNode(true));
       }
-
-      /**
-       * Custom element name
-       *
-       * @type {string}
-       * @public
-       */
-      this.$name = getName(this.constructor);
 
       /**
        * State for data-binding
@@ -1647,6 +1644,10 @@ const options = {
 };
 
 class GalaxyDirective {
+
+  static get is () {
+    return hyphenate(this.name)
+  }
 
   constructor (init, renderer) {
 
@@ -2352,7 +2353,7 @@ function setup (options) {
 
   // Compile matchers
   for (const Directive of config.directives) {
-    Directive._matcher = compileMatcher(getName(Directive));
+    Directive._matcher = compileMatcher(Directive.is);
   }
 
   if (!config.root) {
@@ -2399,7 +2400,7 @@ function resolveElements (elements) {
     let childrenDefinitions = [];
 
     const elementOptions = {};
-    const name = getName(GalaxyElement);
+    const name = GalaxyElement.is;
 
     if (!name) {
       throw new GalaxyError('Unknown element tag name')

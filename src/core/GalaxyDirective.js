@@ -1,6 +1,5 @@
 import { compileExpression } from '../compiler/index.js'
-import { rewriteMethods } from '../compiler/method.js'
-import { newIsolated } from '../utils/generic.js';
+import { newIsolated, hyphenate } from '../utils/generic.js';
 
 /**
  * Default directive options
@@ -13,6 +12,10 @@ const options = {
 }
 
 export default class GalaxyDirective {
+
+  static get is () {
+    return hyphenate(this.name)
+  }
 
   constructor (init, renderer) {
 

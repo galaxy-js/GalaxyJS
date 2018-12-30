@@ -8,7 +8,7 @@ import ChildrenRenderer from '../renderers/element/Children.js'
 import EventsMixin from './mixins/Events.js'
 
 import { isFunction, isReserved, isGalaxyElement } from '../utils/type-check.js'
-import { callHook, getName, applyMixins } from '../utils/generic.js'
+import { callHook, applyMixins, hyphenate } from '../utils/generic.js'
 
 import GalaxyError, { galaxyError } from '../errors/GalaxyError.js'
 
@@ -62,6 +62,15 @@ export function extend (SuperElement) {
      */
     $rendering = false
 
+    /**
+     * Galaxy element name
+     *
+     * @type {string}
+     * @public
+     */
+    static get is () { return hyphenate(this.name) }
+    get $name () { return this.constructor.is }
+
     constructor () {
       super()
 
@@ -89,14 +98,6 @@ export function extend (SuperElement) {
         // We need to append content before setting up the main renderer
         shadow.appendChild(template.content.cloneNode(true))
       }
-
-      /**
-       * Custom element name
-       *
-       * @type {string}
-       * @public
-       */
-      this.$name = getName(this.constructor)
 
       /**
        * State for data-binding

@@ -4,7 +4,7 @@ import { extend as extendElement } from './core/GalaxyElement.js'
 
 import GalaxyError, { galaxyError } from './errors/GalaxyError.js'
 
-import { getName, compileMatcher } from './utils/generic.js'
+import { compileMatcher } from './utils/generic.js'
 
 /**
  * Directives
@@ -115,7 +115,7 @@ export function setup (options) {
 
   // Compile matchers
   for (const Directive of config.directives) {
-    Directive._matcher = compileMatcher(getName(Directive))
+    Directive._matcher = compileMatcher(Directive.is)
   }
 
   if (!config.root) {
@@ -162,7 +162,7 @@ function resolveElements (elements) {
     let childrenDefinitions = []
 
     const elementOptions = {}
-    const name = getName(GalaxyElement)
+    const name = GalaxyElement.is
 
     if (!name) {
       throw new GalaxyError('Unknown element tag name')

@@ -105,10 +105,6 @@ export function flatChildren (element) {
   return flat
 }
 
-export function getName (GalaxyElement) {
-  return GalaxyElement.is || GalaxyElement.name && hyphenate(GalaxyElement.name)
-}
-
 export function callHook (ce, hook, extra) {
 
   // Emit sync
