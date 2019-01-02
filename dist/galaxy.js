@@ -9,7 +9,7 @@
     /**
      * Main element
      *
-     * @type {Array<GalaxyElement>}
+     * @type {GalaxyElement}
      */
     root: null,
 
@@ -21,6 +21,22 @@
     debug: true,
 
     /**
+     * Additional elements to register at root level
+     *
+     * Note: commonly used by plugins
+     *
+     * @type {Array<GalaxyElement>}
+     */
+    elements: [],
+
+    /**
+     * Directives holder
+     *
+     * @type {Array<GalaxyDirective>}
+     */
+    directives: [],
+
+    /**
      * Plugins to install
      *
      * @type {Array<GalaxyPlugin>}
@@ -30,16 +46,9 @@
     /**
      * Filters holder
      *
-     * @enum {Function}
+     * @enum {Object.<Function>}
      */
-    filters: {},
-
-    /**
-     * Directives holder
-     *
-     * @type {Array<GalaxyDirective>}
-     */
-    directives: []
+    filters: {}
   }
 
   var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
@@ -2366,8 +2375,8 @@
       throw new GalaxyError('You must include a `root` option')
     }
 
-    // Register root element
-    resolveElements([config.root]);
+    // Register root element + additional elements
+    resolveElements([config.root, ...config.elements]);
   }
 
   /**

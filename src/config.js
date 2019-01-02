@@ -3,7 +3,7 @@ export default {
   /**
    * Main element
    *
-   * @type {Array<GalaxyElement>}
+   * @type {GalaxyElement}
    */
   root: null,
 
@@ -15,6 +15,22 @@ export default {
   debug: true,
 
   /**
+   * Additional elements to register at root level
+   *
+   * Note: commonly used by plugins
+   *
+   * @type {Array<GalaxyElement>}
+   */
+  elements: [],
+
+  /**
+   * Directives holder
+   *
+   * @type {Array<GalaxyDirective>}
+   */
+  directives: [],
+
+  /**
    * Plugins to install
    *
    * @type {Array<GalaxyPlugin>}
@@ -24,14 +40,7 @@ export default {
   /**
    * Filters holder
    *
-   * @enum {Function}
+   * @enum {Object.<Function>}
    */
-  filters: {},
-
-  /**
-   * Directives holder
-   *
-   * @type {Array<GalaxyDirective>}
-   */
-  directives: []
+  filters: {}
 }

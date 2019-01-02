@@ -122,8 +122,8 @@ export function setup (options) {
     throw new GalaxyError('You must include a `root` option')
   }
 
-  // Register root element
-  resolveElements([config.root])
+  // Register root element + additional elements
+  resolveElements([config.root, ...config.elements])
 }
 
 /**
