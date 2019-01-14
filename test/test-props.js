@@ -39,6 +39,13 @@ export default class TestProps extends GalaxyElement {
           <li>{{ cuber }}</li>
         </template>
       </ul>
+
+      <template *if="showTP">
+        <h2>Some title</h2>
+        <p>Some paragraph</p>
+      </template>
+
+      <button type="button" @click="showTP = !showTP">Toggle TP</button>
     `
   }
 
@@ -56,6 +63,7 @@ export default class TestProps extends GalaxyElement {
     this.colorIndex = 0
 
     this.state = {
+      showTP: true,
       showText: false,
       cubers: [
         'Feliks Zemdegs',

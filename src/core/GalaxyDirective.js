@@ -1,5 +1,5 @@
 import { compileExpression } from '../compiler/index.js'
-import { newIsolated, hyphenate } from '../utils/generic.js';
+import { newIsolated, hyphenate } from '../utils/generic.js'
 
 /**
  * Default directive options
