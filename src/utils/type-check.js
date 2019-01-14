@@ -22,6 +22,10 @@ export function isReserved (name) {
   return name.startsWith('$') || name.startsWith('_')
 }
 
+export function isPlaceholder (element) {
+  return element instanceof HTMLTemplateElement
+}
+
 export function isGalaxyElement (element) {
   return !!element.$galaxy
 }

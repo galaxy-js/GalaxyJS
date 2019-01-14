@@ -1,7 +1,7 @@
 import ElementRenderer from '../../renderers/element/Element.js'
 
 import { newIsolated } from '../../utils/generic.js'
-import { compileExpression } from '../../compiler/index.js'
+import { getIndexByFn } from './shared.js'
 
 export default class ItemRenderer extends ElementRenderer {
   constructor (template, renderer, isolated) {
@@ -12,13 +12,12 @@ export default class ItemRenderer extends ElementRenderer {
       newIsolated(renderer.isolated, isolated)
     )
 
+    this.by = getIndexByFn(this.element)
     this.reused = false
+  }
 
-    const indexBy = compileExpression(this.element.getAttribute('by'))
-
-    this.by = isolated => {
-      return indexBy(this.scope, newIsolated(this.isolated, isolated))
-    }
+  get children () {
+    return this.childrenRenderer.children
   }
 
   get key () {
@@ -26,7 +25,7 @@ export default class ItemRenderer extends ElementRenderer {
   }
 
   get next () {
-    return this.element.nextSibling
+    return (this.isPlaceholder ? this.children[this.children.length - 1] : this.element).nextSibling
   }
 
   update (isolated) {
@@ -35,11 +34,15 @@ export default class ItemRenderer extends ElementRenderer {
     Object.assign(this.isolated, isolated)
   }
 
-  insert (item) {
-    item.before(this.element)
+  insert (node) {
+    node.before(...(this.isPlaceholder ? this.children : [this.element]))
   }
 
   remove () {
-    this.element.remove()
+    if (this.isPlaceholder) {
+      this.children.forEach(child => child.remove())
+    } else {
+      this.element.remove()
+    }
   }
 }

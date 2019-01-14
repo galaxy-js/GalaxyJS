@@ -461,6 +461,10 @@
     return name.startsWith('$') || name.startsWith('_')
   }
 
+  function isPlaceholder (element) {
+    return element instanceof HTMLTemplateElement
+  }
+
   function isGalaxyElement (element) {
     return !!element.$galaxy
   }
@@ -811,6 +815,11 @@
       this.locals = Object.create(null);
 
       /**
+       *
+       */
+      this.isPlaceholder = isPlaceholder(element);
+
+      /**
        * Hold directives to digest
        */
       this.directives = [];
@@ -1036,7 +1045,7 @@
       /**
        * Resolve children rendering
        */
-      this.childrenRenderer = new ChildrenRenderer(element.childNodes, scope, this.isolated);
+      this.childrenRenderer = new ChildrenRenderer((this.isPlaceholder ? element.content : element).childNodes, scope, this.isolated);
     }
 
     get isRenderable () {
@@ -1058,11 +1067,26 @@
       super.render();
 
       // Render correctly on conditional flow
-      if (this.element.isConnected) {
+      if (this.isPlaceholder || this.element.isConnected) {
 
         // Render children
         this.childrenRenderer.render();
       }
+    }
+  }
+
+  /**
+   * Get an `indexBy` function from a given element
+   *
+   * @param {HTMLElement} element
+   *
+   * @return {Function}
+   */
+  function getIndexByFn (element) {
+    const indexBy = compileExpression(element.getAttribute('by'));
+
+    return function (isolated) {
+      return indexBy(this.scope, newIsolated(this.isolated, isolated))
     }
   }
 
@@ -1075,13 +1099,12 @@
         newIsolated(renderer.isolated, isolated)
       );
 
+      this.by = getIndexByFn(this.element);
       this.reused = false;
+    }
 
-      const indexBy = compileExpression(this.element.getAttribute('by'));
-
-      this.by = isolated => {
-        return indexBy(this.scope, newIsolated(this.isolated, isolated))
-      };
+    get children () {
+      return this.childrenRenderer.children
     }
 
     get key () {
@@ -1089,7 +1112,7 @@
     }
 
     get next () {
-      return this.element.nextSibling
+      return (this.isPlaceholder ? this.children[this.children.length - 1] : this.element).nextSibling
     }
 
     update (isolated) {
@@ -1098,12 +1121,16 @@
       Object.assign(this.isolated, isolated);
     }
 
-    insert (item) {
-      item.before(this.element);
+    insert (node) {
+      node.before(...(this.isPlaceholder ? this.children : [this.element]));
     }
 
     remove () {
-      this.element.remove();
+      if (this.isPlaceholder) {
+        this.children.forEach(child => child.remove());
+      } else {
+        this.element.remove();
+      }
     }
   }
 
@@ -1261,7 +1288,7 @@
           if (LoopRenderer.is(child)) {
             this.renderers.push(new LoopRenderer(child, this));
           } else {
-            const element = new (child.childNodes.length ? ElementRenderer : VoidRenderer)(child, this.scope, this.isolated);
+            const element = new ((isPlaceholder(child) ? child.content : child).childNodes.length ? ElementRenderer : VoidRenderer)(child, this.scope, this.isolated);
 
             // Only consider a render element if its childs
             // or attributes has something to bind/update

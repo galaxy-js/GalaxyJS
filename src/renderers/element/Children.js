@@ -4,7 +4,7 @@ import VoidRenderer from './Void.js'
 
 import LoopDirective from '../loop/Loop.js'
 
-import { isTextNode, isElementNode } from '../../utils/type-check.js'
+import { isTextNode, isElementNode, isPlaceholder } from '../../utils/type-check.js'
 import { flatChildren } from '../../utils/generic.js'
 
 export default class ChildrenRenderer {
@@ -36,7 +36,7 @@ export default class ChildrenRenderer {
         if (LoopDirective.is(child)) {
           this.renderers.push(new LoopDirective(child, this))
         } else {
-          const element = new (child.childNodes.length ? ElementRenderer : VoidRenderer)(child, this.scope, this.isolated)
+          const element = new ((isPlaceholder(child) ? child.content : child).childNodes.length ? ElementRenderer : VoidRenderer)(child, this.scope, this.isolated)
 
           // Only consider a render element if its childs
           // or attributes has something to bind/update

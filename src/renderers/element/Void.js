@@ -2,6 +2,8 @@ import config from '../../config.js'
 
 import TemplateRenderer from '../Template.js'
 
+import { isPlaceholder } from '../../utils/type-check.js'
+
 /**
  * Renderer for void elements or elements without childs like:
  */
@@ -30,6 +32,11 @@ export default class VoidRenderer {
      *
      */
     this.locals = Object.create(null)
+
+    /**
+     *
+     */
+    this.isPlaceholder = isPlaceholder(element)
 
     /**
      * Hold directives to digest

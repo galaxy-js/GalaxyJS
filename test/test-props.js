@@ -32,6 +32,13 @@ export default class TestProps extends GalaxyElement {
 
       <input @change="#showDate()" *bind.date="date" type="date">
       <input @change="#showNumber()" *bind.number="number" type="number">
+
+      <ul>
+        <template *for="cuber of cubers" by="cuber">
+          <li>----------------</li>
+          <li>{{ cuber }}</li>
+        </template>
+      </ul>
     `
   }
 
@@ -50,6 +57,12 @@ export default class TestProps extends GalaxyElement {
 
     this.state = {
       showText: false,
+      cubers: [
+        'Feliks Zemdegs',
+        'Patrick Ponce',
+        'Mats Valk',
+        'Max Park'
+      ],
       color: this.colors[this.colorIndex],
       fruits: ['apple', 'strawberry', 'lemon'],
       fruit: null,
@@ -58,6 +71,12 @@ export default class TestProps extends GalaxyElement {
       date: new Date(),
       number: 10
     }
+
+    setTimeout(() => {
+      this.state.cubers.sort()
+
+      console.log('Cubers:', this.state.cubers)
+    }, 1000)
   }
 
   onCreated () {

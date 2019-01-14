@@ -10,7 +10,7 @@ export default class ElementRenderer extends VoidRenderer {
     /**
      * Resolve children rendering
      */
-    this.childrenRenderer = new ChildrenRenderer(element.childNodes, scope, this.isolated)
+    this.childrenRenderer = new ChildrenRenderer((this.isPlaceholder ? element.content : element).childNodes, scope, this.isolated)
   }
 
   get isRenderable () {
@@ -32,7 +32,7 @@ export default class ElementRenderer extends VoidRenderer {
     super.render()
 
     // Render correctly on conditional flow
-    if (this.element.isConnected) {
+    if (this.isPlaceholder || this.element.isConnected) {
 
       // Render children
       this.childrenRenderer.render()
