@@ -1,6 +1,6 @@
 import config from './config.js'
 
-import { extend as extendElement } from './core/GalaxyElement.js'
+import { extend } from './core/GalaxyElement.js'
 
 import GalaxyError, { galaxyError } from './errors/GalaxyError.js'
 
@@ -23,9 +23,9 @@ import SelectDirective from './directives/model/Select.js'
 
 export { default as GalaxyDirective } from './core/GalaxyDirective.js'
 export { default as GalaxyPlugin, withCachedInstance } from './core/GalaxyPlugin.js'
-export { config }
+export { config, extend }
 
-export const GalaxyElement = extendElement(HTMLElement)
+export const GalaxyElement = extend(HTMLElement)
 
 /**
  * Generates a new template
@@ -55,23 +55,6 @@ export function css (...args) {
 }
 
 /**
- * Extend built-in element and perform plugins installation
- *
- * @param {HTMLElement.constructor} BuiltInElement
- *
- * @return {GalaxyElement}
- */
-export function extend (BuiltInElement) {
-  const GalaxyElement = extendElement(BuiltInElement)
-
-  if (config.plugins) {
-    installPlugins(GalaxyElement, config.plugins)
-  }
-
-  return GalaxyElement
-}
-
-/**
  * Initialize galaxy
  *
  * @param {Object} options
@@ -88,9 +71,6 @@ export function setup (options) {
 
       // Perform plugin initialization
       GalaxyPlugin.init(config)
-
-      // Install first customized element
-      GalaxyPlugin.install(GalaxyElement)
     }
   }
 
@@ -123,7 +103,7 @@ export function setup (options) {
   }
 
   // Register root element + additional elements
-  resolveElements([config.root, ...config.elements])
+  resolveElements([config.root, ...config.elements], config.plugins)
 }
 
 /**
@@ -144,22 +124,22 @@ function template (tag, ...args) {
 }
 
 /**
- * Register GalaxyElements recursively
+ * Register GalaxyElements recursively.
+ * Also perform plugin installation
  *
  * @param {Array<GalaxyElement>} elements
+ * @param {Array<GalaxyPlugin>} plugins
  *
  * @return void
  * @private
  */
-function resolveElements (elements) {
+function resolveElements (elements, plugins) {
   const definitions = []
 
   for (const GalaxyElement of elements) {
 
     // Skip resolved elements
     if (GalaxyElement.resolved) continue
-
-    let childrenDefinitions = []
 
     const elementOptions = {}
     const name = GalaxyElement.is
@@ -172,20 +152,19 @@ function resolveElements (elements) {
       throw new GalaxyError('Extended customized built-in elements must have an `extends` property')
     }
 
-    // Resolve inner elements before resolve this
-    if (Array.isArray(GalaxyElement.children)) {
-      childrenDefinitions = resolveElements(GalaxyElement.children)
-    }
-
     try {
       definitions.push(customElements.whenDefined(name))
 
-      // Mark element as resolved
-      GalaxyElement.resolved = true
+      // Install plugins before resolving
+      installPlugins(GalaxyElement, plugins)
 
       Promise
-        .all(childrenDefinitions)
+        // Resolve inner elements before resolve the wrapper element
+        .all(resolveElements(GalaxyElement.children, plugins))
         .then(() => { customElements.define(name, GalaxyElement, elementOptions) })
+
+      // Mark element as resolved
+      GalaxyElement.resolved = true
     } catch (e) {
       throw galaxyError(e)
     }
@@ -197,8 +176,8 @@ function resolveElements (elements) {
 /**
  * Perform plugins installation
  *
- * @param {GalaxyElement.constructor} GalaxyElement
- * @param {Object} config
+ * @param {GalaxyElement} GalaxyElement
+ * @param {Array<GalaxyPlugin>} plugins
  *
  * @return void
  */

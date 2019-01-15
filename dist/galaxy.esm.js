@@ -1476,6 +1476,13 @@ function extend (SuperElement) {
     static get is () { return hyphenate(this.name) }
     get $name () { return this.constructor.is }
 
+    /**
+     * Children GalaxyElement definitions
+     */
+    static get children () {
+      return []
+    }
+
     constructor () {
       super();
 
@@ -2366,23 +2373,6 @@ function css (...args) {
 }
 
 /**
- * Extend built-in element and perform plugins installation
- *
- * @param {HTMLElement.constructor} BuiltInElement
- *
- * @return {GalaxyElement}
- */
-function extend$1 (BuiltInElement) {
-  const GalaxyElement = extend(BuiltInElement);
-
-  if (config.plugins) {
-    installPlugins(GalaxyElement, config.plugins);
-  }
-
-  return GalaxyElement
-}
-
-/**
  * Initialize galaxy
  *
  * @param {Object} options
@@ -2399,9 +2389,6 @@ function setup (options) {
 
       // Perform plugin initialization
       GalaxyPlugin.init(config);
-
-      // Install first customized element
-      GalaxyPlugin.install(GalaxyElement);
     }
   }
 
@@ -2434,7 +2421,7 @@ function setup (options) {
   }
 
   // Register root element + additional elements
-  resolveElements([config.root, ...config.elements]);
+  resolveElements([config.root, ...config.elements], config.plugins);
 }
 
 /**
@@ -2455,22 +2442,22 @@ function template (tag, ...args) {
 }
 
 /**
- * Register GalaxyElements recursively
+ * Register GalaxyElements recursively.
+ * Also perform plugin installation
  *
  * @param {Array<GalaxyElement>} elements
+ * @param {Array<GalaxyPlugin>} plugins
  *
  * @return void
  * @private
  */
-function resolveElements (elements) {
+function resolveElements (elements, plugins) {
   const definitions = [];
 
   for (const GalaxyElement of elements) {
 
     // Skip resolved elements
     if (GalaxyElement.resolved) continue
-
-    let childrenDefinitions = [];
 
     const elementOptions = {};
     const name = GalaxyElement.is;
@@ -2483,20 +2470,19 @@ function resolveElements (elements) {
       throw new GalaxyError('Extended customized built-in elements must have an `extends` property')
     }
 
-    // Resolve inner elements before resolve this
-    if (Array.isArray(GalaxyElement.children)) {
-      childrenDefinitions = resolveElements(GalaxyElement.children);
-    }
-
     try {
       definitions.push(customElements.whenDefined(name));
 
-      // Mark element as resolved
-      GalaxyElement.resolved = true;
+      // Install plugins before resolving
+      installPlugins(GalaxyElement, plugins);
 
       Promise
-        .all(childrenDefinitions)
+        // Resolve inner elements before resolve the wrapper element
+        .all(resolveElements(GalaxyElement.children, plugins))
         .then(() => { customElements.define(name, GalaxyElement, elementOptions); });
+
+      // Mark element as resolved
+      GalaxyElement.resolved = true;
     } catch (e) {
       throw galaxyError(e)
     }
@@ -2508,8 +2494,8 @@ function resolveElements (elements) {
 /**
  * Perform plugins installation
  *
- * @param {GalaxyElement.constructor} GalaxyElement
- * @param {Object} config
+ * @param {GalaxyElement} GalaxyElement
+ * @param {Array<GalaxyPlugin>} plugins
  *
  * @return void
  */
@@ -2519,4 +2505,4 @@ function installPlugins (GalaxyElement, plugins) {
   }
 }
 
-export { config, GalaxyElement, html, css, extend$1 as extend, setup, GalaxyDirective, GalaxyPlugin, withCachedInstance };
+export { config, extend, GalaxyElement, html, css, setup, GalaxyDirective, GalaxyPlugin, withCachedInstance };

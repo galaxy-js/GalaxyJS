@@ -8,7 +8,7 @@ class SayHelloPlugin extends Galaxy.GalaxyPlugin {
   }
 
   static install (GalaxyElement) {
-    console.log('Installing on:', GalaxyElement)
+    console.log('Installing on:', GalaxyElement.is)
   }
 }
 

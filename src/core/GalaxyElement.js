@@ -71,6 +71,13 @@ export function extend (SuperElement) {
     static get is () { return hyphenate(this.name) }
     get $name () { return this.constructor.is }
 
+    /**
+     * Children GalaxyElement definitions
+     */
+    static get children () {
+      return []
+    }
+
     constructor () {
       super()
 
