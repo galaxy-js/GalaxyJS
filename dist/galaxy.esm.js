@@ -1922,7 +1922,6 @@ class ConditionalDirective extends GalaxyDirective {
       !isConnected && (transitionType = 'enter');
     } else if (isConnected) {
       transitionType = 'leave';
-      this.$element.replaceWith(this.anchor);
     }
 
     if (transitionType) {
