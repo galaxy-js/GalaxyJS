@@ -1,6 +1,6 @@
 import ElementRenderer from '../../renderers/element/Element.js'
 
-import { newIsolated } from '../../utils/generic.js'
+import { newIsolated, dispatchTransitionEvent } from '../../utils/generic.js'
 import { getIndexByFn } from './shared.js'
 
 export default class ItemRenderer extends ElementRenderer {
@@ -34,15 +34,39 @@ export default class ItemRenderer extends ElementRenderer {
     Object.assign(this.isolated, isolated)
   }
 
-  insert (node) {
-    node.before(...(this.isPlaceholder ? this.children : [this.element]))
+  insert (node, transitionType = 'enter', withTransition = true) {
+    if (!this.isPlaceholder) {
+      const performInsert = () => node.before(this.element)
+
+      return withTransition
+        ? this._dispatchTransitionEvent(transitionType, this.element, performInsert)
+        : performInsert()
+    }
+
+    const performInsert = child => node.before(child)
+
+    this.children.forEach(child => {
+      if (withTransition) {
+        this._dispatchTransitionEvent(transitionType, this.element, () => performInsert(child))
+      } else {
+        performInsert(child)
+      }
+    })
   }
 
   remove () {
     if (this.isPlaceholder) {
-      this.children.forEach(child => child.remove())
-    } else {
-      this.element.remove()
+      return this.children.forEach(child => {
+        this._dispatchTransitionEvent('leave', this.element, () => child.remove())
+      })
     }
+
+    this._dispatchTransitionEvent('leave', this.element, () => {
+      this.element.remove()
+    })
+  }
+
+  _dispatchTransitionEvent (type, target, transitionCb) {
+    dispatchTransitionEvent(this.element, `for:${type}`, target, transitionCb)
   }
 }

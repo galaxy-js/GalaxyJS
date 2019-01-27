@@ -884,6 +884,75 @@ var escapeStringRegexp = function (str) {
 	return str.replace(matchOperatorsRe, '\\$&');
 };
 
+class ElementTransitionEvent extends Event {
+  constructor (type, init) {
+    super(type, init);
+
+    /**
+     * Element where the transition gets dispatched
+     *
+     * @type {HTMLElement}
+     */
+    this.$target = init.target;
+
+    /**
+     * Transition stopped?
+     *
+     * @type {boolean}
+     */
+    this.$stopped = false;
+
+    /**
+     * Transition performed?
+     *
+     * @type {boolean}
+     */
+    this.$performed = false;
+
+    /**
+     * Callback for transitions
+     *
+     * @type {Function}
+     * @private
+     */
+    this._transitionCb = init.transitionCb;
+  }
+
+  /**
+   * Custom `preventDefault`-like fn
+   *
+   * @return void
+   */
+  stop () {
+    if (this.$performed) return
+
+    this.$stopped = true;
+  }
+
+  /**
+   * Allow transition perform
+   */
+  play () {
+    if (this.$performed) return
+
+    this.$stopped = false;
+  }
+
+  /**
+   * Perform transition
+   *
+   * @return void
+   */
+  perform () {
+    if (this.$stopped || this.$performed) return
+
+    this.$stopped = false;
+    this.$performed = true;
+
+    this._transitionCb();
+  }
+}
+
 const same = value => value;
 
 const HYPHEN_REGEX = /-([a-z0-9])/gi;
@@ -1032,6 +1101,18 @@ function mergeEventHandlers (handlers) {
   }
 }
 
+function dispatchTransitionEvent (source, type, target, transitionCb) {
+  const transitionEvent = new ElementTransitionEvent(type, {
+    target,
+    transitionCb
+  });
+
+  source.dispatchEvent(transitionEvent);
+
+  // Perform transition (waiting for non-stopped transition)
+  transitionEvent.perform();
+}
+
 class ElementRenderer extends VoidRenderer {
   constructor (element, scope, isolated) {
     super(element, scope, newIsolated(isolated));
@@ -1115,16 +1196,40 @@ class ItemRenderer extends ElementRenderer {
     Object.assign(this.isolated, isolated);
   }
 
-  insert (node) {
-    node.before(...(this.isPlaceholder ? this.children : [this.element]));
+  insert (node, transitionType = 'enter', withTransition = true) {
+    if (!this.isPlaceholder) {
+      const performInsert = () => node.before(this.element);
+
+      return withTransition
+        ? this._dispatchTransitionEvent(transitionType, this.element, performInsert)
+        : performInsert()
+    }
+
+    const performInsert = child => node.before(child);
+
+    this.children.forEach(child => {
+      if (withTransition) {
+        this._dispatchTransitionEvent(transitionType, this.element, () => performInsert(child));
+      } else {
+        performInsert(child);
+      }
+    });
   }
 
   remove () {
     if (this.isPlaceholder) {
-      this.children.forEach(child => child.remove());
-    } else {
-      this.element.remove();
+      return this.children.forEach(child => {
+        this._dispatchTransitionEvent('leave', this.element, () => child.remove());
+      })
     }
+
+    this._dispatchTransitionEvent('leave', this.element, () => {
+      this.element.remove();
+    });
+  }
+
+  _dispatchTransitionEvent (type, target, transitionCb) {
+    dispatchTransitionEvent(this.element, `for:${type}`, target, transitionCb);
   }
 }
 
@@ -1218,9 +1323,11 @@ class LoopRenderer {
           const newItem = this.values.get(newKey);
           const from = newItem.next;
 
-          // Swap elements
-          newItem.insert(item.next);
-          item.insert(from);
+          // Dispatch move transition
+          newItem.insert(item.next, 'move');
+
+          // Avoid dispatching transition for reference items
+          item.insert(from, null, false);
 
           // Swap items
           this.items[this.items.indexOf(newItem)] = item;
@@ -1784,75 +1891,6 @@ GalaxyDirective._match = function (name) {
   return match && match.groups
 };
 
-class ElementTransitionEvent extends Event {
-  constructor (type, init) {
-    super(type, init);
-
-    /**
-     * Element where the transition gets dispatched
-     *
-     * @type {HTMLElement}
-     */
-    this.$target = init.target;
-
-    /**
-     * Transition stopped?
-     *
-     * @type {boolean}
-     */
-    this.$stopped = false;
-
-    /**
-     * Transition performed?
-     *
-     * @type {boolean}
-     */
-    this.$performed = false;
-
-    /**
-     * Callback for transitions
-     *
-     * @type {Function}
-     * @private
-     */
-    this._transitionCb = init.transitionCb;
-  }
-
-  /**
-   * Custom `preventDefault`-like fn
-   *
-   * @return void
-   */
-  stop () {
-    if (this.$performed) return
-
-    this.$stopped = true;
-  }
-
-  /**
-   * Allow transition perform
-   */
-  play () {
-    if (this.$performed) return
-
-    this.$stopped = false;
-  }
-
-  /**
-   * Perform transition
-   *
-   * @return void
-   */
-  perform () {
-    if (this.$stopped || this.$performed) return
-
-    this.$stopped = false;
-    this.$performed = true;
-
-    this._transitionCb();
-  }
-}
-
 class ConditionalDirective extends GalaxyDirective {
   static get is () {
     return '*if'
@@ -1935,15 +1973,7 @@ class ConditionalDirective extends GalaxyDirective {
   }
 
   _dispatchTransitionEvent (type, target, transitionCb) {
-    const transitionEvent = new ElementTransitionEvent(`if:${type}`, {
-      target,
-      transitionCb
-    });
-
-    this.$element.dispatchEvent(transitionEvent);
-
-    // Perform transition (waiting for non-stopped transition)
-    transitionEvent.perform();
+    dispatchTransitionEvent(this.$element, `if:${type}`, target, transitionCb);
   }
 }
 

@@ -1,10 +1,11 @@
 import config from '../config.js'
 
 import nextTick from 'next-tick'
+import escapeRegex from 'escape-string-regexp'
+
+import ElementTransitionEvent from '../events/ElementTransition.js'
 
 import { isFunction } from './type-check.js'
-
-import escapeRegex from 'escape-string-regexp'
 
 const same = value => value
 
@@ -156,4 +157,16 @@ export function mergeEventHandlers (handlers) {
 
     next(...args)
   }
+}
+
+export function dispatchTransitionEvent (source, type, target, transitionCb) {
+  const transitionEvent = new ElementTransitionEvent(type, {
+    target,
+    transitionCb
+  })
+
+  source.dispatchEvent(transitionEvent)
+
+  // Perform transition (waiting for non-stopped transition)
+  transitionEvent.perform()
 }

@@ -1,9 +1,7 @@
 import GalaxyDirective from '../core/GalaxyDirective.js'
 
-import ElementTransitionEvent from '../events/ElementTransition.js'
-
 import GalaxyError from '../errors/GalaxyError.js'
-import { createAnchor } from '../utils/generic.js'
+import { createAnchor, dispatchTransitionEvent } from '../utils/generic.js'
 
 export default class ConditionalDirective extends GalaxyDirective {
   static get is () {
@@ -87,14 +85,6 @@ export default class ConditionalDirective extends GalaxyDirective {
   }
 
   _dispatchTransitionEvent (type, target, transitionCb) {
-    const transitionEvent = new ElementTransitionEvent(`if:${type}`, {
-      target,
-      transitionCb
-    })
-
-    this.$element.dispatchEvent(transitionEvent)
-
-    // Perform transition (waiting for non-stopped transition)
-    transitionEvent.perform()
+    dispatchTransitionEvent(this.$element, `if:${type}`, target, transitionCb)
   }
 }

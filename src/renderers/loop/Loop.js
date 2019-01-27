@@ -95,9 +95,11 @@ export default class LoopRenderer {
           const newItem = this.values.get(newKey)
           const from = newItem.next
 
-          // Swap elements
-          newItem.insert(item.next)
-          item.insert(from)
+          // Dispatch move transition
+          newItem.insert(item.next, 'move')
+
+          // Avoid dispatching transition for reference items
+          item.insert(from, null, false)
 
           // Swap items
           this.items[this.items.indexOf(newItem)] = item

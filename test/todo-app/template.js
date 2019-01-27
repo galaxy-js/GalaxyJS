@@ -2,7 +2,7 @@ import { html } from '../../dist/galaxy.esm.js'
 
 export default html`
   <style>
-  :host .tomato {
+    :host .tomato {
       background: tomato;
     }
   </style>
@@ -12,7 +12,10 @@ export default html`
 
   <ul>
     <li>Wrapped (Start)</li>
-    <li *for="todo in todos" by="todo">
+    <li *for="todo in todos" by="todo"
+      @for:enter="console.log('Enter item:', $event)"
+      @for:leave="console.log('Leave item:', $event)"
+      @for:move="console.log('Move item:', $event)">
       {{ todo.name }}
       <input id="done-{{ $index }}" type="checkbox" *bind="todo.done" @change="showStatus()">
       <button @click="#removeTodo(todo)">&times;</button>
