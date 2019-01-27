@@ -899,7 +899,7 @@
 
   function compileMatcher (name) {
     name = escapeStringRegexp(name);
-    const capture = name.replace(NAME_WILDCARD_DIRECTIVE, getWildcardCapture('[\\w-]+'));
+    const capture = name.replace(NAME_WILDCARD_DIRECTIVE, getWildcardCapture('[:\\w-]+'));
 
     return new RegExp(`^${capture === name ? getWildcardCapture(name) : capture}(?:.(?<args>.+))?$`)
   }
@@ -1790,6 +1790,75 @@
     return match && match.groups
   };
 
+  class ElementTransitionEvent extends Event {
+    constructor (type, init) {
+      super(type, init);
+
+      /**
+       * Element where the transition gets dispatched
+       *
+       * @type {HTMLElement}
+       */
+      this.$target = init.target;
+
+      /**
+       * Transition stopped?
+       *
+       * @type {boolean}
+       */
+      this.$stopped = false;
+
+      /**
+       * Transition performed?
+       *
+       * @type {boolean}
+       */
+      this.$performed = false;
+
+      /**
+       * Callback for transitions
+       *
+       * @type {Function}
+       * @private
+       */
+      this._transitionCb = init.transitionCb;
+    }
+
+    /**
+     * Custom `preventDefault`-like fn
+     *
+     * @return void
+     */
+    stop () {
+      if (this.$performed) return
+
+      this.$stopped = true;
+    }
+
+    /**
+     * Allow transition perform
+     */
+    play () {
+      if (this.$performed) return
+
+      this.$stopped = false;
+    }
+
+    /**
+     * Perform transition
+     *
+     * @return void
+     */
+    perform () {
+      if (this.$stopped || this.$performed) return
+
+      this.$stopped = false;
+      this.$performed = true;
+
+      this._transitionCb();
+    }
+  }
+
   class ConditionalDirective extends GalaxyDirective {
     static get is () {
       return '*if'
@@ -1813,18 +1882,28 @@
     }
 
     _renderSingle () {
-      // TODO: Add hooks for future transitions
-
       const { isConnected } = this.$element;
 
+      let transitionType;
+
       if (this.$getter()) {
-        !isConnected && this.anchor.replaceWith(this.$element);
+        !isConnected && (transitionType = 'enter');
       } else if (isConnected) {
+        transitionType = 'leave';
         this.$element.replaceWith(this.anchor);
+      }
+
+      if (transitionType) {
+        this._dispatchTransitionEvent(transitionType, this.$element, () => {
+          const isLeave = transitionType === 'leave';
+          this[isLeave ? '$element' : 'anchor'].replaceWith(this[isLeave ? 'anchor' : '$element']);
+        });
       }
     }
 
     _firstRenderMultiple () {
+
+      // Replace placeholder with its anchor
       this.$element.replaceWith(this.anchor);
 
       if (this.$getter()) {
@@ -1839,13 +1918,38 @@
         this._appendChildren();
       } else {
         for (const child of this.children) {
-          child.remove();
+          if (child.isConnected) {
+            this._dispatchTransitionEvent('leave', child, () => child.remove());
+          }
         }
       }
     }
 
     _appendChildren () {
-      this.anchor.after(...this.children);
+      let index = this.children.length;
+      const { parentNode } = this.anchor;
+
+      while (index--) {
+        const child = this.children[index];
+
+        if (!child.isConnected) {
+          this._dispatchTransitionEvent('enter', child, () => {
+            parentNode.insertBefore(child, this.anchor.nextSibling);
+          });
+        }
+      }
+    }
+
+    _dispatchTransitionEvent (type, target, transitionCb) {
+      const transitionEvent = new ElementTransitionEvent(`if:${type}`, {
+        target,
+        transitionCb
+      });
+
+      this.$element.dispatchEvent(transitionEvent);
+
+      // Perform transition (waiting for non-stopped transition)
+      transitionEvent.perform();
     }
   }
 

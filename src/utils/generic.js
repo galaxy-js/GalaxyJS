@@ -15,7 +15,7 @@ const NAME_WILDCARD_DIRECTIVE = '<name>'
 
 export function compileMatcher (name) {
   name = escapeRegex(name)
-  const capture = name.replace(NAME_WILDCARD_DIRECTIVE, getWildcardCapture('[\\w-]+'))
+  const capture = name.replace(NAME_WILDCARD_DIRECTIVE, getWildcardCapture('[:\\w-]+'))
 
   return new RegExp(`^${capture === name ? getWildcardCapture(name) : capture}(?:.(?<args>.+))?$`)
 }

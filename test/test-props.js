@@ -25,7 +25,7 @@ export default class TestProps extends GalaxyElement {
 
       <div>
         <br>
-        <span *if="showText">Some text</span>
+        <span *if="showText" @if:enter="console.log('Enter transition:', $event)" @if:leave="console.log('Leave transition:', $event)">Some text</span>
         <br>
         <button @click="showText = !showText">Toggle text</button>
       </div>
@@ -40,7 +40,7 @@ export default class TestProps extends GalaxyElement {
         </template>
       </ul>
 
-      <template *if="showTP">
+      <template *if="showTP" @if:enter="console.log('Enter transition:', $event)" @if:leave="console.log('Leave transition:', $event)">
         <h2>Some title</h2>
         <p>Some paragraph</p>
       </template>

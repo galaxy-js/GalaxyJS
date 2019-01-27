@@ -1,5 +1,7 @@
 import GalaxyDirective from '../core/GalaxyDirective.js'
 
+import ElementTransitionEvent from '../events/ElementTransition.js'
+
 import GalaxyError from '../errors/GalaxyError.js'
 import { createAnchor } from '../utils/generic.js'
 
@@ -26,18 +28,28 @@ export default class ConditionalDirective extends GalaxyDirective {
   }
 
   _renderSingle () {
-    // TODO: Add hooks for future transitions
-
     const { isConnected } = this.$element
 
+    let transitionType
+
     if (this.$getter()) {
-      !isConnected && this.anchor.replaceWith(this.$element)
+      !isConnected && (transitionType = 'enter')
     } else if (isConnected) {
+      transitionType = 'leave'
       this.$element.replaceWith(this.anchor)
+    }
+
+    if (transitionType) {
+      this._dispatchTransitionEvent(transitionType, this.$element, () => {
+        const isLeave = transitionType === 'leave'
+        this[isLeave ? '$element' : 'anchor'].replaceWith(this[isLeave ? 'anchor' : '$element'])
+      })
     }
   }
 
   _firstRenderMultiple () {
+
+    // Replace placeholder with its anchor
     this.$element.replaceWith(this.anchor)
 
     if (this.$getter()) {
@@ -52,12 +64,37 @@ export default class ConditionalDirective extends GalaxyDirective {
       this._appendChildren()
     } else {
       for (const child of this.children) {
-        child.remove()
+        if (child.isConnected) {
+          this._dispatchTransitionEvent('leave', child, () => child.remove())
+        }
       }
     }
   }
 
   _appendChildren () {
-    this.anchor.after(...this.children)
+    let index = this.children.length
+    const { parentNode } = this.anchor
+
+    while (index--) {
+      const child = this.children[index]
+
+      if (!child.isConnected) {
+        this._dispatchTransitionEvent('enter', child, () => {
+          parentNode.insertBefore(child, this.anchor.nextSibling)
+        })
+      }
+    }
+  }
+
+  _dispatchTransitionEvent (type, target, transitionCb) {
+    const transitionEvent = new ElementTransitionEvent(`if:${type}`, {
+      target,
+      transitionCb
+    })
+
+    this.$element.dispatchEvent(transitionEvent)
+
+    // Perform transition (waiting for non-stopped transition)
+    transitionEvent.perform()
   }
 }
