@@ -47,7 +47,7 @@ export default class StyleDirective extends BindingDirective {
 
       if (this.styles[rule] !== value) {
         const { prop, unit } = StyleDirective.parseRule(rule)
-        $styles.set(prop, unit ? CSS[unit](value) : value)
+        $styles[value ? 'set' : 'delete'](prop, unit ? CSS[unit](value) : value)
       }
     }
 
