@@ -595,11 +595,15 @@
    *
    * @type {RegExp}
    */
-  const METHOD_REGEX = /#(?<name>\w+)\(/g;
+  const METHOD_REGEX = /#(?<name>\w+)\(/;
 
   /**
    * Rewrite a given `expression` by intercepting
-   * functions calls passing the `state` as first argument
+   * function calls passing the `state` as first argument
+   *
+   * @example
+   *
+   *   rewriteMethods('#rad(a, b) + multiply(d, f)') // rewrites to -> $commit('rad', a, b) + multiply(d, f)
    *
    * @param {string} expression - JavaScript expression to be rewritten
    *
@@ -607,9 +611,9 @@
    */
   function rewriteMethods (expression) {
     let match;
-    let rewrited = expression;
+    let rewritten = '';
 
-    while (match = METHOD_REGEX.exec(expression)) {
+    while (match = expression.match(METHOD_REGEX)) {
       const { index, groups } = match;
 
       const start = index + match[0].length;
@@ -638,15 +642,14 @@
       // Get arguments
       const args = expression.slice(start, cursor - 1 /* skip parenthesis */);
 
-      rewrited = rewrited.replace(
-        expression.slice(index, cursor),
+      // Intercept method call with $commit
+      rewritten += expression.slice(0, index) + `$commit('${groups.name}'${args ? `, ${rewriteMethods(args)}` : ''})`;
 
-        // Intercept method call with $commit
-        `$commit('${groups.name}'${args ? `, ${args}` : ''})`
-      );
+      // Skip rewritten
+      expression = expression.slice(cursor);
     }
 
-    return rewrited
+    return rewritten + expression // <- Left expression
   }
 
   /**
