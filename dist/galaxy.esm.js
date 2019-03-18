@@ -499,92 +499,6 @@ var global$1 = {
 }
 
 /**
- * Match filters to split within a template interpolation
- *
- * @type {RegExp}
- */
-const FILTER_SPLIT_REGEX = /(?<!\|)\|(?!\|)/;
-
-/**
- * @type {RegExp}
- */
-const FILTER_REGEX = /^(?<name>\w+)(?:\((?<args>.*)\))?$/;
-
-/**
- * Get filter expression
- *
- * @param {string} expression
- *
- * @return {string}
- */
-function getFilterExpression (expression) {
-  const parts = expression.split(FILTER_SPLIT_REGEX);
-
-  return parts.length > 1
-    ? `_$f(${parts[0]}, [${getDescriptors(parts.slice(1)).join()}])`
-    : expression
-}
-
-/**
- * Get filter descriptors
- *
- * @param {Array.<string>} filters
- *
- * @return {Array.<string>}
- */
-function getDescriptors (filters) {
-  return filters.map(filter => {
-    const { groups } = FILTER_REGEX.exec(filter.trim());
-
-    // Compose filter applier
-    return `{
-      name: '${groups.name}',
-      args: ${groups.args ? `[${groups.args}]` : 'null'}
-    }`
-  })
-}
-
-/**
- * Match text template interpolation
- *
- * @type {RegExp}
- */
-const TEXT_TEMPLATE_REGEX = /{{(?<expression>.*?)}}/;
-
-/**
- * Get an inlined JavaScript expression
- *
- * @param {string} template - String with interpolation tags
- *
- * @return {string}
- */
-function getTemplateExpression (template) {
-  let match;
-
-  // Hold inlined expressions
-  const expressions = [];
-
-  while (match = TEXT_TEMPLATE_REGEX.exec(template)) {
-    const rawLeft = template.slice(0, match.index);
-    let expression = match.groups.expression.trim();
-
-    // Push wrapped left context
-    if (rawLeft) expressions.push(`\`${rawLeft}\``);
-
-    // TODO: Throw an error on empty template expressions
-    // Push isolated expression itself
-    if (expression) expressions.push(`_$n(${getFilterExpression(expression)})`);
-
-    template = template.slice(match.index + match[0].length);
-  }
-
-  // Push residual template expression
-  if (template) expressions.push(`\`${template}\``);
-
-  return expressions.join(' + ')
-}
-
-/**
  * Intercept expression chars to rewrite/process a given input
  *
  * @example
@@ -670,6 +584,111 @@ function galaxyError ({ message, stack }) {
   galaxyError.stack = stack;
 
   return galaxyError
+}
+
+/**
+ * Match filter
+ *
+ * @type {RegExp}
+ */
+const FILTER_REGEX = /^(?<name>\w+)(?:\((?<args>.*)\))?$/;
+
+/**
+ * Get filter expression
+ *
+ * @param {string} expression
+ *
+ * @return {string}
+ */
+function getFilterExpression (expression) {
+  const parts = [];
+
+  let start = 0;
+
+  // Skips `|` and `>` tokens
+  const SKIP_FILTER_TOKEN = 2;
+
+  analyzer(expression, state => {
+    if (state.is(0x3e/* > */) && state.previous === 0x7c/* | */) {
+      parts.push(expression.slice(start, (start = state.cursor + 1) - SKIP_FILTER_TOKEN));
+    }
+  });
+
+  const last = expression.slice(start);
+
+  if (!last.trim().length) {
+    throw new GalaxyError(`Unexpected end of expression filter: ${expression}`)
+  }
+
+  return parts.length
+    ? `_$f(${parts[0]}, [${getDescriptors(parts.slice(1).concat(last)).join()}])`
+    : expression
+}
+
+/**
+ * Get filter descriptors
+ *
+ * @param {Array.<string>} filters
+ *
+ * @return {Array.<string>}
+ */
+function getDescriptors (filters) {
+  return filters.map(filter => {
+    filter = filter.trim();
+    const match = FILTER_REGEX.exec(filter);
+
+    if (!match) {
+      throw new GalaxyError(`Wrong syntax for filter: |> ${filter}`)
+    }
+
+    const { groups } = match;
+
+    // Compose filter applier
+    return `{
+      name: '${groups.name}',
+      args: ${groups.args ? `[${groups.args}]` : 'null'}
+    }`
+  })
+}
+
+/**
+ * Match text template interpolation
+ *
+ * @type {RegExp}
+ */
+const TEXT_TEMPLATE_REGEX = /{{(?<expression>.*?)}}/;
+
+/**
+ * Get an inlined JavaScript expression
+ *
+ * @param {string} template - String with interpolation tags
+ *
+ * @return {string}
+ */
+function getTemplateExpression (template) {
+  let match;
+
+  // Hold inlined expressions
+  const expressions = [];
+
+  while (match = TEXT_TEMPLATE_REGEX.exec(template)) {
+    const rawLeft = template.slice(0, match.index);
+    let expression = match.groups.expression.trim();
+
+    // Push wrapped left context
+    if (rawLeft) expressions.push(`\`${rawLeft}\``);
+
+    // TODO: Throw an error on empty template expressions
+    // Push isolated expression itself
+    if (expression) expressions.push(`_$n(${getFilterExpression(expression)})`);
+
+    template = template.slice(match.index + match[0].length);
+  }
+
+  // Push residual template expression
+  if (template) expressions.push(`\`${template}\``);
+
+  return expressions.join(' + ')
 }
 
 /**

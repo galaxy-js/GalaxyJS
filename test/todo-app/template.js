@@ -7,7 +7,7 @@ export default html`
     }
   </style>
 
-  <h1 :id="title" class="classes other-class" :class="{ someClass: showClass }">{{ title | reverse }}</h1>
+  <h1 :id="title" class="classes other-class" :class="{ someClass: showClass }">{{ title |> reverse }}</h1>
   <input type="text" *bind="title">
 
   <ul>

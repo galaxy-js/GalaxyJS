@@ -1,11 +1,10 @@
-/**
- * Match filters to split within a template interpolation
- *
- * @type {RegExp}
- */
-const FILTER_SPLIT_REGEX = /(?<!\|)\|(?!\|)/
+import { analyzer } from './analyzer.js'
+
+import GalaxyError from '../errors/GalaxyError.js'
 
 /**
+ * Match filter
+ *
  * @type {RegExp}
  */
 const FILTER_REGEX = /^(?<name>\w+)(?:\((?<args>.*)\))?$/
@@ -18,10 +17,27 @@ const FILTER_REGEX = /^(?<name>\w+)(?:\((?<args>.*)\))?$/
  * @return {string}
  */
 export function getFilterExpression (expression) {
-  const parts = expression.split(FILTER_SPLIT_REGEX)
+  const parts = []
 
-  return parts.length > 1
-    ? `_$f(${parts[0]}, [${getDescriptors(parts.slice(1)).join()}])`
+  let start = 0
+
+  // Skips `|` and `>` tokens
+  const SKIP_FILTER_TOKEN = 2
+
+  analyzer(expression, state => {
+    if (state.is(0x3e/* > */) && state.previous === 0x7c/* | */) {
+      parts.push(expression.slice(start, (start = state.cursor + 1) - SKIP_FILTER_TOKEN))
+    }
+  })
+
+  const last = expression.slice(start)
+
+  if (!last.trim().length) {
+    throw new GalaxyError(`Unexpected end of expression filter: ${expression}`)
+  }
+
+  return parts.length
+    ? `_$f(${parts[0]}, [${getDescriptors(parts.slice(1).concat(last)).join()}])`
     : expression
 }
 
@@ -34,7 +50,14 @@ export function getFilterExpression (expression) {
  */
 function getDescriptors (filters) {
   return filters.map(filter => {
-    const { groups } = FILTER_REGEX.exec(filter.trim())
+    filter = filter.trim()
+    const match = FILTER_REGEX.exec(filter)
+
+    if (!match) {
+      throw new GalaxyError(`Wrong syntax for filter: |> ${filter}`)
+    }
+
+    const { groups } = match
 
     // Compose filter applier
     return `{
