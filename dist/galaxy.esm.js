@@ -585,11 +585,99 @@ function getTemplateExpression (template) {
 }
 
 /**
- * For event call rewriting
+ * Intercept expression chars to rewrite/process a given input
+ *
+ * @example
+ *
+ *  analyzer('#someMethod("a")', state => { // skips "a" string
+ *    console.log(state.current) // <- current expression char code
+ *  })
+ *
+ * @param {string} input
+ * @param {Function} onExpr
+ * @param {number} start
+ *
+ * @return void
+ */
+function analyzer (input, onExpr, start = 0) {
+  const { length } = input;
+
+  let stringOpen;
+  let mode = 'expr';
+  let stopped = false;
+
+  const state = {
+    start,
+    cursor: start,
+    get previous () {
+      return input.charCodeAt(this.cursor - 1)
+    },
+    get current () {
+      return input.charCodeAt(this.cursor)
+    },
+    next () {
+      this.cursor++;
+    },
+    stop () {
+      stopped = true;
+    },
+    to (index) {
+      this.cursor = index;
+    },
+    is (code) {
+      return this.current === code
+    }
+  };
+
+  while (state.cursor < length) {
+    if (state.is(0x27/* ' */) || state.is(0x22/* " */)) {
+      if (mode === 'expr') {
+        mode = 'str';
+        stringOpen = state.current;
+      } else if (state.is(stringOpen) && state.previous !== 0x5c/* \ */) {
+        mode = 'expr';
+        stringOpen = null;
+
+        // Skip current closing string quote
+        state.next();
+      }
+    }
+
+    if (mode === 'expr') {
+      onExpr(state);
+
+      // Current analyzing can be stopped from `onExpr` callback
+      if (stopped) break
+    }
+
+    state.next();
+  }
+}
+
+class GalaxyError extends Error {}
+
+/**
+ * Converts given `error`
+ *
+ * @param {Error} error
+ *
+ * @return {GalaxyError}
+ */
+function galaxyError ({ message, stack }) {
+  const galaxyError = new GalaxyError(message);
+
+  // Setting up correct stack
+  galaxyError.stack = stack;
+
+  return galaxyError
+}
+
+/**
+ * Matches correct identifier name
  *
  * @type {RegExp}
  */
-const METHOD_REGEX = /#(?<name>\w+)\(/;
+const METHOD_NAME_REGEX = /\w/;
 
 /**
  * Rewrite a given `expression` by intercepting
@@ -604,46 +692,71 @@ const METHOD_REGEX = /#(?<name>\w+)\(/;
  * @return {string}
  */
 function rewriteMethods (expression) {
-  let match;
   let rewritten = '';
+  let stateful = false;
 
-  while (match = expression.match(METHOD_REGEX)) {
-    const { index, groups } = match;
+  let method;
+  let start = 0;
+  let end = 0;
 
-    const start = index + match[0].length;
+  analyzer(expression, state => {
+    switch (state.current) {
+      case 0x23/* # */: {
+        stateful = true;
+        start = state.cursor;
+        method = '';
+      } break
 
-    // Initial depth `(` = 1
-    let depth = 1;
-    let cursor = start;
-    let inDouble = false;
-    let inSingle = false;
+      case 0x28/* ( */: {
+        if (!stateful) return
 
-    // Catch arguments
-    loop: while (depth) {
-      const inExpression = !inDouble && !inSingle;
+        if (!method.length) {
+          throw new GalaxyError('Unexpected args... Expecting stateful method name')
+        }
 
-      // TODO: Check edge cases like 'literal template expressions'
+        let args;
+        let depth = 1;
 
-      switch (expression.charCodeAt(cursor++)) {
-        case 0x28/* ( */: inExpression && ++depth; break
-        case 0x29/* ) */: inExpression && --depth; break
-        case 0x22/* " */: !inSingle && (inDouble = !inDouble); break
-        case 0x27/* ' */: !inDouble && (inSingle = !inSingle); break
-        case NaN: break loop
-      }
+        state.next();
+
+        // Get arguments
+        analyzer(expression, _state => {
+          if (_state.is(0x28/* ( */)) {
+            depth++;
+          } else if (_state.is(0x29/* ) */)) {
+            if (!--depth) {
+              args = expression.slice(_state.start, _state.cursor);
+              rewritten += expression.slice(end, start) + `$commit('${method}'${args ? `, ${rewriteMethods(args)}` : ''})`;
+
+              end = _state.cursor + 1;
+
+              // Stop current analyze
+              _state.stop();
+            }
+          }
+        }, state.cursor);
+
+        stateful = false;
+
+        // Sync with arguments analyzer
+        state.to(end);
+      } break
+
+      default: {
+        if (stateful) {
+          const char = String.fromCharCode(state.current);
+
+          method += char;
+
+          if ((method.length === 1 && /[0-9]/.test(method)) || !METHOD_NAME_REGEX.test(char)) {
+            throw new GalaxyError(`Unexpected char in stateful method name: #${method}<-`)
+          }
+        }
+      } break
     }
+  });
 
-    // Get arguments
-    const args = expression.slice(start, cursor - 1 /* skip parenthesis */);
-
-    // Intercept method call with $commit
-    rewritten += expression.slice(0, index) + `$commit('${groups.name}'${args ? `, ${rewriteMethods(args)}` : ''})`;
-
-    // Skip rewritten
-    expression = expression.slice(cursor);
-  }
-
-  return rewritten + expression // <- Left expression
+  return rewritten + expression.slice(end)
 }
 
 /**
@@ -1507,24 +1620,6 @@ var EventsMixin = {
         : new CustomEvent(event, { detail })
     );
   }
-}
-
-class GalaxyError extends Error {}
-
-/**
- * Converts given `error`
- *
- * @param {Error} error
- *
- * @return {GalaxyError}
- */
-function galaxyError ({ message, stack }) {
-  const galaxyError = new GalaxyError(message);
-
-  // Setting up correct stack
-  galaxyError.stack = stack;
-
-  return galaxyError
 }
 
 /**
