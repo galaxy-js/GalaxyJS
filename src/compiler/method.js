@@ -69,7 +69,7 @@ export function rewriteMethods (expression) {
         stateful = false
 
         // Sync with arguments analyzer
-        state.to(end)
+        state.to(end - 1)
       } break
 
       default: {
