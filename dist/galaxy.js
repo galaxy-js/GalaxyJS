@@ -550,6 +550,13 @@
      */
     let stopped = false;
 
+    /**
+     * Check for escaping chars
+     *
+     * @type {boolean}
+     */
+    let escaping = false;
+
     let templateDepth = 0;
     const templateDepthStack = [];
 
@@ -585,13 +592,13 @@
     while (!state.end) {
       const inExpr = mode === 'expr';
 
-      if (state.is(0x24 /* $ */) && state.at(1) === 0x7b/* { */ && mode === 'tmpl') {
+      if (state.is(0x24/* $ */) && state.at(1) === 0x7b/* { */ && mode === 'tmpl' && !escaping) {
         mode = 'expr';
         templateDepthStack.push(templateDepth++);
 
         // Skip `${`
         state.next(2);
-      } else if (state.is(0x7b /* { */) && inExpr) {
+      } else if (state.is(0x7b/* { */) && inExpr) {
         templateDepth++;
       } else if (state.is(0x7d/* } */) && inExpr && --templateDepth === templateDepthStack[templateDepthStack.length - 1]) {
         mode = 'tmpl';
@@ -603,7 +610,7 @@
           if (inExpr) {
             mode = isTemplate ? 'tmpl' : 'str';
             stringOpen = state.current;
-          } else if (state.is(stringOpen) && state.previous !== 0x5c/* \ */) {
+          } else if (state.is(stringOpen) && !escaping) {
             mode = 'expr';
             stringOpen = null;
 
@@ -619,6 +626,9 @@
         // Current analyzing can be stopped from `onExpr` callback
         if (stopped) break
       }
+
+      // Detect correct escaping
+      escaping = mode !== 'expr' && state.is(0x5c/* \ */) && !escaping;
 
       state.next();
     }
