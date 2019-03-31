@@ -2,7 +2,6 @@ import config from '../../config.js'
 
 import ItemRenderer from './Item.js'
 
-import { compileExpression } from '../../compiler/index.js'
 import { getAttr, createAnchor } from '../../utils/generic.js'
 
 const LOOP_DIRECTIVE = '*for'
@@ -39,9 +38,9 @@ export default class LoopRenderer {
     this.startAnchor = createAnchor(`start for: ${expression}`)
     this.endAnchor = createAnchor(`end for: ${expression}`)
 
-    this.getter = compileExpression(groups.expression)
+    this.getter = renderer.scope.$compiler.compileExpression(groups.expression)
 
-    // Remove template with an anchor
+    // Replace template with an anchor
     template.replaceWith(this.startAnchor)
     this.startAnchor.nextSibling.before(this.endAnchor)
 
@@ -62,7 +61,7 @@ export default class LoopRenderer {
   }
 
   render () {
-    const collection = this.getter(this.renderer.scope, this.renderer.isolated)
+    const collection = this.getter(this.renderer.isolated)
 
     const items = []
     const keys = Object.keys(collection)

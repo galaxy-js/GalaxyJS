@@ -1,4 +1,5 @@
 import nextTick from 'next-tick'
+import Compiler from '@galaxy/compiler'
 
 import config from '../config.js'
 
@@ -6,6 +7,7 @@ import ProxyObserver from 'proxy-observer'
 import ChildrenRenderer from '../renderers/element/Children.js'
 
 import EventsMixin from './mixins/Events.js'
+import PrivatesMixin from './mixins/Privates.js'
 
 import { isFunction, isReserved, isGalaxyElement } from '../utils/type-check.js'
 import { callHook, applyMixins, hyphenate } from '../utils/generic.js'
@@ -115,6 +117,14 @@ export function extend (SuperElement) {
       this.state = {} // This performs the initial render
 
       /**
+       * Compiler for directives
+       *
+       * @type {Compiler}
+       * @public
+       */
+      this.$compiler = new Compiler({ scope: this })
+
+      /**
        * Main renderer
        *
        * @type {ChildrenRenderer}
@@ -174,6 +184,25 @@ export function extend (SuperElement) {
 
     attributeChangedCallback (name, old, value) {
       callHook(this, 'attribute', { name, old, value })
+    }
+
+    /**
+     * Filter a given `value`
+     *
+     * @param {string} name
+     * @param {*} value
+     * @param  {...*} args
+     *
+     * @return {*}
+     */
+    $filter (name, value, ...args) {
+      const filter = config.filters[name]
+
+      if (!filter) {
+        throw new GalaxyError(`Unknown filter '${name}'`)
+      }
+
+      return filter(value, ...args)
     }
 
     /**
@@ -264,7 +293,8 @@ export function extend (SuperElement) {
 
   // Mix features
   applyMixins(GalaxyElement, [
-    EventsMixin
+    EventsMixin,
+    PrivatesMixin
   ])
 
   // Return mixed

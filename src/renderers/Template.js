@@ -1,4 +1,9 @@
-import { compileTemplate, TEXT_TEMPLATE_REGEX } from '../compiler/index.js'
+/**
+ * Match text template interpolation
+ *
+ * @type {RegExp}
+ */
+const TEXT_TEMPLATE_REGEX = /{{.*?}}/
 
 /**
  * Renderer for inline tag template binding:
@@ -7,11 +12,12 @@ import { compileTemplate, TEXT_TEMPLATE_REGEX } from '../compiler/index.js'
  *   2. As attribute interpolation: <input class="some-class {{ klass }}"/>
  */
 export default class TemplateRenderer {
-  constructor (node, renderer) {
+  constructor (node, { scope, isolated }) {
     this.node = node
-    this.renderer = renderer
 
-    this.getter = compileTemplate(node.nodeValue)
+    const templateFn = scope.$compiler.compileTemplate(node.nodeValue)
+
+    this.getter = () => templateFn(isolated)
   }
 
   static is ({ nodeValue }) {
@@ -19,7 +25,7 @@ export default class TemplateRenderer {
   }
 
   render () {
-    const value = this.getter(this.renderer.scope, this.renderer.isolated)
+    const value = this.getter()
 
     if (this.node.nodeValue !== value) {
       this.node.nodeValue = value

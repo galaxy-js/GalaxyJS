@@ -1,4 +1,3 @@
-import { compileExpression } from '../compiler/index.js'
 import { newIsolated, hyphenate } from '../utils/generic.js'
 
 /**
@@ -47,6 +46,11 @@ export default class GalaxyDirective {
     /**
      *
      */
+    this.$compiler = this.$scope.$compiler
+
+    /**
+     *
+     */
     this.$element = renderer.element
 
     /**
@@ -55,14 +59,12 @@ export default class GalaxyDirective {
     this.$options = Object.assign({}, options, this.constructor.options)
 
     if (!this.$options.$plain) {
-      const getter = compileExpression(init.value)
+      const getter = this.$compiler.compileExpression(init.value)
 
       /**
        *
        */
-      this.$getter = locals => {
-        return getter(renderer.scope, newIsolated(renderer.isolated, locals))
-      }
+      this.$getter = locals => getter(newIsolated(renderer.isolated, locals))
     }
   }
 

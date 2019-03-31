@@ -1,7 +1,5 @@
 import GalaxyDirective from '../../core/GalaxyDirective.js'
 
-import { compileScopedSetter } from '../../compiler/index.js'
-
 export default class BindDirective extends GalaxyDirective {
   static get is () {
     return '*bind'
@@ -11,17 +9,9 @@ export default class BindDirective extends GalaxyDirective {
     this.setting = false
 
     // Input -> State
-    const setter = compileScopedSetter(this.$value)
+    const setter = this.$compiler.compileSetter(this.$value)
 
-    this.setter = value => {
-      setter(
-        // (scope, locals,
-        this.$scope, this.$renderer.isolated,
-
-        // ...args[0])
-        value
-      )
-    }
+    this.setter = value => setter(this.$renderer.isolated, value)
 
     if (this.onInput) {
       this.$element.addEventListener('input', this.onInput.bind(this))

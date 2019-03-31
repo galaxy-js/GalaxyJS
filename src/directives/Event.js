@@ -1,6 +1,5 @@
 import GalaxyDirective from '../core/GalaxyDirective.js'
 
-import { compileEvent } from '../compiler/index.js'
 import { isGalaxyElement } from '../utils/type-check.js'
 import { newIsolated, mergeEventHandlers } from '../utils/generic.js'
 
@@ -17,9 +16,9 @@ export default class EventDirective extends GalaxyDirective {
   }
 
   init () {
-    const { $args, $scope, $name, $element, $renderer } = this
+    const { $args, $name, $element, $renderer } = this
     const once = $args.includes('once')
-    const evaluate = compileEvent(this.$value)
+    const evaluate = this.$compiler.compileEvent(this.$value)
 
     // Merged handlers
     let mainHandler
@@ -53,7 +52,7 @@ export default class EventDirective extends GalaxyDirective {
     }
 
     handlers.push((end, $event) => {
-      evaluate($scope, newIsolated($renderer.isolated, { $event }))
+      evaluate(newIsolated($renderer.isolated, { $event }))
       end()
     })
 
