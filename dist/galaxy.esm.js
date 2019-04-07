@@ -51,96 +51,288 @@ function createCommonjsModule(fn, module) {
 	return module = { exports: {} }, fn(module, module.exports), module.exports;
 }
 
-var nextTick = createCommonjsModule(function (module, exports) {
+var proxyObserver = createCommonjsModule(function (module, exports) {
 (function (global, factory) {
   module.exports = factory();
 }(commonjsGlobal, (function () {
   /**
-   * Resolved promise to schedule new microtasks
+   * Store observers internally
    *
-   * @type {Promise}
+   * @type {WeakMap}
    *
    * @api private
    */
-  const resolved = Promise.resolve();
+  const __observers__ = new WeakMap();
 
   /**
-   * Queue of callbacks to be flushed
+   * Alias of `Object.prototype.hasOwnProperty`
    *
-   * @type {Array}
+   * @type {Function}
    *
-   * @api public
+   * @api private
    */
-  const queue = nextTick.queue = [];
+  const hasOwn = Object.prototype.hasOwnProperty;
 
   /**
-   * Defers execution of a given `callback`
+   * Determines whether a given `value` is observable
    *
-   * @param {Function} callback - Function to be deferred
+   * @type {Function}
    *
-   * @return void
-   *
-   * @api public
+   * @api private
    */
-  function nextTick (callback) {
-    if (!nextTick.waiting) {
-      // Always flushing in a microtask
-      resolved.then(nextTick.flush);
+  const isObservable = value => Object.prototype.toString.call(value) === '[object Object]' || Array.isArray(value);
+
+  /**
+   * No-operation
+   *
+   * @type {Function}
+   *
+   * @api private
+   */
+  const noop = () => {};
+
+  class ProxyObserver {
+
+    /**
+     * Initializes `ProxyObserver`
+     *
+     * @param {*} target - Value observed
+     *
+     * @api public
+     */
+    constructor (target) {
+
+      /**
+       * Value being observed
+       *
+       * @member {*}
+       *
+       * @api public
+       */
+      this.target = target;
+
+      /**
+       * Subscriber functions
+       *
+       * @member {Set.<Function>}
+       *
+       * @api public
+       */
+      this.subscribers = new Set();
     }
 
-    queue.push(callback);
-  }
+    /**
+     * Default observe options
+     *
+     * @type {Object}
+     * @default
+     *
+     * @api public
+     */
+    static get observeOptions () {
+      return {
+        deep: true,
 
-  /**
-   * Determines when we are waiting to flush the queue
-   *
-   * @type {boolean}
-   *
-   * @api public
-   */
-  Object.defineProperty(nextTick, 'waiting', {
-    enumerable: true,
-    get () {
-      return queue.length > 0
-    }
-  });
-
-  /**
-   * Defers a callback to be called
-   * after flush the queue
-   *
-   * @param {Function} callback
-   *
-   * @return void
-   */
-  nextTick.afterFlush = callback => {
-    setTimeout(() => {
-      if (!nextTick.waiting) return callback()
-
-      // If we are waiting, then re-schedule call
-      nextTick.afterFlush(callback);
-    });
-  };
-
-  /**
-   * Flushes the actual queue
-   *
-   * @return {boolean}
-   */
-  nextTick.flush = () => {
-    if (nextTick.waiting) {
-      const callbacks = queue.slice();
-
-      // Empty actual queue
-      queue.length = 0;
-
-      for (const callback of callbacks) {
-        callback();
+        // By default, we compare the stringified raw values to avoid observed ones
+        // and conflicts between proxy object structures.
+        compare (value, old/*, property, target*/) {
+          return JSON.stringify(value) !== JSON.stringify(old)
+        }
       }
     }
-  };
 
-  return nextTick;
+    /**
+     * Returns true whether a given `value` is being observed
+     * otherwise, returns false
+     *
+     * @param {*} value - The value itself
+     *
+     * @return {boolean}
+     *
+     * @api public
+     */
+    static is (value) {
+      return isObservable(value) && __observers__.has(value)
+    }
+
+    /**
+     * Gets the `ProxyObserver` instance from the given `value`
+     *
+     * @param {*} value - The value itself
+     *
+     * @return {ProxyObserver}
+     *
+     * @api public
+     */
+    static get (value) {
+      return __observers__.get(value)
+    }
+
+    /**
+     * Observe a given `target` to detect changes
+     *
+     * @param {*} target - The value to be observed
+     * @param {Object} [options] - An object of options
+     * @param {boolean} [options.deep] - Indicating whether observation should be deep
+     * @param {Function} [options.compare] - Compare values with a function to dispatch changes
+     * @param {Function} [_handler] - Internal global handler for deep observing
+     *
+     * @return {Proxy} Proxy to track changes
+     *
+     * @api public
+     */
+    static observe (target, options = {}, _handler = noop) {
+      // Avoid observe twice... Just return the target
+      if (ProxyObserver.is(target)) return target
+
+      const { deep, compare } = Object.assign({}, ProxyObserver.observeOptions, options);
+
+      const observer = new ProxyObserver(target);
+
+      function notify (change) {
+        _handler(change);
+        observer.dispatch(change);
+      }
+
+      if (deep) {
+        // Start deep observing
+        for (const property in target) {
+          if (hasOwn.call(target, property)) {
+            const value = target[property];
+
+            if (isObservable(value)) {
+              // Replace actual value with the observed one
+              target[property] = ProxyObserver.observe(value, options, notify);
+            }
+          }
+        }
+      }
+
+      const proxy = new Proxy(target, {
+        // We can implement something like (get trap):
+        // https://stackoverflow.com/a/43236808
+
+        /**
+         * 1. Detect sets/additions
+         *
+         *   In arrays:
+         *
+         *     array[index] = value
+         *     array.push(value)
+         *     array.length = length
+         *     ...
+         *
+         *   In objects:
+         *
+         *     object[key] = value
+         *     Object.defineProperty(target, property, descriptor)
+         *     Reflect.defineProperty(target, property, descriptor)
+         *     ...
+         */
+        defineProperty (target, property, descriptor) {
+          const { value } = descriptor;
+          const old = target[property];
+          const changed = hasOwn.call(target, property);
+
+          if (deep && isObservable(value)) {
+            descriptor.value = ProxyObserver.observe(value, options, notify);
+          }
+
+          const defined = Reflect.defineProperty(target, property, descriptor);
+
+          if (defined && (!changed || compare(value, old, property, target))) {
+            const change = { type: changed ? 'set' : 'add', value, property, target };
+
+            if (changed) change.old = old;
+
+            notify(change);
+          }
+
+          return defined
+        },
+
+        /**
+         * 2. Track property deletions
+         *
+         *   In arrays:
+         *
+         *     array.splice(index, count, additions)
+         *     ...
+         *
+         *   In objects:
+         *
+         *     delete object[property]
+         *     Reflect.deleteProperty(object, property)
+         *     ...
+         */
+        deleteProperty (target, property) {
+          const old = target[property];
+          const deleted = hasOwn.call(target, property) && Reflect.deleteProperty(target, property);
+
+          if (deleted) {
+            notify({ type: 'delete', old, property, target });
+          }
+
+          return deleted
+        }
+      });
+
+      // Indexed by target
+      __observers__.set(target, observer);
+
+      // Indexed by proxy
+      __observers__.set(proxy, observer);
+
+      return proxy
+    }
+
+    /**
+     * Subscribe to changes
+     *
+     * @param {Function} subscriber - Function to subscribe
+     *
+     * @return {ProxyObserver}
+     *
+     * @api public
+     */
+    subscribe (subscriber) {
+      this.subscribers.add(subscriber);
+      return this
+    }
+
+    /**
+     * Unsubscribe function
+     *
+     * @param {Function} subscriber - Functions subscribed
+     *
+     * @return {ProxyObserver}
+     *
+     * @api public
+     */
+    unsubscribe (subscriber) {
+      this.subscribers.delete(subscriber);
+      return this
+    }
+
+    /**
+     * Dispatch subscribers with given `change`
+     *
+     * @param {Object} change - Change descriptor
+     *
+     * @return {ProxyObserver}
+     *
+     * @api public
+     */
+    dispatch (change) {
+      this.subscribers.forEach(subscriber => {
+        subscriber(change, this.target);
+      });
+
+      return this
+    }
+  }
+
+  return ProxyObserver;
 
 })));
 });
@@ -917,291 +1109,23 @@ class Compiler {
   }
 }
 
-var proxyObserver = createCommonjsModule(function (module, exports) {
-(function (global, factory) {
-  module.exports = factory();
-}(commonjsGlobal, (function () {
-  /**
-   * Store observers internally
-   *
-   * @type {WeakMap}
-   *
-   * @api private
-   */
-  const __observers__ = new WeakMap();
+class GalaxyError extends Error {}
 
-  /**
-   * Alias of `Object.prototype.hasOwnProperty`
-   *
-   * @type {Function}
-   *
-   * @api private
-   */
-  const hasOwn = Object.prototype.hasOwnProperty;
+/**
+ * Converts given `error`
+ *
+ * @param {Error} error
+ *
+ * @return {GalaxyError}
+ */
+function galaxyError ({ message, stack }) {
+  const galaxyError = new GalaxyError(message);
 
-  /**
-   * Determines whether a given `value` is observable
-   *
-   * @type {Function}
-   *
-   * @api private
-   */
-  const isObservable = value => Object.prototype.toString.call(value) === '[object Object]' || Array.isArray(value);
+  // Setting up correct stack
+  galaxyError.stack = stack;
 
-  /**
-   * No-operation
-   *
-   * @type {Function}
-   *
-   * @api private
-   */
-  const noop = () => {};
-
-  class ProxyObserver {
-
-    /**
-     * Initializes `ProxyObserver`
-     *
-     * @param {*} target - Value observed
-     *
-     * @api public
-     */
-    constructor (target) {
-
-      /**
-       * Value being observed
-       *
-       * @member {*}
-       *
-       * @api public
-       */
-      this.target = target;
-
-      /**
-       * Subscriber functions
-       *
-       * @member {Set.<Function>}
-       *
-       * @api public
-       */
-      this.subscribers = new Set();
-    }
-
-    /**
-     * Default observe options
-     *
-     * @type {Object}
-     * @default
-     *
-     * @api public
-     */
-    static get observeOptions () {
-      return {
-        deep: true,
-
-        // By default, we compare the stringified raw values to avoid observed ones
-        // and conflicts between proxy object structures.
-        compare (value, old/*, property, target*/) {
-          return JSON.stringify(value) !== JSON.stringify(old)
-        }
-      }
-    }
-
-    /**
-     * Returns true whether a given `value` is being observed
-     * otherwise, returns false
-     *
-     * @param {*} value - The value itself
-     *
-     * @return {boolean}
-     *
-     * @api public
-     */
-    static is (value) {
-      return isObservable(value) && __observers__.has(value)
-    }
-
-    /**
-     * Gets the `ProxyObserver` instance from the given `value`
-     *
-     * @param {*} value - The value itself
-     *
-     * @return {ProxyObserver}
-     *
-     * @api public
-     */
-    static get (value) {
-      return __observers__.get(value)
-    }
-
-    /**
-     * Observe a given `target` to detect changes
-     *
-     * @param {*} target - The value to be observed
-     * @param {Object} [options] - An object of options
-     * @param {boolean} [options.deep] - Indicating whether observation should be deep
-     * @param {Function} [options.compare] - Compare values with a function to dispatch changes
-     * @param {Function} [_handler] - Internal global handler for deep observing
-     *
-     * @return {Proxy} Proxy to track changes
-     *
-     * @api public
-     */
-    static observe (target, options = {}, _handler = noop) {
-      // Avoid observe twice... Just return the target
-      if (ProxyObserver.is(target)) return target
-
-      const { deep, compare } = Object.assign({}, ProxyObserver.observeOptions, options);
-
-      const observer = new ProxyObserver(target);
-
-      function notify (change) {
-        _handler(change);
-        observer.dispatch(change);
-      }
-
-      if (deep) {
-        // Start deep observing
-        for (const property in target) {
-          if (hasOwn.call(target, property)) {
-            const value = target[property];
-
-            if (isObservable(value)) {
-              // Replace actual value with the observed one
-              target[property] = ProxyObserver.observe(value, options, notify);
-            }
-          }
-        }
-      }
-
-      const proxy = new Proxy(target, {
-        // We can implement something like (get trap):
-        // https://stackoverflow.com/a/43236808
-
-        /**
-         * 1. Detect sets/additions
-         *
-         *   In arrays:
-         *
-         *     array[index] = value
-         *     array.push(value)
-         *     array.length = length
-         *     ...
-         *
-         *   In objects:
-         *
-         *     object[key] = value
-         *     Object.defineProperty(target, property, descriptor)
-         *     Reflect.defineProperty(target, property, descriptor)
-         *     ...
-         */
-        defineProperty (target, property, descriptor) {
-          const { value } = descriptor;
-          const old = target[property];
-          const changed = hasOwn.call(target, property);
-
-          if (deep && isObservable(value)) {
-            descriptor.value = ProxyObserver.observe(value, options, notify);
-          }
-
-          const defined = Reflect.defineProperty(target, property, descriptor);
-
-          if (defined && (!changed || compare(value, old, property, target))) {
-            const change = { type: changed ? 'set' : 'add', value, property, target };
-
-            if (changed) change.old = old;
-
-            notify(change);
-          }
-
-          return defined
-        },
-
-        /**
-         * 2. Track property deletions
-         *
-         *   In arrays:
-         *
-         *     array.splice(index, count, additions)
-         *     ...
-         *
-         *   In objects:
-         *
-         *     delete object[property]
-         *     Reflect.deleteProperty(object, property)
-         *     ...
-         */
-        deleteProperty (target, property) {
-          const old = target[property];
-          const deleted = hasOwn.call(target, property) && Reflect.deleteProperty(target, property);
-
-          if (deleted) {
-            notify({ type: 'delete', old, property, target });
-          }
-
-          return deleted
-        }
-      });
-
-      // Indexed by target
-      __observers__.set(target, observer);
-
-      // Indexed by proxy
-      __observers__.set(proxy, observer);
-
-      return proxy
-    }
-
-    /**
-     * Subscribe to changes
-     *
-     * @param {Function} subscriber - Function to subscribe
-     *
-     * @return {ProxyObserver}
-     *
-     * @api public
-     */
-    subscribe (subscriber) {
-      this.subscribers.add(subscriber);
-      return this
-    }
-
-    /**
-     * Unsubscribe function
-     *
-     * @param {Function} subscriber - Functions subscribed
-     *
-     * @return {ProxyObserver}
-     *
-     * @api public
-     */
-    unsubscribe (subscriber) {
-      this.subscribers.delete(subscriber);
-      return this
-    }
-
-    /**
-     * Dispatch subscribers with given `change`
-     *
-     * @param {Object} change - Change descriptor
-     *
-     * @return {ProxyObserver}
-     *
-     * @api public
-     */
-    dispatch (change) {
-      this.subscribers.forEach(subscriber => {
-        subscriber(change, this.target);
-      });
-
-      return this
-    }
-  }
-
-  return ProxyObserver;
-
-})));
-});
+  return galaxyError
+}
 
 /**
  * Match text template interpolation
@@ -1364,6 +1288,100 @@ class VoidRenderer {
     }
   }
 }
+
+var nextTick = createCommonjsModule(function (module, exports) {
+(function (global, factory) {
+  module.exports = factory();
+}(commonjsGlobal, (function () {
+  /**
+   * Resolved promise to schedule new microtasks
+   *
+   * @type {Promise}
+   *
+   * @api private
+   */
+  const resolved = Promise.resolve();
+
+  /**
+   * Queue of callbacks to be flushed
+   *
+   * @type {Array}
+   *
+   * @api public
+   */
+  const queue = nextTick.queue = [];
+
+  /**
+   * Defers execution of a given `callback`
+   *
+   * @param {Function} callback - Function to be deferred
+   *
+   * @return void
+   *
+   * @api public
+   */
+  function nextTick (callback) {
+    if (!nextTick.waiting) {
+      // Always flushing in a microtask
+      resolved.then(nextTick.flush);
+    }
+
+    queue.push(callback);
+  }
+
+  /**
+   * Determines when we are waiting to flush the queue
+   *
+   * @type {boolean}
+   *
+   * @api public
+   */
+  Object.defineProperty(nextTick, 'waiting', {
+    enumerable: true,
+    get () {
+      return queue.length > 0
+    }
+  });
+
+  /**
+   * Defers a callback to be called
+   * after flush the queue
+   *
+   * @param {Function} callback
+   *
+   * @return void
+   */
+  nextTick.afterFlush = callback => {
+    setTimeout(() => {
+      if (!nextTick.waiting) return callback()
+
+      // If we are waiting, then re-schedule call
+      nextTick.afterFlush(callback);
+    });
+  };
+
+  /**
+   * Flushes the actual queue
+   *
+   * @return {boolean}
+   */
+  nextTick.flush = () => {
+    if (nextTick.waiting) {
+      const callbacks = queue.slice();
+
+      // Empty actual queue
+      queue.length = 0;
+
+      for (const callback of callbacks) {
+        callback();
+      }
+    }
+  };
+
+  return nextTick;
+
+})));
+});
 
 var matchOperatorsRe = /[|\\{}()[\]^$+*?.]/g;
 
@@ -1889,6 +1907,131 @@ class ChildrenRenderer {
 }
 
 /**
+ * Setup GalaxyElement's main renderer
+ *
+ * @param {GalaxyElement} $element
+ */
+function setupRenderer ($element) {
+  let shadow;
+
+  const { style, template } = $element.constructor;
+
+  try {
+    shadow = $element.attachShadow({ mode: 'open' });
+  } catch (e) {
+    /**
+     * @see https://developer.mozilla.org/en-US/docs/Web/API/Element/attachShadow#Exceptions
+     */
+  }
+
+  if (style instanceof HTMLStyleElement) {
+    if (!shadow) throw new GalaxyError('style cannot be attached')
+
+    shadow.appendChild(style.cloneNode(true));
+  }
+
+  if (template instanceof HTMLTemplateElement) {
+    if (!shadow) throw new GalaxyError('template cannot be attached')
+
+    shadow.appendChild(template.content.cloneNode(true));
+  }
+
+  return new ChildrenRenderer(shadow ? shadow.childNodes : [], $element, {})
+}
+
+/**
+ * Core GalaxyElement API
+ *
+ * @mixin
+ */
+var CoreMixin = {
+
+  /**
+   * Filter a given `value`
+   *
+   * @param {string} name
+   * @param {*} value
+   * @param  {...*} args
+   *
+   * @return {*}
+   */
+  $filter (name, value, ...args) {
+    const filter = config.filters[name];
+
+    if (!filter) {
+      throw new GalaxyError(`Unknown filter '${name}'`)
+    }
+
+    return filter(value, ...args)
+  },
+
+  /**
+   * Intercept given method call by passing the state
+   *
+   * @param {string} method - Method name
+   * @param {*...} [args] - Arguments to pass in
+   *
+   * @throws {GalaxyError}
+   *
+   * @return void
+   */
+  $commit (method, ...args) {
+    if (method in this) {
+      if (!isFunction(this[method])) {
+        throw new GalaxyError(`Method '${method}' must be a function`)
+      }
+
+      if (isReserved(method)) {
+        throw new GalaxyError(`Could no call reserved method '${method}'`)
+      }
+
+      this[method](this.state, ...args);
+    }
+  },
+
+  /**
+   * Reflect state changes to the DOM
+   *
+   * @return void
+   */
+  $render () {
+    if (!this.$rendering) {
+      this.$emit('$render:before');
+
+      this.$rendering = true;
+
+      nextTick(() => {
+
+        // Takes render error
+        let renderError;
+
+        try {
+          this.$renderer.render();
+        } catch (e) {
+          if (!(e instanceof GalaxyError)) {
+            e = galaxyError(e);
+          }
+
+          // Don't handle the error in debug mode
+          if (config.debug) throw e
+
+          renderError = e;
+        }
+
+        // Sleep after render new changes
+        this.$rendering = false;
+
+        if (renderError) {
+
+          // Event syntax: {phase}:{subject}
+          this.$emit('$render:error', renderError);
+        }
+      });
+    }
+  }
+}
+
+/**
  * Events - Custom and native events API
  *
  * @mixin
@@ -1985,6 +2128,50 @@ var EventsMixin = {
 }
 
 /**
+ * Lifecycle hooks
+ *
+ * @mixin
+ */
+var HooksMixin = {
+
+  /**
+   *
+   */
+  connectedCallback () {
+    let $parent = this;
+
+    do {
+      $parent = $parent[$parent instanceof ShadowRoot ? 'host' : 'parentNode'];
+    } while ($parent && !isGalaxyElement($parent))
+
+    // Set parent communication
+    this.$parent = $parent;
+
+    callHook(this, 'attached');
+  },
+
+  /**
+   *
+   */
+  disconnectedCallback () {
+    // Cut-out parent communication
+    this.$parent = null;
+
+    callHook(this, 'detached');
+  },
+
+  /**
+   *
+   * @param {*} name
+   * @param {*} old
+   * @param {*} value
+   */
+  attributeChangedCallback (name, old, value) {
+    callHook(this, 'attribute', { name, old, value });
+  }
+}
+
+/**
  * Private methods
  *
  * @mixin
@@ -2003,31 +2190,13 @@ var PrivatesMixin = {
   }
 }
 
-class GalaxyError extends Error {}
-
-/**
- * Converts given `error`
- *
- * @param {Error} error
- *
- * @return {GalaxyError}
- */
-function galaxyError ({ message, stack }) {
-  const galaxyError = new GalaxyError(message);
-
-  // Setting up correct stack
-  galaxyError.stack = stack;
-
-  return galaxyError
-}
-
 /**
  * Internal
  */
 const __proxies__ = new WeakMap();
 
 /**
- * Creates a customized built-in element
+ * Creates a GalaxyElement class
  *
  * @param {HTMLElement} SuperElement
  *
@@ -2072,6 +2241,22 @@ function extend (SuperElement) {
     $rendering = false
 
     /**
+     * State for data-binding
+     *
+     * @type {Object}
+     * @public
+     */
+    get state () { return __proxies__.get(this) }
+    set state (state) {
+      const render = () => { this.$render(); };
+
+      __proxies__.set(this, proxyObserver.observe(state, null, render));
+
+      // State change, so render...
+      render();
+    }
+
+    /**
      * Galaxy element name
      *
      * @type {string}
@@ -2082,46 +2267,17 @@ function extend (SuperElement) {
 
     /**
      * Children GalaxyElement definitions
+     *
+     * @type {Array<GalaxyElement>}
+     * @public
      */
-    static get children () {
-      return []
-    }
+    static children = []
 
     constructor () {
       super();
 
-      let shadow;
-      const { style, template } = this.constructor;
-
-      try {
-        shadow = this.attachShadow({ mode: 'open' });
-      } catch (e) {
-        /**
-         * @see https://developer.mozilla.org/en-US/docs/Web/API/Element/attachShadow#Exceptions
-         */
-      }
-
-      if (style instanceof HTMLStyleElement) {
-        if (!shadow) throw new GalaxyError('style cannot be attached')
-
-        // Prepend styles
-        shadow.appendChild(style.cloneNode(true));
-      }
-
-      if (template instanceof HTMLTemplateElement) {
-        if (!shadow) throw new GalaxyError('template cannot be attached')
-
-        // We need to append content before setting up the main renderer
-        shadow.appendChild(template.content.cloneNode(true));
-      }
-
-      /**
-       * State for data-binding
-       *
-       * @type {Object.<*>}
-       * @public
-       */
-      this.state = {}; // This performs the initial render
+      // This performs the initial render
+      this.state = {};
 
       /**
        * Compiler for directives
@@ -2137,144 +2293,10 @@ function extend (SuperElement) {
        * @type {ChildrenRenderer}
        * @public
        */
-      this.$renderer = new ChildrenRenderer(
-        shadow ? shadow.childNodes : [],
-        this, {}
-      );
+      this.$renderer = setupRenderer(this);
 
       // Call element initialization
       callHook(this, 'created');
-    }
-
-    get state () {
-      // Return proxified state
-      return __proxies__.get(this)
-    }
-
-    set state (state) {
-      const render = () => { this.$render(); };
-
-      // Setup proxy to perform render on changes
-      __proxies__.set(this, proxyObserver.observe(
-        state, null /* <- options */,
-        render /* <- global subscription */
-      ));
-
-      // State change, so render...
-      render();
-    }
-
-    /**
-     * Lifecycle hooks
-     *
-     * Hooks that catch changes properly
-     */
-    connectedCallback () {
-      let $parent = this;
-
-      do {
-        $parent = $parent instanceof ShadowRoot ? $parent.host : $parent.parentNode;
-      } while ($parent && !isGalaxyElement($parent))
-
-      // Set parent communication
-      this.$parent = $parent;
-
-      callHook(this, 'attached');
-    }
-
-    disconnectedCallback () {
-      // Cut-out parent communication
-      this.$parent = null;
-
-      callHook(this, 'detached');
-    }
-
-    attributeChangedCallback (name, old, value) {
-      callHook(this, 'attribute', { name, old, value });
-    }
-
-    /**
-     * Filter a given `value`
-     *
-     * @param {string} name
-     * @param {*} value
-     * @param  {...*} args
-     *
-     * @return {*}
-     */
-    $filter (name, value, ...args) {
-      const filter = config.filters[name];
-
-      if (!filter) {
-        throw new GalaxyError(`Unknown filter '${name}'`)
-      }
-
-      return filter(value, ...args)
-    }
-
-    /**
-     * Intercept given method call by passing the state
-     *
-     * @param {string} method - Method name
-     * @param {*...} [args] - Arguments to pass in
-     *
-     * @throws {GalaxyError}
-     *
-     * @return void
-     */
-    $commit (method, ...args) {
-      if (method in this) {
-        if (!isFunction(this[method])) {
-          throw new GalaxyError(`Method '${method}' must be a function`)
-        }
-
-        if (isReserved(method)) {
-          throw new GalaxyError(`Could no call reserved method '${method}'`)
-        }
-
-        this[method](this.state, ...args);
-      }
-    }
-
-    /**
-     * Reflect state changes to the DOM
-     *
-     * @return void
-     */
-    $render () {
-      if (!this.$rendering) {
-        this.$emit('$render:before');
-
-        this.$rendering = true;
-
-        nextTick(() => {
-
-          // Takes render error
-          let renderError;
-
-          try {
-            this.$renderer.render();
-          } catch (e) {
-            if (!(e instanceof GalaxyError)) {
-              e = galaxyError(e);
-            }
-
-            // Don't handle the error in debug mode
-            if (config.debug) throw e
-
-            renderError = e;
-          }
-
-          // Sleep after render new changes
-          this.$rendering = false;
-
-          if (renderError) {
-
-            // Event syntax: {phase}:{subject}
-            this.$emit('$render:error', renderError);
-          }
-        });
-      }
     }
   }
 
@@ -2300,7 +2322,9 @@ function extend (SuperElement) {
 
   // Mix features
   applyMixins(GalaxyElement, [
+    CoreMixin,
     EventsMixin,
+    HooksMixin,
     PrivatesMixin
   ]);
 
