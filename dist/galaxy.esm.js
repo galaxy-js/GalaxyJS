@@ -51,100 +51,6 @@ function createCommonjsModule(fn, module) {
 	return module = { exports: {} }, fn(module, module.exports), module.exports;
 }
 
-var nextTick = createCommonjsModule(function (module, exports) {
-(function (global, factory) {
-  module.exports = factory();
-}(commonjsGlobal, (function () {
-  /**
-   * Resolved promise to schedule new microtasks
-   *
-   * @type {Promise}
-   *
-   * @api private
-   */
-  const resolved = Promise.resolve();
-
-  /**
-   * Queue of callbacks to be flushed
-   *
-   * @type {Array}
-   *
-   * @api public
-   */
-  const queue = nextTick.queue = [];
-
-  /**
-   * Defers execution of a given `callback`
-   *
-   * @param {Function} callback - Function to be deferred
-   *
-   * @return void
-   *
-   * @api public
-   */
-  function nextTick (callback) {
-    if (!nextTick.waiting) {
-      // Always flushing in a microtask
-      resolved.then(nextTick.flush);
-    }
-
-    queue.push(callback);
-  }
-
-  /**
-   * Determines when we are waiting to flush the queue
-   *
-   * @type {boolean}
-   *
-   * @api public
-   */
-  Object.defineProperty(nextTick, 'waiting', {
-    enumerable: true,
-    get () {
-      return queue.length > 0
-    }
-  });
-
-  /**
-   * Defers a callback to be called
-   * after flush the queue
-   *
-   * @param {Function} callback
-   *
-   * @return void
-   */
-  nextTick.afterFlush = callback => {
-    setTimeout(() => {
-      if (!nextTick.waiting) return callback()
-
-      // If we are waiting, then re-schedule call
-      nextTick.afterFlush(callback);
-    });
-  };
-
-  /**
-   * Flushes the actual queue
-   *
-   * @return {boolean}
-   */
-  nextTick.flush = () => {
-    if (nextTick.waiting) {
-      const callbacks = queue.slice();
-
-      // Empty actual queue
-      queue.length = 0;
-
-      for (const callback of callbacks) {
-        callback();
-      }
-    }
-  };
-
-  return nextTick;
-
-})));
-});
-
 var proxyObserver = createCommonjsModule(function (module, exports) {
 (function (global, factory) {
   module.exports = factory();
@@ -431,6 +337,831 @@ var proxyObserver = createCommonjsModule(function (module, exports) {
 })));
 });
 
+var tokens = {
+  DOLLAR_SIGN: '$',
+  OPEN_BRACE: '{',
+  CLOSE_BRACE: '}',
+  DOUBLE_QUOTE: '"',
+  SINGLE_QUOTE: '\'',
+  BACKTICK: '`',
+  BACKSLASH: '\\',
+  WHITESPACE: ' ',
+  TAB: '\t',
+  LINE_FEED: '\n',
+  CAR_RETURN: '\r'
+};
+
+const modes = {
+
+  /**
+   * @type {number}
+   */
+  EXPRESSION_MODE: 0,
+
+  /**
+   * @type {number}
+   */
+  TEMPLATE_MODE: 1,
+
+  /**
+   * @type {number}
+   */
+  STRING_MODE: 2
+};
+
+class State {
+
+  /**
+   * Current input index
+   *
+   * @type {number}
+   */
+  cursor = 0
+
+  /**
+   * Current state mode
+   *
+   * @type {string}
+   */
+  mode = modes.EXPRESSION_MODE
+
+  /**
+   * Check for escaping chars
+   *
+   * @type {boolean}
+   */
+  escaping = false
+
+  constructor (input) {
+
+    /**
+     * Input code
+     *
+     * @type {string}
+     */
+    this.input = input;
+  }
+
+  /**
+   * True if
+   *
+   * @type {boolean}
+   */
+  get end () {
+    return this.cursor >= this.input.length
+  }
+
+  /**
+   * Previous char
+   *
+   * @type {string}
+   */
+  get previous () {
+    return this.get(this.cursor - 1)
+  }
+
+  /**
+   * Current char
+   *
+   * @type {string}
+   */
+  get current () {
+    return this.get(this.cursor)
+  }
+
+  /**
+   * Next char
+   *
+   * @type {string}
+   */
+  get next () {
+    return this.get(this.cursor + 1)
+  }
+
+  /**
+   * True if current state mode is `template`
+   *
+   * @type {boolean}
+   */
+  get inTemplate () {
+    return this.mode === modes.TEMPLATE_MODE
+  }
+
+  /**
+   * True if current state mode is `string`
+   *
+   * @type {boolean}
+   */
+  get inString () {
+    return this.mode === modes.STRING_MODE
+  }
+
+  /**
+   * True if current state mode is `expression`
+   *
+   * @type {boolean}
+   */
+  get inExpression () {
+    return this.mode === modes.EXPRESSION_MODE
+  }
+
+  /**
+   * Check if a given `char` is the current char state
+   *
+   * @param {string} char
+   * @param {number} offset
+   *
+   * @return {boolean}
+   */
+  is (char, offset = 0) {
+    return this.get(this.cursor + offset) === char
+  }
+
+  /**
+   * Get a `char` at specific `index`
+   *
+   * @param {number} index
+   *
+   * @return {number}
+   */
+  get (index) {
+    return this.input[index]
+  }
+
+  /**
+   * Back `cursor` by given `steps`
+   *
+   * @param {number} steps
+   *
+   * @return {State}
+   */
+  back (steps = 1) {
+    this.cursor -= steps;
+
+    return this
+  }
+
+  /**
+   * Advance `cursor` by given `steps`
+   *
+   * @param {number} steps
+   *
+   * @return {State}
+   */
+  advance (steps = 1) {
+    this.cursor += steps;
+
+    return this
+  }
+}
+
+const privateState = new WeakMap();
+
+/**
+ * Especial tokens to ignore
+ *
+ * @type {Array<string>}
+ */
+const IGNORED_TOKENS = [
+  tokens.LINE_FEED,
+  tokens.CAR_RETURN,
+  tokens.WHITESPACE,
+  tokens.TAB
+];
+
+const defaultHandlers = {
+
+  /**
+   * Intercept expression chars
+   *
+   * @param {State}
+   *
+   * @return {analyze.STOP=}
+   */
+  expression (state) {},
+
+  /**
+   * Intercept string chars
+   *
+   * @param {State}
+   *
+   * @return {analyze.STOP=}
+   */
+  string (state) {}
+};
+
+/**
+ * Intercept expression chars to rewrite/process a given input
+ *
+ * @param {string|State} inputOrState
+ * @param {Object|Function} handlerOrHandlers
+ *
+ * @return {State}
+ */
+function analyze (inputOrState, handlerOrHandlers) {
+  const handlers = {};
+
+  if (typeof handlerOrHandlers === 'function') {
+    handlers.expression = handlers.string = handlerOrHandlers;
+  } else {
+    Object.assign(handlers, defaultHandlers, handlerOrHandlers);
+  }
+
+  const state = typeof inputOrState === 'string' ? new State(inputOrState) : inputOrState;
+  const _state = getPrivateState(state);
+
+  while (!state.end) {
+    switch (state.current) {
+      case tokens.DOLLAR_SIGN:
+        if (state.is(tokens.OPEN_BRACE, 1) && state.inTemplate && !state.escaping) {
+          state.mode = modes.EXPRESSION_MODE;
+          _state.templateStack.push(_state.braceDepth++);
+
+          // Skip `${`
+          state.advance(2);
+        }
+        break
+
+      case tokens.OPEN_BRACE:
+        state.inExpression && _state.braceDepth++;
+        break
+
+      case tokens.CLOSE_BRACE:
+        if (state.inExpression && --_state.braceDepth === _state.templateStack[_state.templateStack.length - 1]) {
+          state.mode = modes.TEMPLATE_MODE;
+          _state.templateStack.pop();
+
+          // Skip `}`
+          state.advance();
+        }
+        break
+
+      case tokens.BACKTICK: case tokens.SINGLE_QUOTE: case tokens.DOUBLE_QUOTE:
+        if (state.inExpression) {
+          state.mode = state.is(tokens.BACKTICK) ? modes.TEMPLATE_MODE : modes.STRING_MODE;
+          _state.stringOpen = state.current;
+
+          // Skip opening string quote
+          state.advance();
+        } else if (state.is(_state.stringOpen) && !state.escaping) {
+          state.mode = modes.EXPRESSION_MODE;
+          _state.stringOpen = null;
+
+          // Skip current closing string quote
+          state.advance();
+        }
+        break
+    }
+
+    // Avoid call handlers if finished
+    if (state.end) break
+
+    let result;
+
+    if (state.inExpression) {
+
+      // Ignore some special chars on expression
+      if (IGNORED_TOKENS.some(token => state.is(token))) {
+        state.advance();
+        continue
+      }
+
+      result = handlers.expression(state);
+
+    // Skip escape char
+    } else if (!state.is(tokens.BACKSLASH) || state.escaping) {
+      result = handlers.string(state);
+    }
+
+    // Current analyzing can be stopped from handlers
+    if (result === analyze.STOP) break
+
+    // Detect correct escaping
+    state.escaping = state.mode !== modes.EXPRESSION_MODE && state.is(tokens.BACKSLASH) && !state.escaping;
+
+    state.advance();
+  }
+
+  return state
+}
+
+/**
+ * Signal to stop analyze
+ *
+ * @type {number}
+ */
+analyze.STOP = 5709; // S(5) T(7) O(0) P(9)
+
+/**
+ * Analyze string chars from a given `inputOrState`
+ *
+ * @param {string|State} inputOrState
+ * @param {Function} handler
+ *
+ * @return {State}
+ */
+analyze.expression = function analyzeExpression (inputOrState, handler) {
+  return analyze(inputOrState, { expression: handler })
+};
+
+/**
+ * Analyze expression chars from a given `inputOrState`
+ *
+ * @param {string|State} inputOrState
+ * @param {Function} handler
+ *
+ * @return {State}
+ */
+analyze.string = function analyzeString (inputOrState, handler) {
+  return analyze(inputOrState, { string: handler })
+};
+
+/**
+ * Get private state from a given `state`
+ *
+ * @param {State} state
+ *
+ * @return {Object}
+ * @private
+ */
+function getPrivateState (state) {
+  let _state = privateState.get(state);
+
+  if (!_state) {
+    privateState.set(state, _state = {
+
+      /**
+       * @type {number}
+       */
+      braceDepth: 0,
+
+      /**
+       * @type {Array<number>}
+       */
+      templateStack: [],
+
+      /**
+       * @type {string}
+       */
+      stringOpen: null
+    });
+  }
+
+  return _state
+}
+
+var tokens$1 = {
+
+  /**
+   * Tokens for filters
+   */
+  GT: '>',
+  PIPE: '|',
+
+  /**
+   * Token for stateful methods
+   */
+  STATEFUL_TOKEN: '#',
+
+  /**
+   * Tokens for templates
+   */
+  OPEN_TEMPLATE: '{',
+  CLOSE_TEMPLATE: '}',
+
+  /**
+   * Shared tokens
+   */
+  START_ARGS: '(',
+  END_ARGS: ')'
+};
+
+/**
+ * Matches line feed
+ *
+ * @type {RegExp}
+ */
+const LINE_FEED_REGEX = /\r?\n/g;
+
+/**
+ * Default highlight padding
+ *
+ * @type {number}
+ */
+const DEFAULT_PADDING = 25;
+
+/**
+ * Simple codeframe implementation
+ *
+ * @param {string} code
+ * @param {number} index
+ * @param {number=} padding
+ *
+ * @return {string}
+ */
+function highlight (code, index, padding = DEFAULT_PADDING) {
+  const leftPadding = Math.max(0, index - padding);
+
+  let lineFeedPadding = 0;
+  let part = code.slice(leftPadding, index + padding);
+
+  part = part.replace(LINE_FEED_REGEX, () => {
+    lineFeedPadding++;
+    return '\\n'
+  });
+
+  return part + '\n' + ' '.repeat(lineFeedPadding + index - leftPadding) + '^'
+}
+
+class GalaxyCompilerError extends Error {
+  name = 'GalaxyCompilerError'
+
+  constructor (message, location = null) {
+    super(message);
+
+    this.location = location;
+  }
+}
+
+/**
+ * Build an error message with a codeframe in it
+ *
+ * @param {string} message
+ * @param {string} code
+ * @param {number} index
+ *
+ * @return {GalaxyCompilerError}
+ */
+function buildError (message, code, index) {
+  return new GalaxyCompilerError(`\n\n${message.replace(/^[a-z]/, l => l.toUpperCase())}:\n\n\t${highlight(code, index).replace(/\n/, '\n\t')}\n`, index)
+}
+
+/**
+ * Matches correct identifier name
+ *
+ * @type {RegExp}
+ */
+const METHOD_NAME_REGEX = /[$\w]/;
+
+/**
+ * @type {RegExp}
+ */
+const INVALID_START_METHOD_NAME = /\$|\d/;
+
+/**
+ * Get function definition from a given `parentState`
+ *
+ * @param {string} type
+ * @param {State} parentState
+ *
+ * @return {Object}
+ */
+function getFnDefinition (type, parentState) {
+  const definition = {};
+  const expression = parentState.input;
+  const methodStart = parentState.cursor;
+
+  if (INVALID_START_METHOD_NAME.test(parentState.current)) {
+    throw buildError(`invalid ${type} start char name`, expression, methodStart)
+  }
+
+  analyze.expression(parentState, nameState => {
+    if (nameState.is(tokens$1.START_ARGS)) {
+      let depth = 1;
+
+      const argsStart = nameState.advance().cursor;
+      const methodName = definition.name = expression.slice(methodStart, argsStart - 1);
+
+      if (!methodName.length) {
+        throw buildError(`${type} should have a name`, expression, methodStart)
+      }
+
+      analyze.expression(nameState, argsState => {
+        if (argsState.is(tokens$1.START_ARGS)) {
+          depth++;
+        } else if (argsState.is(tokens$1.END_ARGS) && !--depth) {
+          definition.args = expression.slice(argsStart, argsState.cursor);
+          return analyze.STOP
+        }
+      });
+
+      return analyze.STOP
+    } else if (!METHOD_NAME_REGEX.test(nameState.current)) {
+      throw buildError(`invalid char in ${type} name`, expression, nameState.cursor)
+    }
+  });
+
+  return definition
+}
+
+function rewriteMethods (expression, pragma) {
+  let rewritten = '';
+  let prevMethodEnd = 0;
+
+  analyze.expression(expression, methodState => {
+    if (methodState.is(tokens$1.STATEFUL_TOKEN)) {
+      const methodStart = methodState.advance().cursor;
+      const { name, args } = getFnDefinition('stateful method', methodState);
+
+      rewritten += expression.slice(prevMethodEnd, methodStart - 1) + `${pragma}('${name}'${args ? `, ${rewriteMethods(args)}` : ''})`;
+      prevMethodEnd = methodState.cursor + 1;
+    }
+  });
+
+  return rewritten + expression.slice(prevMethodEnd)
+}
+
+// Skips `|` and `>` tokens
+const SKIP_FILTER_TOKEN = 2;
+
+/**
+ * Get filter expression
+ *
+ * @param {string} expression
+ *
+ * @return {string}
+ */
+function getFilterExpression (expression, pragma) {
+  let start = 0;
+  const parts = [];
+
+  analyze.expression(expression, state => {
+    if (state.is(tokens$1.GT) && state.is(tokens$1.PIPE, -1)) {
+      parts.push({
+        start, // Save start index just for error debugging
+        expression: expression.slice(start, (start = state.cursor + 1) - SKIP_FILTER_TOKEN)
+      });
+    }
+  });
+
+  // Push last expression
+  parts.push({ start, expression: expression.slice(start) });
+
+  return parts.slice(1).reduce((filtered, { start, expression: _expression }) => {
+    const filter = _expression.trim();
+
+    if (!filter) {
+      throw buildError('missing filter expression', expression, start)
+    }
+
+    let name, args;
+
+    try {
+      ({ name, args } = getFnDefinition('filter', new State(filter)));
+    } catch (error) {
+
+      // TODO: Check for a galaxy compiler error
+      // A little hacky code to catch correct error location and message
+      throw buildError(error.message.split(':', 1)[0].trimStart(), expression,  error.location + start + 1)
+    }
+
+    return `${pragma}('${name || filter}', ${filtered}${args ? `, ${args}` : ''})`
+  }, parts[0].expression.trim())
+}
+
+const SKIP_OPEN_TEMPLATE = 2;
+
+/**
+ * Get an inlined JavaScript expression
+ *
+ * @param {string} template - String with interpolation tags
+ * @param {string} pragma
+ * @param {string} filterPragma
+ *
+ * @return {string}
+ */
+function getTemplateExpression (template, pragma, filterPragma) {
+  let expressions = [];
+  let prevTemplateEnd = 0;
+
+  function tryPushContext (context) {
+    if (context) {
+      expressions.push(`\`${context}\``);
+    }
+  }
+
+  analyze.expression(template, state => {
+    if (state.is(tokens$1.OPEN_TEMPLATE) && state.is(tokens$1.OPEN_TEMPLATE, -1)) {
+      let depth = 1;
+
+      const templateStart = state.advance().cursor;
+
+      analyze.expression(state, templateState => {
+        if (templateState.is(tokens$1.OPEN_TEMPLATE)) {
+          depth++;
+        } else if (templateState.is(tokens$1.CLOSE_TEMPLATE) && !--depth) {
+          if (!templateState.is(tokens$1.CLOSE_TEMPLATE, 1)) {
+            throw buildError('expecting closing template tag', template, templateState.cursor + 1)
+          }
+
+          tryPushContext(template.slice(prevTemplateEnd, templateStart - SKIP_OPEN_TEMPLATE));
+
+          const expression = template.slice(templateStart, templateState.cursor).trim();
+
+          if (!expression) {
+            throw buildError('missing template expression', template, templateState.cursor - 1)
+          }
+
+          try {
+            expressions.push(`${pragma}(${getFilterExpression(expression, filterPragma)})`);
+          } catch (error) {
+            throw new GalaxyCompilerError(`\n\nError in template expression...\n${error.message.trimStart()}`, error.location)
+          }
+
+          templateState.advance(2);
+
+          prevTemplateEnd = templateState.cursor;
+          return analyze.STOP
+        }
+      });
+    }
+  });
+
+  tryPushContext(template.slice(prevTemplateEnd));
+
+  return expressions.join(' + ')
+}
+
+const defaultPragma = {
+  template: '__$n',
+  filter: '$filter',
+  method: '$commit'
+};
+
+const genUUID = (() => {
+  let uuid = 0;
+
+  return () => Math.random().toString(16).slice(2) + uuid++
+})();
+
+class Compiler {
+  constructor ({ scope, pragma }) {
+
+    /**
+     * @type {string}
+     * @private
+     */
+    this._id = genUUID();
+
+    /**
+     * Cache for evaluators
+     *
+     * @type {Map<string, Function>}
+     * @private
+     */
+    this._evaluators = new Map();
+
+    /**
+     * @type {GalaxyElement}
+     */
+    this.scope = scope;
+
+    /**
+     * @type {Object.<string>}
+     */
+    this.pragma = Object.assign({}, defaultPragma, pragma);
+  }
+
+  /**
+   * Compile a given template expression
+   *
+   * A template expression looks like this: 'Hello, {{ firstName }} {{ lastName }}'
+   *
+   * @param {string} template
+   *
+   * @return {Function}
+   */
+  compileTemplate (template) {
+    return this.compileGetter(getTemplateExpression(template, this.pragma.template, this.pragma.filter))
+  }
+
+  /**
+   * Compile a given expression
+   *
+   * @param {string} expression
+   *
+   * @return {Function}
+   */
+  compileExpression (expression) {
+    return this.compileGetter(getFilterExpression(expression, this.pragma.filter))
+  }
+
+  /**
+   * Compile a given event expression
+   *
+   * @param {string} expression
+   *
+   * @return {Function}
+   */
+  compileEvent (expression) {
+    return this.compileEvaluator(rewriteMethods(expression, this.pragma.method))
+  }
+
+  /**
+   * Compile an scoped setter with given `expression`
+   *
+   * @param {string} expression - JavaScript expression
+   *
+   * @return {Function}
+   */
+  compileSetter (expression) {
+    return this.compileEvaluator(`(${expression} = __args_${this._id}__[0])`)
+  }
+
+  /**
+   * Compile an scoped getter with given `expression`
+   *
+   * @param {string} expression - JavaScript expression
+   *
+   * @return {Function}
+   */
+  compileGetter (expression) {
+    return this.compileEvaluator(`return ${expression}`)
+  }
+
+  /**
+   * Compile a scoped evaluator function
+   *
+   * @param {string} body - Function body
+   *
+   * @return {Function}
+   */
+  compileEvaluator (body) {
+    let evaluator = this._evaluators.get(body);
+
+    if (!evaluator) {
+      evaluator = new Function(
+        `__locals_${this._id}__`, `...__args_${this._id}__`,
+        'with (this) {' +
+          'with (state) {' +
+            `with (__locals_${this._id}__) {` +
+              body +
+            '}' +
+          '}' +
+        '}'
+      );
+
+      // Cache evaluator with body as key
+      this._evaluators.set(body, evaluator);
+    }
+
+    return (locals = {}, ...args) => evaluator.call(this.scope, locals, ...args)
+  }
+}
+
+class GalaxyError extends Error {}
+
+/**
+ * Converts given `error`
+ *
+ * @param {Error} error
+ *
+ * @return {GalaxyError}
+ */
+function galaxyError ({ message, stack }) {
+  const galaxyError = new GalaxyError(message);
+
+  // Setting up correct stack
+  galaxyError.stack = stack;
+
+  return galaxyError
+}
+
+/**
+ * Match text template interpolation
+ *
+ * @type {RegExp}
+ */
+const TEXT_TEMPLATE_REGEX = /{{.*?}}/;
+
+/**
+ * Renderer for inline tag template binding:
+ *
+ *   1. Within text node: <h1>Hello {{ world }}</h1>
+ *   2. As attribute interpolation: <input class="some-class {{ klass }}"/>
+ */
+class TemplateRenderer {
+  constructor (node, { scope, isolated }) {
+    this.node = node;
+
+    const templateFn = scope.$compiler.compileTemplate(node.nodeValue);
+
+    this.getter = () => templateFn(isolated);
+  }
+
+  static is ({ nodeValue }) {
+    return TEXT_TEMPLATE_REGEX.test(nodeValue)
+  }
+
+  render () {
+    const value = this.getter();
+
+    if (this.node.nodeValue !== value) {
+      this.node.nodeValue = value;
+    }
+  }
+}
+
 function isObject (value) {
   return value !== null && typeof value === 'object'
 }
@@ -461,517 +1192,6 @@ function isPlaceholder (element) {
 
 function isGalaxyElement (element) {
   return !!element.$galaxy
-}
-
-/**
- * Exposed internally as Globals within the scope
- */
-var global$1 = {
-
-  /**
-   * Apply filter descriptors to the given `value`
-   *
-   * @param {*} value
-   * @param {Array<Object>} filters
-   *
-   * @return {*}
-   */
-  _$f (value, filters) {
-    return filters.reduce((result, filter) => {
-      const applier = config.filters[filter.name];
-
-      return filter.args
-        ? applier(result, ...filter.args)
-        : applier(result)
-    }, value)
-  },
-
-  /**
-   * Normalize given template value
-   *
-   * @param {*} value
-   *
-   * @return {string}
-   */
-  _$n (value) {
-    return isDefined(value) ? value : ''
-  }
-}
-
-/**
- * Intercept expression chars to rewrite/process a given input
- *
- * @example
- *
- *  analyzer('#someMethod("a")', state => { // skips "a" string
- *    console.log(state.current) // <- current expression char code
- *  })
- *
- * @param {string} input
- * @param {Function} onExpr
- * @param {number} start
- *
- * @return void
- */
-function analyzer (input, onExpr, start = 0) {
-  const { length } = input;
-
-  /**
-   * Flag for modes:
-   *
-   *   expr -> For expresssions
-   *   str  -> For strings
-   *   tmpl -> For template strings
-   *
-   * @type {string}
-   */
-  let mode = 'expr';
-
-  /**
-   * Hold current opening string char
-   *
-   *  tmpl -> `
-   *  str  -> ' "
-   *
-   * @type {string}
-   */
-  let stringOpen;
-
-  /**
-   * Indicates whether the analyzer is stopped
-   *
-   * @type {boolean}
-   */
-  let stopped = false;
-
-  /**
-   * Check for escaping chars
-   *
-   * @type {boolean}
-   */
-  let escaping = false;
-
-  let templateDepth = 0;
-  const templateDepthStack = [];
-
-  const state = {
-    start,
-    cursor: start,
-    get previous () {
-      return this.at(-1)
-    },
-    get current () {
-      return this.at(0)
-    },
-    get end () {
-      return this.cursor >= length
-    },
-    at (offset) {
-      return input.charCodeAt(this.cursor + offset)
-    },
-    next (offset = 1) {
-      this.cursor += offset;
-    },
-    stop () {
-      stopped = true;
-    },
-    to (index) {
-      this.cursor = index;
-    },
-    is (code) {
-      return this.current === code
-    }
-  };
-
-  while (!state.end) {
-    const inExpr = mode === 'expr';
-
-    if (state.is(0x24/* $ */) && state.at(1) === 0x7b/* { */ && mode === 'tmpl' && !escaping) {
-      mode = 'expr';
-      templateDepthStack.push(templateDepth++);
-
-      // Skip `${`
-      state.next(2);
-    } else if (state.is(0x7b/* { */) && inExpr) {
-      templateDepth++;
-    } else if (state.is(0x7d/* } */) && inExpr && --templateDepth === templateDepthStack[templateDepthStack.length - 1]) {
-      mode = 'tmpl';
-      templateDepthStack.pop();
-    } else {
-      const isTemplate = state.is(0x60/* ` */);
-
-      if (isTemplate || state.is(0x27/* ' */) || state.is(0x22/* " */)) {
-        if (inExpr) {
-          mode = isTemplate ? 'tmpl' : 'str';
-          stringOpen = state.current;
-        } else if (state.is(stringOpen) && !escaping) {
-          mode = 'expr';
-          stringOpen = null;
-
-          // Skip current closing string quote
-          state.next();
-        }
-      }
-    }
-
-    if (mode === 'expr' && !state.end) {
-      onExpr(state);
-
-      // Current analyzing can be stopped from `onExpr` callback
-      if (stopped) break
-    }
-
-    // Detect correct escaping
-    escaping = mode !== 'expr' && state.is(0x5c/* \ */) && !escaping;
-
-    state.next();
-  }
-}
-
-class GalaxyError extends Error {}
-
-/**
- * Converts given `error`
- *
- * @param {Error} error
- *
- * @return {GalaxyError}
- */
-function galaxyError ({ message, stack }) {
-  const galaxyError = new GalaxyError(message);
-
-  // Setting up correct stack
-  galaxyError.stack = stack;
-
-  return galaxyError
-}
-
-/**
- * Match filter
- *
- * @type {RegExp}
- */
-const FILTER_REGEX = /^(?<name>\w+)(?:\((?<args>.*)\))?$/;
-
-/**
- * Get filter expression
- *
- * @param {string} expression
- *
- * @return {string}
- */
-function getFilterExpression (expression) {
-  const parts = [];
-
-  let start = 0;
-
-  // Skips `|` and `>` tokens
-  const SKIP_FILTER_TOKEN = 2;
-
-  analyzer(expression, state => {
-    if (state.is(0x3e/* > */) && state.previous === 0x7c/* | */) {
-      parts.push(expression.slice(start, (start = state.cursor + 1) - SKIP_FILTER_TOKEN));
-    }
-  });
-
-  const last = expression.slice(start);
-
-  if (!last.trim().length) {
-    throw new GalaxyError(`Unexpected end of expression filter: ${expression}`)
-  }
-
-  return parts.length
-    ? `_$f(${parts[0]}, [${getDescriptors(parts.slice(1).concat(last)).join()}])`
-    : expression
-}
-
-/**
- * Get filter descriptors
- *
- * @param {Array.<string>} filters
- *
- * @return {Array.<string>}
- */
-function getDescriptors (filters) {
-  return filters.map(filter => {
-    filter = filter.trim();
-    const match = FILTER_REGEX.exec(filter);
-
-    if (!match) {
-      throw new GalaxyError(`Wrong syntax for filter: |> ${filter}`)
-    }
-
-    const { groups } = match;
-
-    // Compose filter applier
-    return `{
-      name: '${groups.name}',
-      args: ${groups.args ? `[${groups.args}]` : 'null'}
-    }`
-  })
-}
-
-/**
- * Match text template interpolation
- *
- * @type {RegExp}
- */
-const TEXT_TEMPLATE_REGEX = /{{(?<expression>.*?)}}/;
-
-/**
- * Get an inlined JavaScript expression
- *
- * @param {string} template - String with interpolation tags
- *
- * @return {string}
- */
-function getTemplateExpression (template) {
-  let match;
-
-  // Hold inlined expressions
-  const expressions = [];
-
-  while (match = TEXT_TEMPLATE_REGEX.exec(template)) {
-    const rawLeft = template.slice(0, match.index);
-    let expression = match.groups.expression.trim();
-
-    // Push wrapped left context
-    if (rawLeft) expressions.push(`\`${rawLeft}\``);
-
-    // TODO: Throw an error on empty template expressions
-    // Push isolated expression itself
-    if (expression) expressions.push(`_$n(${getFilterExpression(expression)})`);
-
-    template = template.slice(match.index + match[0].length);
-  }
-
-  // Push residual template expression
-  if (template) expressions.push(`\`${template}\``);
-
-  return expressions.join(' + ')
-}
-
-/**
- * Matches correct identifier name
- *
- * @type {RegExp}
- */
-const METHOD_NAME_REGEX = /\w/;
-
-/**
- * Rewrite a given `expression` by intercepting
- * function calls passing the `state` as first argument
- *
- * @example
- *
- *   rewriteMethods('#rad(a, b) + multiply(d, f)') // rewrites to -> $commit('rad', a, b) + multiply(d, f)
- *
- * @param {string} expression - JavaScript expression to be rewritten
- *
- * @return {string}
- */
-function rewriteMethods (expression) {
-  let rewritten = '';
-  let stateful = false;
-
-  let method;
-  let start = 0;
-  let end = 0;
-
-  analyzer(expression, state => {
-    switch (state.current) {
-      case 0x23/* # */: {
-        stateful = true;
-        start = state.cursor;
-        method = '';
-      } break
-
-      case 0x28/* ( */: {
-        if (!stateful) return
-
-        if (!method.length) {
-          throw new GalaxyError('Unexpected args... Expecting stateful method name')
-        }
-
-        let args;
-        let depth = 1;
-
-        state.next();
-
-        // Get arguments
-        analyzer(expression, _state => {
-          if (_state.is(0x28/* ( */)) {
-            depth++;
-          } else if (_state.is(0x29/* ) */)) {
-            if (!--depth) {
-              args = expression.slice(_state.start, _state.cursor);
-              rewritten += expression.slice(end, start) + `$commit('${method}'${args ? `, ${rewriteMethods(args)}` : ''})`;
-
-              end = _state.cursor + 1;
-
-              // Stop current analyze
-              _state.stop();
-            }
-          }
-        }, state.cursor);
-
-        stateful = false;
-
-        // Sync with arguments analyzer
-        state.to(end - 1);
-      } break
-
-      default: {
-        if (stateful) {
-          const char = String.fromCharCode(state.current);
-
-          method += char;
-
-          if ((method.length === 1 && /[0-9]/.test(method)) || !METHOD_NAME_REGEX.test(char)) {
-            throw new GalaxyError(`Unexpected char in stateful method name: #${method}<-`)
-          }
-        }
-      } break
-    }
-  });
-
-  return rewritten + expression.slice(end)
-}
-
-/**
- * Cache evaluators
- *
- * @type {Map<string, Function>}
- * @private
- */
-const __evaluators__ = new Map();
-
-/**
- * Compile a given template expression
- *
- * A template expression looks like this: 'Hello, {{ firstName }} {{ lastName }}'
- *
- * @param {string} template
- *
- * @return {Function}
- */
-function compileTemplate (template) {
-  return compileScopedGetter(getTemplateExpression(template))
-}
-
-/**
- * Compile a given expression
- *
- * @param {string} expression
- *
- * @return {Function}
- */
-function compileExpression (expression) {
-  return compileScopedGetter(getFilterExpression(expression))
-}
-
-/**
- * Compile a given event expression
- *
- * @param {string} expression
- *
- * @return {Function}
- */
-function compileEvent (expression) {
-  return compileScopedEvaluator(rewriteMethods(expression))
-}
-
-/**
- * Compile an scoped getter with given `expression`
- *
- * @param {string} expression - JavaScript expression
- *
- * @return {Function}
- */
-function compileScopedGetter (expression) {
-  return compileScopedEvaluator(`return ${expression}`)
-}
-
-/**
- * Compile an scoped setter with given `expression`
- *
- * @param {string} expression - JavaScript expression
- *
- * @return {Function}
- */
-function compileScopedSetter (expression) {
-  return compileScopedEvaluator(`(${expression} = __args__[0])`)
-}
-
-/**
- * Compile a scoped evaluator function
- *
- * @param {string} body - Function body
- *
- * @return {Function}
- */
-function compileScopedEvaluator (body) {
-  let evaluator = __evaluators__.get(body);
-
-  if (!evaluator) {
-
-    /**
-     * Allow directly access to:
-     *
-     *   1. `scope`: Custom element instance itself
-     *   2. `scope.state`: State taken from custom element
-     *   3. `isolated`: Isolated scope internally used by loop directive
-     *
-     * In that order, `isolated` overrides `scope.state` data,
-     * and `scope` is going to be overriden by `scope.state` data.
-     */
-    evaluator = new Function(
-      '__global__', '__locals__', '...__args__',
-      `with (__global__) {
-        with (this) {
-          with (state) {
-            with (__locals__) {
-              ${body}
-            }
-          }
-        }
-      }`
-    );
-
-    // Cache evaluator with body as key
-    __evaluators__.set(body, evaluator);
-  }
-
-  return (scope, locals, ...args) => {
-    return evaluator.call(scope, global$1, locals, ...args)
-  }
-}
-
-/**
- * Renderer for inline tag template binding:
- *
- *   1. Within text node: <h1>Hello {{ world }}</h1>
- *   2. As attribute interpolation: <input class="some-class {{ klass }}"/>
- */
-class TemplateRenderer {
-  constructor (node, renderer) {
-    this.node = node;
-    this.renderer = renderer;
-
-    this.getter = compileTemplate(node.nodeValue);
-  }
-
-  static is ({ nodeValue }) {
-    return TEXT_TEMPLATE_REGEX.test(nodeValue)
-  }
-
-  render () {
-    const value = this.getter(this.renderer.scope, this.renderer.isolated);
-
-    if (this.node.nodeValue !== value) {
-      this.node.nodeValue = value;
-    }
-  }
 }
 
 /**
@@ -1068,6 +1288,100 @@ class VoidRenderer {
     }
   }
 }
+
+var nextTick = createCommonjsModule(function (module, exports) {
+(function (global, factory) {
+  module.exports = factory();
+}(commonjsGlobal, (function () {
+  /**
+   * Resolved promise to schedule new microtasks
+   *
+   * @type {Promise}
+   *
+   * @api private
+   */
+  const resolved = Promise.resolve();
+
+  /**
+   * Queue of callbacks to be flushed
+   *
+   * @type {Array}
+   *
+   * @api public
+   */
+  const queue = nextTick.queue = [];
+
+  /**
+   * Defers execution of a given `callback`
+   *
+   * @param {Function} callback - Function to be deferred
+   *
+   * @return void
+   *
+   * @api public
+   */
+  function nextTick (callback) {
+    if (!nextTick.waiting) {
+      // Always flushing in a microtask
+      resolved.then(nextTick.flush);
+    }
+
+    queue.push(callback);
+  }
+
+  /**
+   * Determines when we are waiting to flush the queue
+   *
+   * @type {boolean}
+   *
+   * @api public
+   */
+  Object.defineProperty(nextTick, 'waiting', {
+    enumerable: true,
+    get () {
+      return queue.length > 0
+    }
+  });
+
+  /**
+   * Defers a callback to be called
+   * after flush the queue
+   *
+   * @param {Function} callback
+   *
+   * @return void
+   */
+  nextTick.afterFlush = callback => {
+    setTimeout(() => {
+      if (!nextTick.waiting) return callback()
+
+      // If we are waiting, then re-schedule call
+      nextTick.afterFlush(callback);
+    });
+  };
+
+  /**
+   * Flushes the actual queue
+   *
+   * @return {boolean}
+   */
+  nextTick.flush = () => {
+    if (nextTick.waiting) {
+      const callbacks = queue.slice();
+
+      // Empty actual queue
+      queue.length = 0;
+
+      for (const callback of callbacks) {
+        callback();
+      }
+    }
+  };
+
+  return nextTick;
+
+})));
+});
 
 var matchOperatorsRe = /[|\\{}()[\]^$+*?.]/g;
 
@@ -1345,21 +1659,6 @@ class ElementRenderer extends VoidRenderer {
   }
 }
 
-/**
- * Get an `indexBy` function from a given element
- *
- * @param {HTMLElement} element
- *
- * @return {Function}
- */
-function getIndexByFn (element) {
-  const indexBy = compileExpression(element.getAttribute('by'));
-
-  return function (isolated) {
-    return indexBy(this.scope, newIsolated(this.isolated, isolated))
-  }
-}
-
 class ItemRenderer extends ElementRenderer {
   constructor (template, renderer, isolated) {
     super(
@@ -1369,7 +1668,9 @@ class ItemRenderer extends ElementRenderer {
       newIsolated(renderer.isolated, isolated)
     );
 
-    this.by = getIndexByFn(this.element);
+    const indexBy = this.scope.$compiler.compileExpression(this.element.getAttribute('by'));
+
+    this.by = locals => indexBy(newIsolated(this.isolated, locals));
     this.reused = false;
   }
 
@@ -1462,9 +1763,9 @@ class LoopRenderer {
     this.startAnchor = createAnchor(`start for: ${expression}`);
     this.endAnchor = createAnchor(`end for: ${expression}`);
 
-    this.getter = compileExpression(groups.expression);
+    this.getter = renderer.scope.$compiler.compileExpression(groups.expression);
 
-    // Remove template with an anchor
+    // Replace template with an anchor
     template.replaceWith(this.startAnchor);
     this.startAnchor.nextSibling.before(this.endAnchor);
 
@@ -1485,7 +1786,7 @@ class LoopRenderer {
   }
 
   render () {
-    const collection = this.getter(this.renderer.scope, this.renderer.isolated);
+    const collection = this.getter(this.renderer.isolated);
 
     const items = [];
     const keys = Object.keys(collection);
@@ -1606,6 +1907,131 @@ class ChildrenRenderer {
 }
 
 /**
+ * Setup GalaxyElement's main renderer
+ *
+ * @param {GalaxyElement} $element
+ */
+function setupRenderer ($element) {
+  let shadow;
+
+  const { style, template } = $element.constructor;
+
+  try {
+    shadow = $element.attachShadow({ mode: 'open' });
+  } catch (e) {
+    /**
+     * @see https://developer.mozilla.org/en-US/docs/Web/API/Element/attachShadow#Exceptions
+     */
+  }
+
+  if (style instanceof HTMLStyleElement) {
+    if (!shadow) throw new GalaxyError('style cannot be attached')
+
+    shadow.appendChild(style.cloneNode(true));
+  }
+
+  if (template instanceof HTMLTemplateElement) {
+    if (!shadow) throw new GalaxyError('template cannot be attached')
+
+    shadow.appendChild(template.content.cloneNode(true));
+  }
+
+  return new ChildrenRenderer(shadow ? shadow.childNodes : [], $element, {})
+}
+
+/**
+ * Core GalaxyElement API
+ *
+ * @mixin
+ */
+var CoreMixin = {
+
+  /**
+   * Filter a given `value`
+   *
+   * @param {string} name
+   * @param {*} value
+   * @param  {...*} args
+   *
+   * @return {*}
+   */
+  $filter (name, value, ...args) {
+    const filter = config.filters[name];
+
+    if (!filter) {
+      throw new GalaxyError(`Unknown filter '${name}'`)
+    }
+
+    return filter(value, ...args)
+  },
+
+  /**
+   * Intercept given method call by passing the state
+   *
+   * @param {string} method - Method name
+   * @param {*...} [args] - Arguments to pass in
+   *
+   * @throws {GalaxyError}
+   *
+   * @return void
+   */
+  $commit (method, ...args) {
+    if (method in this) {
+      if (!isFunction(this[method])) {
+        throw new GalaxyError(`Method '${method}' must be a function`)
+      }
+
+      if (isReserved(method)) {
+        throw new GalaxyError(`Could no call reserved method '${method}'`)
+      }
+
+      this[method](this.state, ...args);
+    }
+  },
+
+  /**
+   * Reflect state changes to the DOM
+   *
+   * @return void
+   */
+  $render () {
+    if (!this.$rendering) {
+      this.$emit('$render:before');
+
+      this.$rendering = true;
+
+      nextTick(() => {
+
+        // Takes render error
+        let renderError;
+
+        try {
+          this.$renderer.render();
+        } catch (e) {
+          if (!(e instanceof GalaxyError)) {
+            e = galaxyError(e);
+          }
+
+          // Don't handle the error in debug mode
+          if (config.debug) throw e
+
+          renderError = e;
+        }
+
+        // Sleep after render new changes
+        this.$rendering = false;
+
+        if (renderError) {
+
+          // Event syntax: {phase}:{subject}
+          this.$emit('$render:error', renderError);
+        }
+      });
+    }
+  }
+}
+
+/**
  * Events - Custom and native events API
  *
  * @mixin
@@ -1702,12 +2128,75 @@ var EventsMixin = {
 }
 
 /**
+ * Lifecycle hooks
+ *
+ * @mixin
+ */
+var HooksMixin = {
+
+  /**
+   *
+   */
+  connectedCallback () {
+    let $parent = this;
+
+    do {
+      $parent = $parent[$parent instanceof ShadowRoot ? 'host' : 'parentNode'];
+    } while ($parent && !isGalaxyElement($parent))
+
+    // Set parent communication
+    this.$parent = $parent;
+
+    callHook(this, 'attached');
+  },
+
+  /**
+   *
+   */
+  disconnectedCallback () {
+    // Cut-out parent communication
+    this.$parent = null;
+
+    callHook(this, 'detached');
+  },
+
+  /**
+   *
+   * @param {*} name
+   * @param {*} old
+   * @param {*} value
+   */
+  attributeChangedCallback (name, old, value) {
+    callHook(this, 'attribute', { name, old, value });
+  }
+}
+
+/**
+ * Private methods
+ *
+ * @mixin
+ */
+var PrivatesMixin = {
+
+  /**
+   * Normalize given template value
+   *
+   * @param {*} value
+   *
+   * @return {string}
+   */
+  __$n (value) {
+    return isDefined(value) ? value : ''
+  }
+}
+
+/**
  * Internal
  */
 const __proxies__ = new WeakMap();
 
 /**
- * Creates a customized built-in element
+ * Creates a GalaxyElement class
  *
  * @param {HTMLElement} SuperElement
  *
@@ -1752,6 +2241,22 @@ function extend (SuperElement) {
     $rendering = false
 
     /**
+     * State for data-binding
+     *
+     * @type {Object}
+     * @public
+     */
+    get state () { return __proxies__.get(this) }
+    set state (state) {
+      const render = () => { this.$render(); };
+
+      __proxies__.set(this, proxyObserver.observe(state, null, render));
+
+      // State change, so render...
+      render();
+    }
+
+    /**
      * Galaxy element name
      *
      * @type {string}
@@ -1762,46 +2267,25 @@ function extend (SuperElement) {
 
     /**
      * Children GalaxyElement definitions
+     *
+     * @type {Array<GalaxyElement>}
+     * @public
      */
-    static get children () {
-      return []
-    }
+    static children = []
 
     constructor () {
       super();
 
-      let shadow;
-      const { style, template } = this.constructor;
-
-      try {
-        shadow = this.attachShadow({ mode: 'open' });
-      } catch (e) {
-        /**
-         * @see https://developer.mozilla.org/en-US/docs/Web/API/Element/attachShadow#Exceptions
-         */
-      }
-
-      if (style instanceof HTMLStyleElement) {
-        if (!shadow) throw new GalaxyError('style cannot be attached')
-
-        // Prepend styles
-        shadow.appendChild(style.cloneNode(true));
-      }
-
-      if (template instanceof HTMLTemplateElement) {
-        if (!shadow) throw new GalaxyError('template cannot be attached')
-
-        // We need to append content before setting up the main renderer
-        shadow.appendChild(template.content.cloneNode(true));
-      }
+      // This performs the initial render
+      this.state = {};
 
       /**
-       * State for data-binding
+       * Compiler for directives
        *
-       * @type {Object.<*>}
+       * @type {Compiler}
        * @public
        */
-      this.state = {}; // This performs the initial render
+      this.$compiler = new Compiler({ scope: this });
 
       /**
        * Main renderer
@@ -1809,125 +2293,10 @@ function extend (SuperElement) {
        * @type {ChildrenRenderer}
        * @public
        */
-      this.$renderer = new ChildrenRenderer(
-        shadow ? shadow.childNodes : [],
-        this, {}
-      );
+      this.$renderer = setupRenderer(this);
 
       // Call element initialization
       callHook(this, 'created');
-    }
-
-    get state () {
-      // Return proxified state
-      return __proxies__.get(this)
-    }
-
-    set state (state) {
-      const render = () => { this.$render(); };
-
-      // Setup proxy to perform render on changes
-      __proxies__.set(this, proxyObserver.observe(
-        state, null /* <- options */,
-        render /* <- global subscription */
-      ));
-
-      // State change, so render...
-      render();
-    }
-
-    /**
-     * Lifecycle hooks
-     *
-     * Hooks that catch changes properly
-     */
-    connectedCallback () {
-      let $parent = this;
-
-      do {
-        $parent = $parent instanceof ShadowRoot ? $parent.host : $parent.parentNode;
-      } while ($parent && !isGalaxyElement($parent))
-
-      // Set parent communication
-      this.$parent = $parent;
-
-      callHook(this, 'attached');
-    }
-
-    disconnectedCallback () {
-      // Cut-out parent communication
-      this.$parent = null;
-
-      callHook(this, 'detached');
-    }
-
-    attributeChangedCallback (name, old, value) {
-      callHook(this, 'attribute', { name, old, value });
-    }
-
-    /**
-     * Intercept given method call by passing the state
-     *
-     * @param {string} method - Method name
-     * @param {*...} [args] - Arguments to pass in
-     *
-     * @throws {GalaxyError}
-     *
-     * @return void
-     */
-    $commit (method, ...args) {
-      if (method in this) {
-        if (!isFunction(this[method])) {
-          throw new GalaxyError(`Method '${method}' must be a function`)
-        }
-
-        if (isReserved(method)) {
-          throw new GalaxyError(`Could no call reserved method '${method}'`)
-        }
-
-        this[method](this.state, ...args);
-      }
-    }
-
-    /**
-     * Reflect state changes to the DOM
-     *
-     * @return void
-     */
-    $render () {
-      if (!this.$rendering) {
-        this.$emit('$render:before');
-
-        this.$rendering = true;
-
-        nextTick(() => {
-
-          // Takes render error
-          let renderError;
-
-          try {
-            this.$renderer.render();
-          } catch (e) {
-            if (!(e instanceof GalaxyError)) {
-              e = galaxyError(e);
-            }
-
-            // Don't handle the error in debug mode
-            if (config.debug) throw e
-
-            renderError = e;
-          }
-
-          // Sleep after render new changes
-          this.$rendering = false;
-
-          if (renderError) {
-
-            // Event syntax: {phase}:{subject}
-            this.$emit('$render:error', renderError);
-          }
-        });
-      }
     }
   }
 
@@ -1953,7 +2322,10 @@ function extend (SuperElement) {
 
   // Mix features
   applyMixins(GalaxyElement, [
-    EventsMixin
+    CoreMixin,
+    EventsMixin,
+    HooksMixin,
+    PrivatesMixin
   ]);
 
   // Return mixed
@@ -2006,6 +2378,11 @@ class GalaxyDirective {
     /**
      *
      */
+    this.$compiler = this.$scope.$compiler;
+
+    /**
+     *
+     */
     this.$element = renderer.element;
 
     /**
@@ -2014,14 +2391,12 @@ class GalaxyDirective {
     this.$options = Object.assign({}, options, this.constructor.options);
 
     if (!this.$options.$plain) {
-      const getter = compileExpression(init.value);
+      const getter = this.$compiler.compileExpression(init.value);
 
       /**
        *
        */
-      this.$getter = locals => {
-        return getter(renderer.scope, newIsolated(renderer.isolated, locals))
-      };
+      this.$getter = locals => getter(newIsolated(renderer.isolated, locals));
     }
   }
 
@@ -2166,9 +2541,9 @@ class EventDirective extends GalaxyDirective {
   }
 
   init () {
-    const { $args, $scope, $name, $element, $renderer } = this;
+    const { $args, $name, $element, $renderer } = this;
     const once = $args.includes('once');
-    const evaluate = compileEvent(this.$value);
+    const evaluate = this.$compiler.compileEvent(this.$value);
 
     // Merged handlers
     let mainHandler;
@@ -2202,7 +2577,7 @@ class EventDirective extends GalaxyDirective {
     }
 
     handlers.push((end, $event) => {
-      evaluate($scope, newIsolated($renderer.isolated, { $event }));
+      evaluate(newIsolated($renderer.isolated, { $event }));
       end();
     });
 
@@ -2391,17 +2766,9 @@ class BindDirective extends GalaxyDirective {
     this.setting = false;
 
     // Input -> State
-    const setter = compileScopedSetter(this.$value);
+    const setter = this.$compiler.compileSetter(this.$value);
 
-    this.setter = value => {
-      setter(
-        // (scope, locals,
-        this.$scope, this.$renderer.isolated,
-
-        // ...args[0])
-        value
-      );
-    };
+    this.setter = value => setter(this.$renderer.isolated, value);
 
     if (this.onInput) {
       this.$element.addEventListener('input', this.onInput.bind(this));

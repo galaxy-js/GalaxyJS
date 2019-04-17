@@ -22,6 +22,7 @@
     "rollup-plugin-node-resolve": "^3.3.0"
   },
   "dependencies": {
+    "@galaxy/compiler": "LosMaquios/galaxy-compiler",
     "escape-string-regexp": "^1.0.5",
     "next-tick": "LosMaquios/next-tick",
     "proxy-observer": "LosMaquios/ProxyObserver"

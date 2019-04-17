@@ -168,6 +168,12 @@
     lodash "^4.17.5"
     to-fast-properties "^2.0.0"
 
+"@galaxy/compiler@LosMaquios/galaxy-compiler":
+  version "0.1.1"
+  resolved "https://codeload.github.com/LosMaquios/galaxy-compiler/tar.gz/7bb5cb65aa63cd98256a0e9b0eb745d39f23fe65"
+  dependencies:
+    expression-analyzer LosMaquios/expression-analyzer
+
 "@types/estree@0.0.38":
   version "0.0.38"
   resolved "https://registry.yarnpkg.com/@types/estree/-/estree-0.0.38.tgz#c1be40aa933723c608820a99a373a16d215a1ca2"
@@ -500,6 +506,10 @@ expand-range@^1.8.1:
   integrity sha1-opnv/TNf4nIeuujiV+x5ZE/IUzc=
   dependencies:
     fill-range "^2.1.0"
+
+expression-analyzer@LosMaquios/expression-analyzer:
+  version "0.1.1"
+  resolved "https://codeload.github.com/LosMaquios/expression-analyzer/tar.gz/3ef049675f01f71a31c0a538a12897f7febaebc7"
 
 extglob@^0.3.1:
   version "0.3.2"

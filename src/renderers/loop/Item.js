@@ -1,7 +1,6 @@
 import ElementRenderer from '../../renderers/element/Element.js'
 
 import { newIsolated, dispatchTransitionEvent } from '../../utils/generic.js'
-import { getIndexByFn } from './shared.js'
 
 export default class ItemRenderer extends ElementRenderer {
   constructor (template, renderer, isolated) {
@@ -12,7 +11,9 @@ export default class ItemRenderer extends ElementRenderer {
       newIsolated(renderer.isolated, isolated)
     )
 
-    this.by = getIndexByFn(this.element)
+    const indexBy = this.scope.$compiler.compileExpression(this.element.getAttribute('by'))
+
+    this.by = locals => indexBy(newIsolated(this.isolated, locals))
     this.reused = false
   }
 
