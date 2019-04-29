@@ -1,3 +1,25 @@
+export const { isArray } = Array
+
+export function isNumber (value) {
+  return typeof value === 'number'
+}
+
+export function isString (value) {
+  return typeof value === 'string'
+}
+
+export function isArrayLike (value) {
+  return isObject(value) && isNumber(value.length)
+}
+
+export function isSet (value) {
+  return value instanceof Set
+}
+
+export function isMap (value) {
+  return value instanceof Map
+}
+
 export function isObject (value) {
   return value !== null && typeof value === 'object'
 }

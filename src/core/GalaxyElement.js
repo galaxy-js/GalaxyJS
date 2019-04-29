@@ -70,7 +70,7 @@ export function extend (SuperElement) {
     set state (state) {
       const render = () => { this.$render() }
 
-      __proxies__.set(this, ProxyObserver.observe(state, null, render))
+      __proxies__.set(this, ProxyObserver.observe(state, { patch: true }, render))
 
       // State change, so render...
       render()

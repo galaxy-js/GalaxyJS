@@ -14,7 +14,7 @@ export default class ItemRenderer extends ElementRenderer {
     const indexBy = this.scope.$compiler.compileExpression(this.element.getAttribute('by'))
 
     this.by = locals => indexBy(newIsolated(this.isolated, locals))
-    this.reused = false
+    this.updated = false
   }
 
   get children () {
@@ -30,16 +30,17 @@ export default class ItemRenderer extends ElementRenderer {
   }
 
   update (isolated) {
-    this.reused = true
-
     Object.assign(this.isolated, isolated)
+
+    // Mark as updated for item recycling
+    this.updated = true
   }
 
-  insert (node, transitionType = 'enter', withTransition = true) {
+  insert (node, transitionType) {
     if (!this.isPlaceholder) {
       const performInsert = () => node.before(this.element)
 
-      return withTransition
+      return transitionType
         ? this._dispatchTransitionEvent(transitionType, this.element, performInsert)
         : performInsert()
     }
@@ -47,7 +48,7 @@ export default class ItemRenderer extends ElementRenderer {
     const performInsert = child => node.before(child)
 
     this.children.forEach(child => {
-      if (withTransition) {
+      if (transitionType) {
         this._dispatchTransitionEvent(transitionType, this.element, () => performInsert(child))
       } else {
         performInsert(child)

@@ -45,297 +45,471 @@ var config = {
   filters: {}
 }
 
-var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+/**
+ * Alias of `Object.prototype.hasOwnProperty`
+ *
+ * @type {Function}
+ *
+ * @api private
+ */
+const hasOwn = Object.prototype.hasOwnProperty;
 
-function createCommonjsModule(fn, module) {
-	return module = { exports: {} }, fn(module, module.exports), module.exports;
-}
+/**
+ * Determines whether a given `value` is observable
+ *
+ * @type {Function}
+ *
+ * @api private
+ */
+const isObservable = value => typeof value === 'object' && value !== null && !(value instanceof Date);
 
-var proxyObserver = createCommonjsModule(function (module, exports) {
-(function (global, factory) {
-  module.exports = factory();
-}(commonjsGlobal, (function () {
-  /**
-   * Store observers internally
-   *
-   * @type {WeakMap}
-   *
-   * @api private
-   */
-  const __observers__ = new WeakMap();
+/**
+ * Determines whether a given `descriptor` is observable
+ *
+ * @param {Object} descriptor
+ *
+ * @return {boolean}
+ */
+const isDescriptorObservable = descriptor => (
 
-  /**
-   * Alias of `Object.prototype.hasOwnProperty`
-   *
-   * @type {Function}
-   *
-   * @api private
-   */
-  const hasOwn = Object.prototype.hasOwnProperty;
+  // 1. Check for non-accessors
+  !descriptor.get && !descriptor.set
 
-  /**
-   * Determines whether a given `value` is observable
-   *
-   * @type {Function}
-   *
-   * @api private
-   */
-  const isObservable = value => Object.prototype.toString.call(value) === '[object Object]' || Array.isArray(value);
+  // 2. Check for observable value
+  && isObservable(descriptor.value)
 
-  /**
-   * No-operation
-   *
-   * @type {Function}
-   *
-   * @api private
-   */
-  const noop = () => {};
+  // 3. Check for correct descriptor
+  && (descriptor.configurable || descriptor.writable)
+);
 
-  class ProxyObserver {
+/**
+ *
+ * @param {*} value
+ *
+ * @return {boolean}
+ */
+const isMapOrSet = value => value instanceof Map || value instanceof Set;
 
-    /**
-     * Initializes `ProxyObserver`
-     *
-     * @param {*} target - Value observed
-     *
-     * @api public
-     */
-    constructor (target) {
+/**
+ *
+ * @param {*} value
+ *
+ * @return {boolean}
+ */
+const isWeakMapOrSet = value => value instanceof WeakMap || value instanceof WeakSet;
 
-      /**
-       * Value being observed
-       *
-       * @member {*}
-       *
-       * @api public
-       */
-      this.target = target;
+/**
+ * No-operation
+ *
+ * @type {Function}
+ *
+ * @api private
+ */
+const noop = () => {};
 
-      /**
-       * Subscriber functions
-       *
-       * @member {Set.<Function>}
-       *
-       * @api public
-       */
-      this.subscribers = new Set();
+/**
+ * Patch a given `target`
+ *
+ * @param {Map|Set} target
+ * @param {Function} notify
+ * @param {Object} options
+ * @param {Function} observe
+ *
+ * @return void
+ *
+ * @api private
+ */
+function patchFull (target, notify, options, observe) {
+
+  // Try to patch initial values preserving order
+  if (options.deep && target.size) {
+    const entries = Array.from(target);
+
+    function tryObserve (value) {
+      return isObservable(value) ? observe(value, options, notify) : value
     }
 
-    /**
-     * Default observe options
-     *
-     * @type {Object}
-     * @default
-     *
-     * @api public
-     */
-    static get observeOptions () {
-      return {
-        deep: true,
+    target.clear();
 
-        // By default, we compare the stringified raw values to avoid observed ones
-        // and conflicts between proxy object structures.
-        compare (value, old/*, property, target*/) {
-          return JSON.stringify(value) !== JSON.stringify(old)
-        }
+    if (target.add) {
+      for (const value of entries) {
+        target.add(tryObserve(value));
       }
-    }
-
-    /**
-     * Returns true whether a given `value` is being observed
-     * otherwise, returns false
-     *
-     * @param {*} value - The value itself
-     *
-     * @return {boolean}
-     *
-     * @api public
-     */
-    static is (value) {
-      return isObservable(value) && __observers__.has(value)
-    }
-
-    /**
-     * Gets the `ProxyObserver` instance from the given `value`
-     *
-     * @param {*} value - The value itself
-     *
-     * @return {ProxyObserver}
-     *
-     * @api public
-     */
-    static get (value) {
-      return __observers__.get(value)
-    }
-
-    /**
-     * Observe a given `target` to detect changes
-     *
-     * @param {*} target - The value to be observed
-     * @param {Object} [options] - An object of options
-     * @param {boolean} [options.deep] - Indicating whether observation should be deep
-     * @param {Function} [options.compare] - Compare values with a function to dispatch changes
-     * @param {Function} [_handler] - Internal global handler for deep observing
-     *
-     * @return {Proxy} Proxy to track changes
-     *
-     * @api public
-     */
-    static observe (target, options = {}, _handler = noop) {
-      // Avoid observe twice... Just return the target
-      if (ProxyObserver.is(target)) return target
-
-      const { deep, compare } = Object.assign({}, ProxyObserver.observeOptions, options);
-
-      const observer = new ProxyObserver(target);
-
-      function notify (change) {
-        _handler(change);
-        observer.dispatch(change);
+    } else {
+      for (const [key, value] of entries) {
+        target.set(tryObserve(key), tryObserve(value));
       }
-
-      if (deep) {
-        // Start deep observing
-        for (const property in target) {
-          if (hasOwn.call(target, property)) {
-            const value = target[property];
-
-            if (isObservable(value)) {
-              // Replace actual value with the observed one
-              target[property] = ProxyObserver.observe(value, options, notify);
-            }
-          }
-        }
-      }
-
-      const proxy = new Proxy(target, {
-        // We can implement something like (get trap):
-        // https://stackoverflow.com/a/43236808
-
-        /**
-         * 1. Detect sets/additions
-         *
-         *   In arrays:
-         *
-         *     array[index] = value
-         *     array.push(value)
-         *     array.length = length
-         *     ...
-         *
-         *   In objects:
-         *
-         *     object[key] = value
-         *     Object.defineProperty(target, property, descriptor)
-         *     Reflect.defineProperty(target, property, descriptor)
-         *     ...
-         */
-        defineProperty (target, property, descriptor) {
-          const { value } = descriptor;
-          const old = target[property];
-          const changed = hasOwn.call(target, property);
-
-          if (deep && isObservable(value)) {
-            descriptor.value = ProxyObserver.observe(value, options, notify);
-          }
-
-          const defined = Reflect.defineProperty(target, property, descriptor);
-
-          if (defined && (!changed || compare(value, old, property, target))) {
-            const change = { type: changed ? 'set' : 'add', value, property, target };
-
-            if (changed) change.old = old;
-
-            notify(change);
-          }
-
-          return defined
-        },
-
-        /**
-         * 2. Track property deletions
-         *
-         *   In arrays:
-         *
-         *     array.splice(index, count, additions)
-         *     ...
-         *
-         *   In objects:
-         *
-         *     delete object[property]
-         *     Reflect.deleteProperty(object, property)
-         *     ...
-         */
-        deleteProperty (target, property) {
-          const old = target[property];
-          const deleted = hasOwn.call(target, property) && Reflect.deleteProperty(target, property);
-
-          if (deleted) {
-            notify({ type: 'delete', old, property, target });
-          }
-
-          return deleted
-        }
-      });
-
-      // Indexed by target
-      __observers__.set(target, observer);
-
-      // Indexed by proxy
-      __observers__.set(proxy, observer);
-
-      return proxy
-    }
-
-    /**
-     * Subscribe to changes
-     *
-     * @param {Function} subscriber - Function to subscribe
-     *
-     * @return {ProxyObserver}
-     *
-     * @api public
-     */
-    subscribe (subscriber) {
-      this.subscribers.add(subscriber);
-      return this
-    }
-
-    /**
-     * Unsubscribe function
-     *
-     * @param {Function} subscriber - Functions subscribed
-     *
-     * @return {ProxyObserver}
-     *
-     * @api public
-     */
-    unsubscribe (subscriber) {
-      this.subscribers.delete(subscriber);
-      return this
-    }
-
-    /**
-     * Dispatch subscribers with given `change`
-     *
-     * @param {Object} change - Change descriptor
-     *
-     * @return {ProxyObserver}
-     *
-     * @api public
-     */
-    dispatch (change) {
-      this.subscribers.forEach(subscriber => {
-        subscriber(change, this.target);
-      });
-
-      return this
     }
   }
 
-  return ProxyObserver;
+  patchWeak(target, notify, options, observe);
+  patchFn(target, 'clear', genProxyClear(notify));
+}
 
-})));
-});
+/**
+ * Patch a given weak `target`
+ *
+ * @param {WeakMap|WeakSet} target
+ * @param {Function} notify
+ * @param {Object} options
+ * @param {Function} observe
+ *
+ * @return void
+ *
+ * @api private
+ */
+function patchWeak (target, notify, options, observe) {
+  const isSet = 'add' in target;
+
+  patchFn(
+    target,
+    isSet ? 'add' : 'set',
+    (isSet ? genProxyAdd : genProxySet)(notify, value => {
+      return options.deep && isObservable(value)
+        ? observe(value, options, notify)
+        : value
+    })
+  );
+
+  patchFn(target, 'delete', genProxyDelete(notify));
+}
+
+/**
+ * @api private
+ */
+const genProxyAdd = (notify, tryObserve) => _add => function proxyAdd (value) {
+  if (!this.has(value)) {
+    _add.call(this, tryObserve(value));
+
+    notify({ type: 'add', value, target: this });
+  }
+
+  return this
+};
+
+/**
+ * @api private
+ */
+const genProxySet = (notify, tryObserve) => _set => function proxySet (key, value) {
+  const isOld = this.has(key);
+  const old = isOld && this.get(key);
+
+  if (!isOld || old !== value) {
+    const change = { type: isOld ? 'set' : 'add', key, value, target: this };
+
+    if (isOld) change.old = old;
+
+    _set.call(this, tryObserve(key), tryObserve(value));
+
+    notify(change);
+  }
+
+  return this
+};
+
+/**
+ * @api private
+ */
+const genProxyDelete = notify => _delete => function proxyDelete (key) {
+  const old = this.get(key);
+  const removed = _delete.call(this, key);
+
+  if (removed) {
+    notify({ type: 'delete', old, key, target: this });
+  }
+
+  return removed
+};
+
+/**
+ * @api private
+ */
+const genProxyClear = notify => _clear => function proxyClear () {
+  if (target.size) {
+
+    // Make a copy of the original object
+    const old = new this.constructor(Array.from(this));
+
+    _clear.call(this);
+
+    notify({ type: 'clear', old, target: this });
+  }
+};
+
+/**
+ * Patch method from a given `target`
+ *
+ * @param {WeakSet|WeakMap|Set|Map} target
+ * @param {string} method
+ * @param {Function} fn
+ *
+ * @return void
+ *
+ * @api private
+ */
+function patchFn (target, method, fn) {
+  const original = target[method];
+
+  Object.defineProperty(target, method, {
+    value: fn(original)
+  });
+}
+
+/**
+ * Store observers internally
+ *
+ * @type {WeakMap}
+ *
+ * @api private
+ */
+const __observers__ = new WeakMap();
+
+class ProxyObserver {
+
+  /**
+   * Initializes `ProxyObserver`
+   *
+   * @param {*} target - Value observed
+   *
+   * @api public
+   */
+  constructor (target) {
+
+    /**
+     * Value being observed
+     *
+     * @member {*}
+     *
+     * @api public
+     */
+    this.target = target;
+
+    /**
+     * Subscriber functions
+     *
+     * @member {Set.<Function>}
+     *
+     * @api public
+     */
+    this.subscribers = new Set();
+  }
+
+  /**
+   * Default observe options
+   *
+   * @type {Object}
+   * @default
+   *
+   * @api public
+   */
+  static get observeOptions () {
+    return {
+      deep: true,
+      patch: false
+    }
+  }
+
+  /**
+   * Returns true whether a given `value` is being observed
+   * otherwise, returns false
+   *
+   * @param {*} value - The value itself
+   *
+   * @return {boolean}
+   *
+   * @api public
+   */
+  static is (value) {
+    return isObservable(value) && __observers__.has(value)
+  }
+
+  /**
+   * Gets the `ProxyObserver` instance from the given `value`
+   *
+   * @param {*} value - The value itself
+   *
+   * @return {ProxyObserver}
+   *
+   * @api public
+   */
+  static get (value) {
+    return __observers__.get(value)
+  }
+
+  /**
+   * Observe a given `target` to detect changes
+   *
+   * @param {*} target - The value to be observed
+   * @param {Object} [options] - An object of options
+   * @param {boolean} [options.deep] - Indicating whether observation should be deep
+   * @param {Function} [_handler] - Internal global handler for deep observing
+   *
+   * @return {Proxy} Proxy to track changes
+   *
+   * @api public
+   */
+  static observe (target, options = {}, _handler = noop) {
+    // Avoid observe twice... Just return the target
+    if (ProxyObserver.is(target)) return target
+
+    const { deep, patch } = options = Object.assign({}, ProxyObserver.observeOptions, options);
+
+    const observer = new ProxyObserver(target);
+
+    // Indexed by target
+    __observers__.set(target, observer);
+
+    function notify (change) {
+      _handler(change);
+      observer.dispatch(change);
+    }
+
+    if (patch) {
+      const mapOrSet = isMapOrSet(target);
+
+      if (mapOrSet || isWeakMapOrSet(target)) {
+        (mapOrSet ? patchFull : patchWeak)(target, notify, options, ProxyObserver.observe);
+
+        // At this point we're using the patch strategy so we can skip extra proxy observation
+        return target
+      }
+    }
+
+    if (deep) {
+      const descriptors = Object.getOwnPropertyDescriptors(target);
+
+      // Start deep observing
+      for (const key in descriptors) {
+        const descriptor = descriptors[key];
+
+        if (isDescriptorObservable(descriptor)) {
+
+          // Replace actual value with the observed one
+          descriptor.value = ProxyObserver.observe(descriptor.value, options, notify);
+
+          Object.defineProperty(target, key, descriptor);
+        }
+      }
+    }
+
+    const proxy = new Proxy(target, {
+
+      /**
+       * 1. Detect sets/additions
+       *
+       *   In arrays:
+       *
+       *     array[index] = value
+       *     array.push(value)
+       *     array.length = length
+       *     ...
+       *
+       *   In objects:
+       *
+       *     object[key] = value
+       *     Object.defineProperty(target, key, descriptor)
+       *     Reflect.defineProperty(target, key, descriptor)
+       *     ...
+       */
+      defineProperty (target, key, descriptor) {
+        const old = target[key];
+        const changed = hasOwn.call(target, key);
+        const value = descriptor.get ? descriptor.get() : descriptor.value;
+
+        if (deep && isDescriptorObservable(descriptor)) {
+          descriptor.value = ProxyObserver.observe(value, options, notify);
+        }
+
+        const defined = Reflect.defineProperty(target, key, descriptor);
+
+        if (defined && (!changed || value !== old)) {
+          const change = { type: changed ? 'set' : 'add', value, key, target };
+
+          if (changed) change.old = old;
+
+          notify(change);
+        }
+
+        return defined
+      },
+
+      /**
+       * 2. Track property deletions
+       *
+       *   In arrays:
+       *
+       *     array.splice(index, count, additions)
+       *     ...
+       *
+       *   In objects:
+       *
+       *     delete object[key]
+       *     Reflect.deleteProperty(object, key)
+       *     ...
+       */
+      deleteProperty (target, key) {
+        const old = target[key];
+        const deleted = hasOwn.call(target, key) && Reflect.deleteProperty(target, key);
+
+        if (deleted) {
+          notify({ type: 'delete', old, key, target });
+        }
+
+        return deleted
+      }
+    });
+
+    // Indexed by proxy
+    __observers__.set(proxy, observer);
+
+    return proxy
+  }
+
+  /**
+   * Subscribe to changes
+   *
+   * @param {Function} subscriber - Function to subscribe
+   *
+   * @return {ProxyObserver}
+   *
+   * @api public
+   */
+  subscribe (subscriber) {
+    this.subscribers.add(subscriber);
+    return this
+  }
+
+  /**
+   * Unsubscribe function
+   *
+   * @param {Function} subscriber - Functions subscribed
+   *
+   * @return {ProxyObserver}
+   *
+   * @api public
+   */
+  unsubscribe (subscriber) {
+    this.subscribers.delete(subscriber);
+    return this
+  }
+
+  /**
+   * Dispatch subscribers with given `change`
+   *
+   * @param {Object} change - Change descriptor
+   *
+   * @return {ProxyObserver}
+   *
+   * @api public
+   */
+  dispatch (change) {
+    this.subscribers.forEach(subscriber => {
+      subscriber(change, this.target);
+    });
+
+    return this
+  }
+}
 
 var tokens = {
   DOLLAR_SIGN: '$',
@@ -1162,6 +1336,28 @@ class TemplateRenderer {
   }
 }
 
+const { isArray } = Array;
+
+function isNumber (value) {
+  return typeof value === 'number'
+}
+
+function isString (value) {
+  return typeof value === 'string'
+}
+
+function isArrayLike (value) {
+  return isObject(value) && isNumber(value.length)
+}
+
+function isSet (value) {
+  return value instanceof Set
+}
+
+function isMap (value) {
+  return value instanceof Map
+}
+
 function isObject (value) {
   return value !== null && typeof value === 'object'
 }
@@ -1287,6 +1483,12 @@ class VoidRenderer {
       directive.render();
     }
   }
+}
+
+var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+
+function createCommonjsModule(fn, module) {
+	return module = { exports: {} }, fn(module, module.exports), module.exports;
 }
 
 var nextTick = createCommonjsModule(function (module, exports) {
@@ -1671,7 +1873,7 @@ class ItemRenderer extends ElementRenderer {
     const indexBy = this.scope.$compiler.compileExpression(this.element.getAttribute('by'));
 
     this.by = locals => indexBy(newIsolated(this.isolated, locals));
-    this.reused = false;
+    this.updated = false;
   }
 
   get children () {
@@ -1687,16 +1889,17 @@ class ItemRenderer extends ElementRenderer {
   }
 
   update (isolated) {
-    this.reused = true;
-
     Object.assign(this.isolated, isolated);
+
+    // Mark as updated for item recycling
+    this.updated = true;
   }
 
-  insert (node, transitionType = 'enter', withTransition = true) {
+  insert (node, transitionType) {
     if (!this.isPlaceholder) {
       const performInsert = () => node.before(this.element);
 
-      return withTransition
+      return transitionType
         ? this._dispatchTransitionEvent(transitionType, this.element, performInsert)
         : performInsert()
     }
@@ -1704,7 +1907,7 @@ class ItemRenderer extends ElementRenderer {
     const performInsert = child => node.before(child);
 
     this.children.forEach(child => {
-      if (withTransition) {
+      if (transitionType) {
         this._dispatchTransitionEvent(transitionType, this.element, () => performInsert(child));
       } else {
         performInsert(child);
@@ -1751,7 +1954,6 @@ class LoopRenderer {
     this.renderer = renderer;
 
     this.items = [];
-    this.values = new Map();
 
     const expression = getAttr(template, LOOP_DIRECTIVE);
     const { groups } = expression.match(LOOP_REGEX);
@@ -1785,69 +1987,95 @@ class LoopRenderer {
     return LOOP_DIRECTIVE in attributes
   }
 
-  render () {
-    const collection = this.getter(this.renderer.isolated);
+  _renderItem ($value, $key, $index) {
+    let item = this.items[$index];
 
-    const items = [];
-    const keys = Object.keys(collection);
+    // Fill item isolated scope
+    const isolated = {
+      $index,
+      $key,
 
-    // 1. Adding, updating
-    keys.forEach(($key, $index) => {
-      let item = this.items[$index];
+      // User-defined locals
+      [this.keyName]: $key,
+      [this.indexName]: $index,
+      [this.valueName]: $value
+    };
 
-      const isolated = {
-        $index,
-        $key,
+    if (!item) {
+      item = new ItemRenderer(this.template, this.renderer, isolated);
 
-        // User-defined locals
-        [this.keyName]: $key,
-        [this.indexName]: $index,
-        [this.valueName]: collection[$key]
-      };
+      // Insert before end anchor
+      item.insert(this.endAnchor, 'enter');
+    } else {
+      const newKey = item.by(isolated);
 
-      if (!item) {
-        item = new ItemRenderer(this.template, this.renderer, isolated);
+      if (item.key/* oldKey */ !== newKey) {
+        let fromIndex;
 
-        // Insert before end anchor
-        item.insert(this.endAnchor);
+        const newItem = this.items.find((item, index) => item.key === newKey && (fromIndex = index));
+        const from = newItem.next;
 
-        this.values.set(item.key, item);
-      } else {
-        const newKey = item.by(isolated);
+        // Swap DOM elements
+        newItem.insert(item.next, 'move');
+        item.insert(from);
 
-        if ((item.key /* oldKey */) !== newKey) {
-          const newItem = this.values.get(newKey);
-          const from = newItem.next;
+        // Swap items
+        this.items[fromIndex] = item;
+        this.items[$index] = newItem;
 
-          // Dispatch move transition
-          newItem.insert(item.next, 'move');
-
-          // Avoid dispatching transition for reference items
-          item.insert(from, null, false);
-
-          // Swap items
-          this.items[this.items.indexOf(newItem)] = item;
-          this.items[$index] = newItem;
-
-          item = newItem;
-        }
-
-        item.update(isolated);
+        item = newItem;
       }
 
-      // Push render on to the new queue
-      items.push(item);
+      item.update(isolated);
+    }
 
-      item.render();
-    });
+    // Render item with new isolated scope
+    item.render();
 
-    // 2. Removing
+    return item
+  }
+
+  render () {
+    const items = [];
+    const iterable = this.getter(this.renderer.isolated);
+
+    // 1. Adding and patching DOM elements
+    if (isNumber(iterable)) {
+      for (let i = 0; i < iterable; i++) {
+        items.push(this._renderItem(i + 1, i, i));
+      }
+    } else if (isArray(iterable) || isArrayLike(iterable) || isString(iterable)) {
+      const { length } = iterable;
+
+      for (let i = 0; i < length; i++) {
+        items.push(this._renderItem(iterable[i], i, i));
+      }
+    } else if (isSet(iterable) || isMap(iterable)) {
+      let i = 0;
+
+      iterable.forEach((value, key) => {
+        items.push(this._renderItem(value, key, i++));
+      });
+    } else if (iterable[Symbol.iterator]) {
+      let i = 0;
+      let result;
+
+      const iterator = iterable[Symbol.iterator]();
+
+      while (!(result = iterator.next()).done) {
+        items.push(this._renderItem(result.value, null, i++));
+      }
+    } else if (isObject(iterable)) {
+      Object.keys(iterable).forEach((key, index) => {
+        items.push(this._renderItem(iterable[key], key, index));
+      });
+    }
+
+    // 2. Remove non-patched DOM elements
     for (const item of this.items) {
-      if (item.reused) {
-        // Enable recycling again
-        item.reused = false;
+      if (item.updated) {
+        item.updated = false;
       } else {
-        this.values.delete(item.key.value);
         item.remove();
       }
     }
@@ -2250,7 +2478,7 @@ function extend (SuperElement) {
     set state (state) {
       const render = () => { this.$render(); };
 
-      __proxies__.set(this, proxyObserver.observe(state, null, render));
+      __proxies__.set(this, ProxyObserver.observe(state, { patch: true }, render));
 
       // State change, so render...
       render();

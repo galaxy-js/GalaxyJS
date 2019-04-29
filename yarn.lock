@@ -762,8 +762,8 @@ preserve@^0.2.0:
   integrity sha1-gV7R9uvGWSb4ZbMQwHE7yzMVzks=
 
 proxy-observer@LosMaquios/ProxyObserver:
-  version "0.5.0"
-  resolved "https://codeload.github.com/LosMaquios/ProxyObserver/tar.gz/2f0f11af5659f901206be06dfe5be66b46d29762"
+  version "0.6.3"
+  resolved "https://codeload.github.com/LosMaquios/ProxyObserver/tar.gz/43921857e5ac9a74d82a80bec6a3b28215e7bfb8"
 
 randomatic@^3.0.0:
   version "3.0.0"

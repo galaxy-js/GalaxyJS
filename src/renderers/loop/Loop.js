@@ -3,6 +3,7 @@ import config from '../../config.js'
 import ItemRenderer from './Item.js'
 
 import { getAttr, createAnchor } from '../../utils/generic.js'
+import { isNumber, isArray, isArrayLike, isString, isSet, isMap, isObject } from '../../utils/type-check.js'
 
 const LOOP_DIRECTIVE = '*for'
 
@@ -26,7 +27,6 @@ export default class LoopRenderer {
     this.renderer = renderer
 
     this.items = []
-    this.values = new Map()
 
     const expression = getAttr(template, LOOP_DIRECTIVE)
     const { groups } = expression.match(LOOP_REGEX)
@@ -60,69 +60,95 @@ export default class LoopRenderer {
     return LOOP_DIRECTIVE in attributes
   }
 
+  _renderItem ($value, $key, $index) {
+    let item = this.items[$index]
+
+    // Fill item isolated scope
+    const isolated = {
+      $index,
+      $key,
+
+      // User-defined locals
+      [this.keyName]: $key,
+      [this.indexName]: $index,
+      [this.valueName]: $value
+    }
+
+    if (!item) {
+      item = new ItemRenderer(this.template, this.renderer, isolated)
+
+      // Insert before end anchor
+      item.insert(this.endAnchor, 'enter')
+    } else {
+      const newKey = item.by(isolated)
+
+      if (item.key/* oldKey */ !== newKey) {
+        let fromIndex
+
+        const newItem = this.items.find((item, index) => item.key === newKey && (fromIndex = index))
+        const from = newItem.next
+
+        // Swap DOM elements
+        newItem.insert(item.next, 'move')
+        item.insert(from)
+
+        // Swap items
+        this.items[fromIndex] = item
+        this.items[$index] = newItem
+
+        item = newItem
+      }
+
+      item.update(isolated)
+    }
+
+    // Render item with new isolated scope
+    item.render()
+
+    return item
+  }
+
   render () {
-    const collection = this.getter(this.renderer.isolated)
-
     const items = []
-    const keys = Object.keys(collection)
+    const iterable = this.getter(this.renderer.isolated)
 
-    // 1. Adding, updating
-    keys.forEach(($key, $index) => {
-      let item = this.items[$index]
-
-      const isolated = {
-        $index,
-        $key,
-
-        // User-defined locals
-        [this.keyName]: $key,
-        [this.indexName]: $index,
-        [this.valueName]: collection[$key]
+    // 1. Adding and patching DOM elements
+    if (isNumber(iterable)) {
+      for (let i = 0; i < iterable; i++) {
+        items.push(this._renderItem(i + 1, i, i))
       }
+    } else if (isArray(iterable) || isArrayLike(iterable) || isString(iterable)) {
+      const { length } = iterable
 
-      if (!item) {
-        item = new ItemRenderer(this.template, this.renderer, isolated)
-
-        // Insert before end anchor
-        item.insert(this.endAnchor)
-
-        this.values.set(item.key, item)
-      } else {
-        const newKey = item.by(isolated)
-
-        if ((item.key /* oldKey */) !== newKey) {
-          const newItem = this.values.get(newKey)
-          const from = newItem.next
-
-          // Dispatch move transition
-          newItem.insert(item.next, 'move')
-
-          // Avoid dispatching transition for reference items
-          item.insert(from, null, false)
-
-          // Swap items
-          this.items[this.items.indexOf(newItem)] = item
-          this.items[$index] = newItem
-
-          item = newItem
-        }
-
-        item.update(isolated)
+      for (let i = 0; i < length; i++) {
+        items.push(this._renderItem(iterable[i], i, i))
       }
+    } else if (isSet(iterable) || isMap(iterable)) {
+      let i = 0
 
-      // Push render on to the new queue
-      items.push(item)
+      iterable.forEach((value, key) => {
+        items.push(this._renderItem(value, key, i++))
+      })
+    } else if (iterable[Symbol.iterator]) {
+      let i = 0
+      let result
 
-      item.render()
-    })
+      const iterator = iterable[Symbol.iterator]()
 
-    // 2. Removing
+      while (!(result = iterator.next()).done) {
+        items.push(this._renderItem(result.value, null, i++))
+      }
+    } else if (isObject(iterable)) {
+      Object.keys(iterable).forEach((key, index) => {
+        items.push(this._renderItem(iterable[key], key, index))
+      })
+    }
+
+    // 2. Remove non-patched DOM elements
     for (const item of this.items) {
-      if (item.reused) {
-        // Enable recycling again
-        item.reused = false
+      if (item.updated) {
+        item.updated = false
       } else {
-        this.values.delete(item.key.value)
         item.remove()
       }
     }
