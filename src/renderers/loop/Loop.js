@@ -2,6 +2,8 @@ import config from '../../config.js'
 
 import ItemRenderer from './Item.js'
 
+import GalaxyError from '../../errors/GalaxyError.js'
+
 import { getAttr, createAnchor } from '../../utils/generic.js'
 import { isNumber, isArray, isArrayLike, isString, isSet, isMap, isObject } from '../../utils/type-check.js'
 
@@ -142,6 +144,12 @@ export default class LoopRenderer {
       Object.keys(iterable).forEach((key, index) => {
         items.push(this._renderItem(iterable[key], key, index))
       })
+    } else if (iterable != null) {
+      throw new GalaxyError(
+        'Invalid iterable value in *for directive. ' +
+        'Expecting value of type number, string, array(-like), object, iterable, Map or Set ' +
+        `got '${typeof iterable}'`
+      )
     }
 
     // 2. Remove non-patched DOM elements

@@ -2069,6 +2069,12 @@ class LoopRenderer {
       Object.keys(iterable).forEach((key, index) => {
         items.push(this._renderItem(iterable[key], key, index));
       });
+    } else if (iterable != null) {
+      throw new GalaxyError(
+        'Invalid iterable value in *for directive. ' +
+        'Expecting value of type number, string, array(-like), object, iterable, Map or Set ' +
+        `got '${typeof iterable}'`
+      )
     }
 
     // 2. Remove non-patched DOM elements
