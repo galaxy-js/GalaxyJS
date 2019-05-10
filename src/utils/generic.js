@@ -3,9 +3,9 @@ import config from '../config.js'
 import nextTick from 'next-tick'
 import escapeRegex from 'escape-string-regexp'
 
-import ElementTransitionEvent from '../events/ElementTransition.js'
+import ElementTransitionEvent from '../events/ElementTransition'
 
-import { isFunction } from './type-check.js'
+import { isFunction, isDefined } from './type-check'
 
 const same = value => value
 
@@ -34,6 +34,17 @@ function getWildcardCapture (name) {
  */
 export function camelize (hyphenated) {
   return hyphenated.replace(HYPHEN_REGEX, (_, letter) => letter.toUpperCase())
+}
+
+/**
+ * Normalize given template value
+ *
+ * @param {*} value
+ *
+ * @return {string}
+ */
+export function normalizeText (value) {
+  return isDefined(value) ? value : ''
 }
 
 /**

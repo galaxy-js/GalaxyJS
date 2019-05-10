@@ -1,4 +1,5 @@
 import { isTextNode } from '../utils/type-check'
+import { normalizeText, newIsolated } from '../utils/generic'
 
 /**
  * Match text template interpolation
@@ -15,6 +16,9 @@ export default class TemplateRenderer {
     this.text = text
 
     const templateFn = $compiler.compileTemplate(text.data)
+
+    // Export interpolation normalizer within `isolated` scope
+    isolated = newIsolated(isolated, { __$n: normalizeText })
 
     this.getter = () => templateFn(isolated)
   }

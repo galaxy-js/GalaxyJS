@@ -1355,129 +1355,6 @@ function isGalaxyElement (element) {
   return !!element.$galaxy
 }
 
-/**
- * Match text template interpolation
- *
- * @type {RegExp}
- */
-const TEXT_TEMPLATE_REGEX = /{{.*?}}/;
-
-/**
- * Renderer for inline tag template binding: <h1>Hello {{ world }}</h1>
- */
-class TemplateRenderer {
-  constructor (text, { scope: { $compiler }, isolated }) {
-    this.text = text;
-
-    const templateFn = $compiler.compileTemplate(text.data);
-
-    this.getter = () => templateFn(isolated);
-  }
-
-  static is (node) {
-    return isTextNode(node) && TEXT_TEMPLATE_REGEX.test(node.data)
-  }
-
-  render () {
-    const value = String(this.getter());
-
-    if (this.text.data !== value) {
-      this.text.data = value;
-    }
-  }
-}
-
-/**
- * Renderer for void elements or elements without childs like:
- */
-class VoidRenderer {
-  constructor (element, scope, isolated) {
-
-    /**
-     *
-     */
-    this.scope = scope;
-
-    /**
-     *
-     */
-    this.element = element;
-
-    /**
-     * Loop elements need an isolated scope
-     *
-     * Note: We need to create a shallow copy
-     * to avoid overrides a parent isolated scope
-     */
-    this.isolated = isolated;
-
-    /**
-     *
-     */
-    this.locals = Object.create(null);
-
-    /**
-     *
-     */
-    this.isPlaceholder = isPlaceholder(element);
-
-    /**
-     * Hold directives to digest
-     */
-    this.directives = [];
-
-    this._init(element);
-  }
-
-  get isRenderable () {
-    return this.directives.length
-  }
-
-  _init ($el) {
-    const attributes = Array.from($el.attributes);
-
-    for (const attribute of attributes) {
-      const { name, value } = attribute;
-
-      for (const Directive of config.directives) {
-
-        // 1. Private match filter
-        const match = Directive._match(name, $el);
-
-        if (match) {
-          const init = {
-            name: match.name,
-            args: match.args ? match.args.split('.') : [],
-            value
-          };
-
-          // 2. Public match filter
-          if (Directive.match(init, this)) {
-            const directive = new Directive(init, this);
-
-            // Initialize directive
-            directive.init();
-
-            // Check for renderable directives
-            if (directive.$options.$render) {
-              this.directives.push(directive);
-            }
-
-            if (!config.debug) $el.removeAttribute(name);
-            break
-          }
-        }
-      }
-    }
-  }
-
-  render () {
-    for (const directive of this.directives) {
-      directive.render();
-    }
-  }
-}
-
 var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
 function createCommonjsModule(fn, module) {
@@ -1687,6 +1564,17 @@ function camelize (hyphenated) {
 }
 
 /**
+ * Normalize given template value
+ *
+ * @param {*} value
+ *
+ * @return {string}
+ */
+function normalizeText (value) {
+  return isDefined(value) ? value : ''
+}
+
+/**
  * Converts camelized string to hyphenated
  *
  * @param {string} camelized
@@ -1815,6 +1703,132 @@ function dispatchTransitionEvent (source, type, target, transitionCb) {
 
   // Perform transition (waiting for non-stopped transition)
   transitionEvent.perform();
+}
+
+/**
+ * Match text template interpolation
+ *
+ * @type {RegExp}
+ */
+const TEXT_TEMPLATE_REGEX = /{{.*?}}/;
+
+/**
+ * Renderer for inline tag template binding: <h1>Hello {{ world }}</h1>
+ */
+class TemplateRenderer {
+  constructor (text, { scope: { $compiler }, isolated }) {
+    this.text = text;
+
+    const templateFn = $compiler.compileTemplate(text.data);
+
+    // Export interpolation normalizer within `isolated` scope
+    isolated = newIsolated(isolated, { __$n: normalizeText });
+
+    this.getter = () => templateFn(isolated);
+  }
+
+  static is (node) {
+    return isTextNode(node) && TEXT_TEMPLATE_REGEX.test(node.data)
+  }
+
+  render () {
+    const value = String(this.getter());
+
+    if (this.text.data !== value) {
+      this.text.data = value;
+    }
+  }
+}
+
+/**
+ * Renderer for void elements or elements without childs like:
+ */
+class VoidRenderer {
+  constructor (element, scope, isolated) {
+
+    /**
+     *
+     */
+    this.scope = scope;
+
+    /**
+     *
+     */
+    this.element = element;
+
+    /**
+     * Loop elements need an isolated scope
+     *
+     * Note: We need to create a shallow copy
+     * to avoid overrides a parent isolated scope
+     */
+    this.isolated = isolated;
+
+    /**
+     *
+     */
+    this.locals = Object.create(null);
+
+    /**
+     *
+     */
+    this.isPlaceholder = isPlaceholder(element);
+
+    /**
+     * Hold directives to digest
+     */
+    this.directives = [];
+
+    this._init(element);
+  }
+
+  get isRenderable () {
+    return this.directives.length
+  }
+
+  _init ($el) {
+    const attributes = Array.from($el.attributes);
+
+    for (const attribute of attributes) {
+      const { name, value } = attribute;
+
+      for (const Directive of config.directives) {
+
+        // 1. Private match filter
+        const match = Directive._match(name, $el);
+
+        if (match) {
+          const init = {
+            name: match.name,
+            args: match.args ? match.args.split('.') : [],
+            value
+          };
+
+          // 2. Public match filter
+          if (Directive.match(init, this)) {
+            const directive = new Directive(init, this);
+
+            // Initialize directive
+            directive.init();
+
+            // Check for renderable directives
+            if (directive.$options.$render) {
+              this.directives.push(directive);
+            }
+
+            if (!config.debug) $el.removeAttribute(name);
+            break
+          }
+        }
+      }
+    }
+  }
+
+  render () {
+    for (const directive of this.directives) {
+      directive.render();
+    }
+  }
 }
 
 class ElementRenderer extends VoidRenderer {
@@ -2399,25 +2413,6 @@ var HooksMixin = {
 }
 
 /**
- * Private methods
- *
- * @mixin
- */
-var PrivatesMixin = {
-
-  /**
-   * Normalize given template value
-   *
-   * @param {*} value
-   *
-   * @return {string}
-   */
-  __$n (value) {
-    return isDefined(value) ? value : ''
-  }
-}
-
-/**
  * Internal
  */
 const __proxies__ = new WeakMap();
@@ -2551,8 +2546,7 @@ function extend (SuperElement) {
   applyMixins(GalaxyElement, [
     CoreMixin,
     EventsMixin,
-    HooksMixin,
-    PrivatesMixin
+    HooksMixin
   ]);
 
   // Return mixed

@@ -1,14 +1,13 @@
 import ProxyObserver from 'proxy-observer'
 import Compiler from '@galaxy/compiler'
 
-import { setupRenderer } from './setup-renderer.js'
+import { setupRenderer } from './setup-renderer'
 
-import CoreMixin from './mixins/Core.js'
-import EventsMixin from './mixins/Events.js'
-import HooksMixin from './mixins/Hooks.js'
-import PrivatesMixin from './mixins/Privates.js'
+import CoreMixin from './mixins/Core'
+import EventsMixin from './mixins/Events'
+import HooksMixin from './mixins/Hooks'
 
-import { callHook, applyMixins, hyphenate } from '../utils/generic.js'
+import { callHook, applyMixins, hyphenate } from '../utils/generic'
 
 /**
  * Internal
@@ -144,8 +143,7 @@ export function extend (SuperElement) {
   applyMixins(GalaxyElement, [
     CoreMixin,
     EventsMixin,
-    HooksMixin,
-    PrivatesMixin
+    HooksMixin
   ])
 
   // Return mixed
