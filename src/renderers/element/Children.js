@@ -1,11 +1,11 @@
-import TemplateRenderer from '../Template.js'
-import ElementRenderer from './Element.js'
-import VoidRenderer from './Void.js'
+import TemplateRenderer from '../Template'
+import ElementRenderer from './Element'
+import VoidRenderer from './Void'
 
-import LoopDirective from '../loop/Loop.js'
+import LoopDirective from '../loop/Loop'
 
-import { isTextNode, isElementNode, isPlaceholder } from '../../utils/type-check.js'
-import { flatChildren } from '../../utils/generic.js'
+import { isElementNode, isPlaceholder } from '../../utils/type-check'
+import { flatChildren } from '../../utils/generic'
 
 export default class ChildrenRenderer {
   constructor (children, scope, isolated) {
@@ -26,7 +26,7 @@ export default class ChildrenRenderer {
     for (const child of this.children) {
 
       // 1. Check {{ interpolation }}
-      if (isTextNode(child) && TemplateRenderer.is(child)) {
+      if (TemplateRenderer.is(child)) {
         this.renderers.push(new TemplateRenderer(child, this))
 
       // 2. Element binding

@@ -1,8 +1,6 @@
-import config from '../../config.js'
+import config from '../../config'
 
-import TemplateRenderer from '../Template.js'
-
-import { isPlaceholder } from '../../utils/type-check.js'
+import { isPlaceholder } from '../../utils/type-check'
 
 /**
  * Renderer for void elements or elements without childs like:
@@ -55,10 +53,6 @@ export default class VoidRenderer {
 
     for (const attribute of attributes) {
       const { name, value } = attribute
-
-      if (TemplateRenderer.is(attribute)) {
-        this.directives.push(new TemplateRenderer(attribute, this))
-      }
 
       for (const Directive of config.directives) {
 

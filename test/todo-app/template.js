@@ -17,7 +17,7 @@ export default html`
       @for:leave="console.log('Leave item:', $event)"
       @for:move="console.log('Move item:', $event)">
       {{ todo.name }}
-      <input id="done-{{ $index }}" type="checkbox" *bind="todo.done" @change="showStatus()">
+      <input :id="'done-' + $index" type="checkbox" *bind="todo.done" @change="showStatus()">
       <button @click="#removeTodo(todo)">&times;</button>
     </li>
     <li>Wrapped (End)</li>

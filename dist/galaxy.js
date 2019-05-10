@@ -51,471 +51,297 @@
     filters: {}
   }
 
-  /**
-   * Alias of `Object.prototype.hasOwnProperty`
-   *
-   * @type {Function}
-   *
-   * @api private
-   */
-  const hasOwn = Object.prototype.hasOwnProperty;
+  var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
-  /**
-   * Determines whether a given `value` is observable
-   *
-   * @type {Function}
-   *
-   * @api private
-   */
-  const isObservable = value => typeof value === 'object' && value !== null && !(value instanceof Date);
-
-  /**
-   * Determines whether a given `descriptor` is observable
-   *
-   * @param {Object} descriptor
-   *
-   * @return {boolean}
-   */
-  const isDescriptorObservable = descriptor => (
-
-    // 1. Check for non-accessors
-    !descriptor.get && !descriptor.set
-
-    // 2. Check for observable value
-    && isObservable(descriptor.value)
-
-    // 3. Check for correct descriptor
-    && (descriptor.configurable || descriptor.writable)
-  );
-
-  /**
-   *
-   * @param {*} value
-   *
-   * @return {boolean}
-   */
-  const isMapOrSet = value => value instanceof Map || value instanceof Set;
-
-  /**
-   *
-   * @param {*} value
-   *
-   * @return {boolean}
-   */
-  const isWeakMapOrSet = value => value instanceof WeakMap || value instanceof WeakSet;
-
-  /**
-   * No-operation
-   *
-   * @type {Function}
-   *
-   * @api private
-   */
-  const noop = () => {};
-
-  /**
-   * Patch a given `target`
-   *
-   * @param {Map|Set} target
-   * @param {Function} notify
-   * @param {Object} options
-   * @param {Function} observe
-   *
-   * @return void
-   *
-   * @api private
-   */
-  function patchFull (target, notify, options, observe) {
-
-    // Try to patch initial values preserving order
-    if (options.deep && target.size) {
-      const entries = Array.from(target);
-
-      function tryObserve (value) {
-        return isObservable(value) ? observe(value, options, notify) : value
-      }
-
-      target.clear();
-
-      if (target.add) {
-        for (const value of entries) {
-          target.add(tryObserve(value));
-        }
-      } else {
-        for (const [key, value] of entries) {
-          target.set(tryObserve(key), tryObserve(value));
-        }
-      }
-    }
-
-    patchWeak(target, notify, options, observe);
-    patchFn(target, 'clear', genProxyClear(notify));
+  function createCommonjsModule(fn, module) {
+  	return module = { exports: {} }, fn(module, module.exports), module.exports;
   }
 
-  /**
-   * Patch a given weak `target`
-   *
-   * @param {WeakMap|WeakSet} target
-   * @param {Function} notify
-   * @param {Object} options
-   * @param {Function} observe
-   *
-   * @return void
-   *
-   * @api private
-   */
-  function patchWeak (target, notify, options, observe) {
-    const isSet = 'add' in target;
-
-    patchFn(
-      target,
-      isSet ? 'add' : 'set',
-      (isSet ? genProxyAdd : genProxySet)(notify, value => {
-        return options.deep && isObservable(value)
-          ? observe(value, options, notify)
-          : value
-      })
-    );
-
-    patchFn(target, 'delete', genProxyDelete(notify));
-  }
-
-  /**
-   * @api private
-   */
-  const genProxyAdd = (notify, tryObserve) => _add => function proxyAdd (value) {
-    if (!this.has(value)) {
-      _add.call(this, tryObserve(value));
-
-      notify({ type: 'add', value, target: this });
-    }
-
-    return this
-  };
-
-  /**
-   * @api private
-   */
-  const genProxySet = (notify, tryObserve) => _set => function proxySet (key, value) {
-    const isOld = this.has(key);
-    const old = isOld && this.get(key);
-
-    if (!isOld || old !== value) {
-      const change = { type: isOld ? 'set' : 'add', key, value, target: this };
-
-      if (isOld) change.old = old;
-
-      _set.call(this, tryObserve(key), tryObserve(value));
-
-      notify(change);
-    }
-
-    return this
-  };
-
-  /**
-   * @api private
-   */
-  const genProxyDelete = notify => _delete => function proxyDelete (key) {
-    const old = this.get(key);
-    const removed = _delete.call(this, key);
-
-    if (removed) {
-      notify({ type: 'delete', old, key, target: this });
-    }
-
-    return removed
-  };
-
-  /**
-   * @api private
-   */
-  const genProxyClear = notify => _clear => function proxyClear () {
-    if (target.size) {
-
-      // Make a copy of the original object
-      const old = new this.constructor(Array.from(this));
-
-      _clear.call(this);
-
-      notify({ type: 'clear', old, target: this });
-    }
-  };
-
-  /**
-   * Patch method from a given `target`
-   *
-   * @param {WeakSet|WeakMap|Set|Map} target
-   * @param {string} method
-   * @param {Function} fn
-   *
-   * @return void
-   *
-   * @api private
-   */
-  function patchFn (target, method, fn) {
-    const original = target[method];
-
-    Object.defineProperty(target, method, {
-      value: fn(original)
-    });
-  }
-
-  /**
-   * Store observers internally
-   *
-   * @type {WeakMap}
-   *
-   * @api private
-   */
-  const __observers__ = new WeakMap();
-
-  class ProxyObserver {
+  var proxyObserver = createCommonjsModule(function (module, exports) {
+  (function (global, factory) {
+    module.exports = factory();
+  }(commonjsGlobal, (function () {
+    /**
+     * Store observers internally
+     *
+     * @type {WeakMap}
+     *
+     * @api private
+     */
+    const __observers__ = new WeakMap();
 
     /**
-     * Initializes `ProxyObserver`
+     * Alias of `Object.prototype.hasOwnProperty`
      *
-     * @param {*} target - Value observed
+     * @type {Function}
      *
-     * @api public
+     * @api private
      */
-    constructor (target) {
+    const hasOwn = Object.prototype.hasOwnProperty;
+
+    /**
+     * Determines whether a given `value` is observable
+     *
+     * @type {Function}
+     *
+     * @api private
+     */
+    const isObservable = value => Object.prototype.toString.call(value) === '[object Object]' || Array.isArray(value);
+
+    /**
+     * No-operation
+     *
+     * @type {Function}
+     *
+     * @api private
+     */
+    const noop = () => {};
+
+    class ProxyObserver {
 
       /**
-       * Value being observed
+       * Initializes `ProxyObserver`
        *
-       * @member {*}
+       * @param {*} target - Value observed
        *
        * @api public
        */
-      this.target = target;
+      constructor (target) {
+
+        /**
+         * Value being observed
+         *
+         * @member {*}
+         *
+         * @api public
+         */
+        this.target = target;
+
+        /**
+         * Subscriber functions
+         *
+         * @member {Set.<Function>}
+         *
+         * @api public
+         */
+        this.subscribers = new Set();
+      }
 
       /**
-       * Subscriber functions
+       * Default observe options
        *
-       * @member {Set.<Function>}
+       * @type {Object}
+       * @default
        *
        * @api public
        */
-      this.subscribers = new Set();
-    }
+      static get observeOptions () {
+        return {
+          deep: true,
 
-    /**
-     * Default observe options
-     *
-     * @type {Object}
-     * @default
-     *
-     * @api public
-     */
-    static get observeOptions () {
-      return {
-        deep: true,
-        patch: false
-      }
-    }
-
-    /**
-     * Returns true whether a given `value` is being observed
-     * otherwise, returns false
-     *
-     * @param {*} value - The value itself
-     *
-     * @return {boolean}
-     *
-     * @api public
-     */
-    static is (value) {
-      return isObservable(value) && __observers__.has(value)
-    }
-
-    /**
-     * Gets the `ProxyObserver` instance from the given `value`
-     *
-     * @param {*} value - The value itself
-     *
-     * @return {ProxyObserver}
-     *
-     * @api public
-     */
-    static get (value) {
-      return __observers__.get(value)
-    }
-
-    /**
-     * Observe a given `target` to detect changes
-     *
-     * @param {*} target - The value to be observed
-     * @param {Object} [options] - An object of options
-     * @param {boolean} [options.deep] - Indicating whether observation should be deep
-     * @param {Function} [_handler] - Internal global handler for deep observing
-     *
-     * @return {Proxy} Proxy to track changes
-     *
-     * @api public
-     */
-    static observe (target, options = {}, _handler = noop) {
-      // Avoid observe twice... Just return the target
-      if (ProxyObserver.is(target)) return target
-
-      const { deep, patch } = options = Object.assign({}, ProxyObserver.observeOptions, options);
-
-      const observer = new ProxyObserver(target);
-
-      // Indexed by target
-      __observers__.set(target, observer);
-
-      function notify (change) {
-        _handler(change);
-        observer.dispatch(change);
-      }
-
-      if (patch) {
-        const mapOrSet = isMapOrSet(target);
-
-        if (mapOrSet || isWeakMapOrSet(target)) {
-          (mapOrSet ? patchFull : patchWeak)(target, notify, options, ProxyObserver.observe);
-
-          // At this point we're using the patch strategy so we can skip extra proxy observation
-          return target
-        }
-      }
-
-      if (deep) {
-        const descriptors = Object.getOwnPropertyDescriptors(target);
-
-        // Start deep observing
-        for (const key in descriptors) {
-          const descriptor = descriptors[key];
-
-          if (isDescriptorObservable(descriptor)) {
-
-            // Replace actual value with the observed one
-            descriptor.value = ProxyObserver.observe(descriptor.value, options, notify);
-
-            Object.defineProperty(target, key, descriptor);
+          // By default, we compare the stringified raw values to avoid observed ones
+          // and conflicts between proxy object structures.
+          compare (value, old/*, property, target*/) {
+            return JSON.stringify(value) !== JSON.stringify(old)
           }
         }
       }
 
-      const proxy = new Proxy(target, {
+      /**
+       * Returns true whether a given `value` is being observed
+       * otherwise, returns false
+       *
+       * @param {*} value - The value itself
+       *
+       * @return {boolean}
+       *
+       * @api public
+       */
+      static is (value) {
+        return isObservable(value) && __observers__.has(value)
+      }
 
-        /**
-         * 1. Detect sets/additions
-         *
-         *   In arrays:
-         *
-         *     array[index] = value
-         *     array.push(value)
-         *     array.length = length
-         *     ...
-         *
-         *   In objects:
-         *
-         *     object[key] = value
-         *     Object.defineProperty(target, key, descriptor)
-         *     Reflect.defineProperty(target, key, descriptor)
-         *     ...
-         */
-        defineProperty (target, key, descriptor) {
-          const old = target[key];
-          const changed = hasOwn.call(target, key);
-          const value = descriptor.get ? descriptor.get() : descriptor.value;
+      /**
+       * Gets the `ProxyObserver` instance from the given `value`
+       *
+       * @param {*} value - The value itself
+       *
+       * @return {ProxyObserver}
+       *
+       * @api public
+       */
+      static get (value) {
+        return __observers__.get(value)
+      }
 
-          if (deep && isDescriptorObservable(descriptor)) {
-            descriptor.value = ProxyObserver.observe(value, options, notify);
-          }
+      /**
+       * Observe a given `target` to detect changes
+       *
+       * @param {*} target - The value to be observed
+       * @param {Object} [options] - An object of options
+       * @param {boolean} [options.deep] - Indicating whether observation should be deep
+       * @param {Function} [options.compare] - Compare values with a function to dispatch changes
+       * @param {Function} [_handler] - Internal global handler for deep observing
+       *
+       * @return {Proxy} Proxy to track changes
+       *
+       * @api public
+       */
+      static observe (target, options = {}, _handler = noop) {
+        // Avoid observe twice... Just return the target
+        if (ProxyObserver.is(target)) return target
 
-          const defined = Reflect.defineProperty(target, key, descriptor);
+        const { deep, compare } = Object.assign({}, ProxyObserver.observeOptions, options);
 
-          if (defined && (!changed || value !== old)) {
-            const change = { type: changed ? 'set' : 'add', value, key, target };
+        const observer = new ProxyObserver(target);
 
-            if (changed) change.old = old;
-
-            notify(change);
-          }
-
-          return defined
-        },
-
-        /**
-         * 2. Track property deletions
-         *
-         *   In arrays:
-         *
-         *     array.splice(index, count, additions)
-         *     ...
-         *
-         *   In objects:
-         *
-         *     delete object[key]
-         *     Reflect.deleteProperty(object, key)
-         *     ...
-         */
-        deleteProperty (target, key) {
-          const old = target[key];
-          const deleted = hasOwn.call(target, key) && Reflect.deleteProperty(target, key);
-
-          if (deleted) {
-            notify({ type: 'delete', old, key, target });
-          }
-
-          return deleted
+        function notify (change) {
+          _handler(change);
+          observer.dispatch(change);
         }
-      });
 
-      // Indexed by proxy
-      __observers__.set(proxy, observer);
+        if (deep) {
+          // Start deep observing
+          for (const property in target) {
+            if (hasOwn.call(target, property)) {
+              const value = target[property];
 
-      return proxy
+              if (isObservable(value)) {
+                // Replace actual value with the observed one
+                target[property] = ProxyObserver.observe(value, options, notify);
+              }
+            }
+          }
+        }
+
+        const proxy = new Proxy(target, {
+          // We can implement something like (get trap):
+          // https://stackoverflow.com/a/43236808
+
+          /**
+           * 1. Detect sets/additions
+           *
+           *   In arrays:
+           *
+           *     array[index] = value
+           *     array.push(value)
+           *     array.length = length
+           *     ...
+           *
+           *   In objects:
+           *
+           *     object[key] = value
+           *     Object.defineProperty(target, property, descriptor)
+           *     Reflect.defineProperty(target, property, descriptor)
+           *     ...
+           */
+          defineProperty (target, property, descriptor) {
+            const { value } = descriptor;
+            const old = target[property];
+            const changed = hasOwn.call(target, property);
+
+            if (deep && isObservable(value)) {
+              descriptor.value = ProxyObserver.observe(value, options, notify);
+            }
+
+            const defined = Reflect.defineProperty(target, property, descriptor);
+
+            if (defined && (!changed || compare(value, old, property, target))) {
+              const change = { type: changed ? 'set' : 'add', value, property, target };
+
+              if (changed) change.old = old;
+
+              notify(change);
+            }
+
+            return defined
+          },
+
+          /**
+           * 2. Track property deletions
+           *
+           *   In arrays:
+           *
+           *     array.splice(index, count, additions)
+           *     ...
+           *
+           *   In objects:
+           *
+           *     delete object[property]
+           *     Reflect.deleteProperty(object, property)
+           *     ...
+           */
+          deleteProperty (target, property) {
+            const old = target[property];
+            const deleted = hasOwn.call(target, property) && Reflect.deleteProperty(target, property);
+
+            if (deleted) {
+              notify({ type: 'delete', old, property, target });
+            }
+
+            return deleted
+          }
+        });
+
+        // Indexed by target
+        __observers__.set(target, observer);
+
+        // Indexed by proxy
+        __observers__.set(proxy, observer);
+
+        return proxy
+      }
+
+      /**
+       * Subscribe to changes
+       *
+       * @param {Function} subscriber - Function to subscribe
+       *
+       * @return {ProxyObserver}
+       *
+       * @api public
+       */
+      subscribe (subscriber) {
+        this.subscribers.add(subscriber);
+        return this
+      }
+
+      /**
+       * Unsubscribe function
+       *
+       * @param {Function} subscriber - Functions subscribed
+       *
+       * @return {ProxyObserver}
+       *
+       * @api public
+       */
+      unsubscribe (subscriber) {
+        this.subscribers.delete(subscriber);
+        return this
+      }
+
+      /**
+       * Dispatch subscribers with given `change`
+       *
+       * @param {Object} change - Change descriptor
+       *
+       * @return {ProxyObserver}
+       *
+       * @api public
+       */
+      dispatch (change) {
+        this.subscribers.forEach(subscriber => {
+          subscriber(change, this.target);
+        });
+
+        return this
+      }
     }
 
-    /**
-     * Subscribe to changes
-     *
-     * @param {Function} subscriber - Function to subscribe
-     *
-     * @return {ProxyObserver}
-     *
-     * @api public
-     */
-    subscribe (subscriber) {
-      this.subscribers.add(subscriber);
-      return this
-    }
+    return ProxyObserver;
 
-    /**
-     * Unsubscribe function
-     *
-     * @param {Function} subscriber - Functions subscribed
-     *
-     * @return {ProxyObserver}
-     *
-     * @api public
-     */
-    unsubscribe (subscriber) {
-      this.subscribers.delete(subscriber);
-      return this
-    }
-
-    /**
-     * Dispatch subscribers with given `change`
-     *
-     * @param {Object} change - Change descriptor
-     *
-     * @return {ProxyObserver}
-     *
-     * @api public
-     */
-    dispatch (change) {
-      this.subscribers.forEach(subscriber => {
-        subscriber(change, this.target);
-      });
-
-      return this
-    }
-  }
+  })));
+  });
 
   var tokens = {
     DOLLAR_SIGN: '$',
@@ -1307,41 +1133,6 @@
     return galaxyError
   }
 
-  /**
-   * Match text template interpolation
-   *
-   * @type {RegExp}
-   */
-  const TEXT_TEMPLATE_REGEX = /{{.*?}}/;
-
-  /**
-   * Renderer for inline tag template binding:
-   *
-   *   1. Within text node: <h1>Hello {{ world }}</h1>
-   *   2. As attribute interpolation: <input class="some-class {{ klass }}"/>
-   */
-  class TemplateRenderer {
-    constructor (node, { scope, isolated }) {
-      this.node = node;
-
-      const templateFn = scope.$compiler.compileTemplate(node.nodeValue);
-
-      this.getter = () => templateFn(isolated);
-    }
-
-    static is ({ nodeValue }) {
-      return TEXT_TEMPLATE_REGEX.test(nodeValue)
-    }
-
-    render () {
-      const value = this.getter();
-
-      if (this.node.nodeValue !== value) {
-        this.node.nodeValue = value;
-      }
-    }
-  }
-
   const { isArray } = Array;
 
   function isNumber (value) {
@@ -1397,6 +1188,38 @@
   }
 
   /**
+   * Match text template interpolation
+   *
+   * @type {RegExp}
+   */
+  const TEXT_TEMPLATE_REGEX = /{{.*?}}/;
+
+  /**
+   * Renderer for inline tag template binding: <h1>Hello {{ world }}</h1>
+   */
+  class TemplateRenderer {
+    constructor (text, { scope: { $compiler }, isolated }) {
+      this.text = text;
+
+      const templateFn = $compiler.compileTemplate(text.data);
+
+      this.getter = () => templateFn(isolated);
+    }
+
+    static is (node) {
+      return isTextNode(node) && TEXT_TEMPLATE_REGEX.test(node.data)
+    }
+
+    render () {
+      const value = String(this.getter());
+
+      if (this.text.data !== value) {
+        this.text.data = value;
+      }
+    }
+  }
+
+  /**
    * Renderer for void elements or elements without childs like:
    */
   class VoidRenderer {
@@ -1448,10 +1271,6 @@
       for (const attribute of attributes) {
         const { name, value } = attribute;
 
-        if (TemplateRenderer.is(attribute)) {
-          this.directives.push(new TemplateRenderer(attribute, this));
-        }
-
         for (const Directive of config.directives) {
 
           // 1. Private match filter
@@ -1489,12 +1308,6 @@
         directive.render();
       }
     }
-  }
-
-  var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
-
-  function createCommonjsModule(fn, module) {
-  	return module = { exports: {} }, fn(module, module.exports), module.exports;
   }
 
   var nextTick = createCommonjsModule(function (module, exports) {
@@ -2115,7 +1928,7 @@
       for (const child of this.children) {
 
         // 1. Check {{ interpolation }}
-        if (isTextNode(child) && TemplateRenderer.is(child)) {
+        if (TemplateRenderer.is(child)) {
           this.renderers.push(new TemplateRenderer(child, this));
 
         // 2. Element binding
@@ -2490,7 +2303,7 @@
       set state (state) {
         const render = () => { this.$render(); };
 
-        __proxies__.set(this, ProxyObserver.observe(state, { patch: true }, render));
+        __proxies__.set(this, proxyObserver.observe(state, { patch: true }, render));
 
         // State change, so render...
         render();
