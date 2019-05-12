@@ -4,7 +4,7 @@ import { extend } from './core/GalaxyElement.js'
 
 import GalaxyError, { galaxyError } from './errors/GalaxyError.js'
 
-import { compileMatcher } from './utils/generic.js'
+import { compileMatcher, applyUserMixins } from './utils/generic.js'
 
 /**
  * Directives
@@ -103,7 +103,7 @@ export function setup (options) {
   }
 
   // Register root element + additional elements
-  resolveElements([config.root, ...config.elements], config.plugins)
+  resolveElements([config.root, ...config.elements], config)
 }
 
 /**
@@ -133,13 +133,12 @@ function template (tag, ...args) {
  * @return void
  * @private
  */
-function resolveElements (elements, plugins) {
-  const definitions = []
+async function resolveElements (elements, config) {
+  const promises = []
 
   for (const GalaxyElement of elements) {
-
     // Skip resolved elements
-    if (GalaxyElement.resolved) continue
+    if (GalaxyElement.__resolved__) continue
 
     const elementOptions = {}
     const name = GalaxyElement.is
@@ -152,25 +151,27 @@ function resolveElements (elements, plugins) {
       throw new GalaxyError('Extended customized built-in elements must have an `extends` property')
     }
 
+    // Install plugins before resolving
+    installPlugins(GalaxyElement, config.plugins)
+
+    // Apply user-defined mixins
+    applyUserMixins(GalaxyElement, [...config.mixins, ...GalaxyElement.mixins])
+
+    // Mark element as resolved
+    GalaxyElement.__resolved__ = true
+
+    // Resolve inner elements before resolve the wrapper element
+    await resolveElements(GalaxyElement.children, config)
+
     try {
-      definitions.push(customElements.whenDefined(name))
-
-      // Install plugins before resolving
-      installPlugins(GalaxyElement, plugins)
-
-      Promise
-        // Resolve inner elements before resolve the wrapper element
-        .all(resolveElements(GalaxyElement.children, plugins))
-        .then(() => { customElements.define(name, GalaxyElement, elementOptions) })
-
-      // Mark element as resolved
-      GalaxyElement.resolved = true
-    } catch (e) {
-      throw galaxyError(e)
+      customElements.define(name, GalaxyElement, elementOptions)
+      promises.push(customElements.whenDefined(name))
+    } catch (error) {
+      throw galaxyError(error)
     }
   }
 
-  return definitions
+  await Promise.all(promises)
 }
 
 /**

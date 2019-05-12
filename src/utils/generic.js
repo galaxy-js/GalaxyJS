@@ -7,7 +7,11 @@ import ElementTransitionEvent from '../events/ElementTransition'
 
 import { isFunction, isDefined } from './type-check'
 
+import GalaxyError from '../errors/GalaxyError.js'
+
 const same = value => value
+
+const elementHooks = ['onCreated', 'onAttached', 'onDetached', 'onAttribute']
 
 const HYPHEN_REGEX = /-([a-z0-9])/gi
 const CAMEL_REGEX = /(?<=[a-z0-9])([A-Z])/g
@@ -180,4 +184,63 @@ export function dispatchTransitionEvent (source, type, target, transitionCb) {
 
   // Perform transition (waiting for non-stopped transition)
   transitionEvent.perform()
+}
+
+export function applyStateMixins (state, mixins) {
+  for (let mixinState of mixins) {
+    // Get fresh state object
+    mixinState = mixinState()
+
+    for (const key of Object.keys(mixinState)) {
+      if (!(key in state)) {
+        mixDescriptor(state, mixinState, key)
+      }
+    }
+  }
+}
+
+export function applyUserMixins (GalaxyElement, mixins) {
+  const { prototype: fn } = GalaxyElement
+  const stateMixins = GalaxyElement.$stateMixins = []
+
+  for (const mixin of mixins) {
+    for (const key of Object.keys(mixin)) {
+      if (isHook(key)) {
+        const prevHook = fn[key]
+        const nextHook = mixin[key]
+
+        fn[key] = function mixedHook () {
+          prevHook.call(this)
+          nextHook.call(this)
+        }
+      } else if (key === 'state') {
+        const mixinState = mixin[key]
+
+        if (typeof mixinState !== 'function') {
+          throw new GalaxyError('mixin `state` property must be a function that returns a fresh state object')
+        }
+
+        stateMixins.push(mixinState)
+      } else if (!(key in fn)) {
+        mixDescriptor(fn, mixin, key)
+      }
+    }
+  }
+}
+
+/**
+ * Mix property value using descriptors to support getters/setters
+ *
+ * @param {Object} target
+ * @param {Object} source
+ * @param {string} key
+ *
+ * @return void
+ */
+function mixDescriptor (target, source, key) {
+  Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key))
+}
+
+function isHook (name) {
+  return elementHooks.some(hook => hook === name)
 }

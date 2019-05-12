@@ -7,7 +7,7 @@ import CoreMixin from './mixins/Core'
 import EventsMixin from './mixins/Events'
 import HooksMixin from './mixins/Hooks'
 
-import { callHook, applyMixins, hyphenate } from '../utils/generic'
+import { callHook, applyMixins, hyphenate, applyStateMixins } from '../utils/generic'
 
 /**
  * Internal
@@ -66,10 +66,13 @@ export function extend (SuperElement) {
      * @public
      */
     get state () { return __proxies__.get(this) }
-    set state (state) {
+    set state (newState) {
       const render = () => { this.$render() }
 
-      __proxies__.set(this, ProxyObserver.observe(state, { patch: true }, render))
+      // Mix state
+      applyStateMixins(newState, this.constructor.$stateMixins)
+
+      __proxies__.set(this, ProxyObserver.observe(newState, { patch: true }, render))
 
       // State change, so render...
       render()
@@ -91,6 +94,14 @@ export function extend (SuperElement) {
      * @public
      */
     static children = []
+
+    /**
+     * User-defined mixins
+     *
+     * @type {Array<Object>}
+     * @public
+     */
+    static mixins = []
 
     constructor () {
       super()

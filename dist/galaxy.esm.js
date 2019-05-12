@@ -24,6 +24,13 @@ var config = {
   elements: [],
 
   /**
+   * Global mixins
+   *
+   * @type {Array<Object>}
+   */
+  mixins: [],
+
+  /**
    * Directives holder
    *
    * @type {Array<GalaxyDirective>}
@@ -1283,7 +1290,9 @@ class Compiler {
   }
 }
 
-class GalaxyError extends Error {}
+class GalaxyError extends Error {
+  name = 'GalaxyError'
+}
 
 /**
  * Converts given `error`
@@ -1536,6 +1545,8 @@ class ElementTransitionEvent extends Event {
 
 const same = value => value;
 
+const elementHooks = ['onCreated', 'onAttached', 'onDetached', 'onAttribute'];
+
 const HYPHEN_REGEX = /-([a-z0-9])/gi;
 const CAMEL_REGEX = /(?<=[a-z0-9])([A-Z])/g;
 
@@ -1703,6 +1714,65 @@ function dispatchTransitionEvent (source, type, target, transitionCb) {
 
   // Perform transition (waiting for non-stopped transition)
   transitionEvent.perform();
+}
+
+function applyStateMixins (state, mixins) {
+  for (let mixinState of mixins) {
+    // Get fresh state object
+    mixinState = mixinState();
+
+    for (const key of Object.keys(mixinState)) {
+      if (!(key in state)) {
+        mixDescriptor(state, mixinState, key);
+      }
+    }
+  }
+}
+
+function applyUserMixins (GalaxyElement, mixins) {
+  const { prototype: fn } = GalaxyElement;
+  const stateMixins = GalaxyElement.$stateMixins = [];
+
+  for (const mixin of mixins) {
+    for (const key of Object.keys(mixin)) {
+      if (isHook(key)) {
+        const prevHook = fn[key];
+        const nextHook = mixin[key];
+
+        fn[key] = function mixedHook () {
+          prevHook.call(this);
+          nextHook.call(this);
+        };
+      } else if (key === 'state') {
+        const mixinState = mixin[key];
+
+        if (typeof mixinState !== 'function') {
+          throw new GalaxyError('mixin `state` property must be a function that returns a fresh state object')
+        }
+
+        stateMixins.push(mixinState);
+      } else if (!(key in fn)) {
+        mixDescriptor(fn, mixin, key);
+      }
+    }
+  }
+}
+
+/**
+ * Mix property value using descriptors to support getters/setters
+ *
+ * @param {Object} target
+ * @param {Object} source
+ * @param {string} key
+ *
+ * @return void
+ */
+function mixDescriptor (target, source, key) {
+  Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+}
+
+function isHook (name) {
+  return elementHooks.some(hook => hook === name)
 }
 
 /**
@@ -2376,8 +2446,18 @@ var EventsMixin = {
 var HooksMixin = {
 
   /**
+   * Called when the element gets instantiated
    *
+   * @return void
    */
+  onCreated () {},
+
+  /**
+   * Called when the element is attached to a document/ShadowRoot
+   *
+   * @return void
+   */
+  onAttached () {},
   connectedCallback () {
     let $parent = this;
 
@@ -2392,8 +2472,11 @@ var HooksMixin = {
   },
 
   /**
+   * Called when the element is detached from a document/ShadowRoot
    *
+   * @return void
    */
+  onDetached () {},
   disconnectedCallback () {
     // Cut-out parent communication
     this.$parent = null;
@@ -2402,11 +2485,13 @@ var HooksMixin = {
   },
 
   /**
+   * Intercept attribute change value
    *
-   * @param {*} name
-   * @param {*} old
-   * @param {*} value
+   * @param {Object} attribute
+   *
+   * @return void
    */
+  onAttribute (attribute) {},
   attributeChangedCallback (name, old, value) {
     callHook(this, 'attribute', { name, old, value });
   }
@@ -2469,10 +2554,13 @@ function extend (SuperElement) {
      * @public
      */
     get state () { return __proxies__.get(this) }
-    set state (state) {
+    set state (newState) {
       const render = () => { this.$render(); };
 
-      __proxies__.set(this, ProxyObserver.observe(state, { patch: true }, render));
+      // Mix state
+      applyStateMixins(newState, this.constructor.$stateMixins);
+
+      __proxies__.set(this, ProxyObserver.observe(newState, { patch: true }, render));
 
       // State change, so render...
       render();
@@ -2494,6 +2582,14 @@ function extend (SuperElement) {
      * @public
      */
     static children = []
+
+    /**
+     * User-defined mixins
+     *
+     * @type {Array<Object>}
+     * @public
+     */
+    static mixins = []
 
     constructor () {
       super();
@@ -3319,7 +3415,7 @@ function setup (options) {
   }
 
   // Register root element + additional elements
-  resolveElements([config.root, ...config.elements], config.plugins);
+  resolveElements([config.root, ...config.elements], config);
 }
 
 /**
@@ -3349,13 +3445,12 @@ function template (tag, ...args) {
  * @return void
  * @private
  */
-function resolveElements (elements, plugins) {
-  const definitions = [];
+async function resolveElements (elements, config$$1) {
+  const promises = [];
 
   for (const GalaxyElement of elements) {
-
     // Skip resolved elements
-    if (GalaxyElement.resolved) continue
+    if (GalaxyElement.__resolved__) continue
 
     const elementOptions = {};
     const name = GalaxyElement.is;
@@ -3368,25 +3463,27 @@ function resolveElements (elements, plugins) {
       throw new GalaxyError('Extended customized built-in elements must have an `extends` property')
     }
 
+    // Install plugins before resolving
+    installPlugins(GalaxyElement, config$$1.plugins);
+
+    // Apply user-defined mixins
+    applyUserMixins(GalaxyElement, [...config$$1.mixins, ...GalaxyElement.mixins]);
+
+    // Mark element as resolved
+    GalaxyElement.__resolved__ = true;
+
+    // Resolve inner elements before resolve the wrapper element
+    await resolveElements(GalaxyElement.children, config$$1);
+
     try {
-      definitions.push(customElements.whenDefined(name));
-
-      // Install plugins before resolving
-      installPlugins(GalaxyElement, plugins);
-
-      Promise
-        // Resolve inner elements before resolve the wrapper element
-        .all(resolveElements(GalaxyElement.children, plugins))
-        .then(() => { customElements.define(name, GalaxyElement, elementOptions); });
-
-      // Mark element as resolved
-      GalaxyElement.resolved = true;
-    } catch (e) {
-      throw galaxyError(e)
+      customElements.define(name, GalaxyElement, elementOptions);
+      promises.push(customElements.whenDefined(name));
+    } catch (error) {
+      throw galaxyError(error)
     }
   }
 
-  return definitions
+  await Promise.all(promises);
 }
 
 /**

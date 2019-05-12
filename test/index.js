@@ -12,6 +12,29 @@ class SayHelloPlugin extends Galaxy.GalaxyPlugin {
   }
 }
 
+const SomeGlobalMixin = {
+  state () {
+    return {
+      __global_var__: 'Hello World!'
+    }
+  },
+  logHook (name) {
+    console.log(`Called ${name} hook from global mixin in element <${this.$name}>`)
+  },
+  onCreated () {
+    this.logHook('created')
+  },
+  onAttached () {
+    this.logHook('attached')
+  },
+  onDetached () {
+    this.logHook('detached')
+  },
+  onAttribute () {
+    this.logHook('attribute')
+  }
+}
+
 Galaxy.setup({
 
   root: TodoApp,
@@ -21,6 +44,10 @@ Galaxy.setup({
 
   plugins: [
     SayHelloPlugin
+  ],
+
+  mixins: [
+    SomeGlobalMixin
   ],
 
   filters: {

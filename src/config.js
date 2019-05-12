@@ -24,6 +24,13 @@ export default {
   elements: [],
 
   /**
+   * Global mixins
+   *
+   * @type {Array<Object>}
+   */
+  mixins: [],
+
+  /**
    * Directives holder
    *
    * @type {Array<GalaxyDirective>}

@@ -9,8 +9,18 @@ import { isGalaxyElement } from '../../utils/type-check.js'
 export default {
 
   /**
+   * Called when the element gets instantiated
    *
+   * @return void
    */
+  onCreated () {},
+
+  /**
+   * Called when the element is attached to a document/ShadowRoot
+   *
+   * @return void
+   */
+  onAttached () {},
   connectedCallback () {
     let $parent = this
 
@@ -25,8 +35,11 @@ export default {
   },
 
   /**
+   * Called when the element is detached from a document/ShadowRoot
    *
+   * @return void
    */
+  onDetached () {},
   disconnectedCallback () {
     // Cut-out parent communication
     this.$parent = null
@@ -35,11 +48,13 @@ export default {
   },
 
   /**
+   * Intercept attribute change value
    *
-   * @param {*} name
-   * @param {*} old
-   * @param {*} value
+   * @param {Object} attribute
+   *
+   * @return void
    */
+  onAttribute (attribute) {},
   attributeChangedCallback (name, old, value) {
     callHook(this, 'attribute', { name, old, value })
   }

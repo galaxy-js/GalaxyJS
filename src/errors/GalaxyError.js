@@ -1,4 +1,6 @@
-export default class GalaxyError extends Error {}
+export default class GalaxyError extends Error {
+  name = 'GalaxyError'
+}
 
 /**
  * Converts given `error`
