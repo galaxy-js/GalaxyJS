@@ -10,6 +10,7 @@ import { compileMatcher, applyUserMixins } from './utils/generic.js'
  * Directives
  */
 import ConditionalDirective from './directives/Conditional.js'
+import ShowDirective from './directives/Show'
 import EventDirective from './directives/Event.js'
 import PropertyDirective from './directives/Property.js'
 import ReferenceDirective from './directives/Reference.js'
@@ -77,6 +78,7 @@ export function setup (options) {
   // Add core directives
   config.directives.unshift(...[
     ConditionalDirective,
+    ShowDirective,
     EventDirective,
     PropertyDirective,
     ReferenceDirective,
