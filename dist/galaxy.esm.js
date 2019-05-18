@@ -1716,10 +1716,10 @@ function dispatchTransitionEvent (source, type, target, transitionCb) {
   transitionEvent.perform();
 }
 
-function applyStateMixins (state, mixins) {
-  for (let mixinState of mixins) {
+function applyStateMixins (state, $element) {
+  for (let mixinState of $element.constructor.$stateMixins) {
     // Get fresh state object
-    mixinState = mixinState();
+    mixinState = mixinState.call($element);
 
     for (const key of Object.keys(mixinState)) {
       if (!(key in state)) {
@@ -1747,7 +1747,7 @@ function applyUserMixins (GalaxyElement, mixins) {
         const mixinState = mixin[key];
 
         if (typeof mixinState !== 'function') {
-          throw new GalaxyError('mixin `state` property must be a function that returns a fresh state object')
+          throw new GalaxyError('mixin `state` property must be a function which should return a fresh state object')
         }
 
         stateMixins.push(mixinState);
@@ -2558,7 +2558,7 @@ function extend (SuperElement) {
       const render = () => { this.$render(); };
 
       // Mix state
-      applyStateMixins(newState, this.constructor.$stateMixins);
+      applyStateMixins(newState, this);
 
       __proxies__.set(this, ProxyObserver.observe(newState, { patch: true }, render));
 

@@ -70,7 +70,7 @@ export function extend (SuperElement) {
       const render = () => { this.$render() }
 
       // Mix state
-      applyStateMixins(newState, this.constructor.$stateMixins)
+      applyStateMixins(newState, this)
 
       __proxies__.set(this, ProxyObserver.observe(newState, { patch: true }, render))
 
