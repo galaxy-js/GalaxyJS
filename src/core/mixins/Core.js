@@ -57,6 +57,29 @@ export default {
   },
 
   /**
+   * Execute given `callback` after render new view changes
+   *
+   * @param {Function} callback
+   *
+   * @return {Promise|void}
+   */
+  $afterRender (callback) {
+    nextTick(() => {
+      if (this.$rendering) {
+        return this.$afterRender(callback)
+      }
+
+      callback.call(this)
+    })
+
+    if (!callback) {
+      return new Promise(resolve => {
+        callback = resolve
+      })
+    }
+  },
+
+  /**
    * Reflect state changes to the DOM
    *
    * @return void
