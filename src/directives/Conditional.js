@@ -84,6 +84,9 @@ export default class ConditionalDirective extends GalaxyDirective {
   }
 
   _dispatchTransitionEvent (type, target, transitionCb) {
-    dispatchTransitionEvent(this.$element, `if:${type}`, target, transitionCb)
+    dispatchTransitionEvent(this.$element, `if:${type}`, target, () => {
+      transitionCb()
+      this.$renderer.callDirectiveHook(type)
+    })
   }
 }

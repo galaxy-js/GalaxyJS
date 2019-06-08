@@ -27,6 +27,15 @@ export default class ElementRenderer extends VoidRenderer {
     )
   }
 
+  callDirectiveHook (hook) {
+    // Call children hooks before
+    this.childrenRenderer.callDirectiveHook(hook)
+
+    for (const directive of this.directives) {
+      directive[hook]()
+    }
+  }
+
   render () {
     // Render directives
     super.render()

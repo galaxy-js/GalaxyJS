@@ -12,6 +12,13 @@ const options = {
 
 export default class GalaxyDirective {
 
+  /**
+   * @noop
+   */
+  static match () {
+    return true
+  }
+
   static get is () {
     return hyphenate(this.name)
   }
@@ -71,30 +78,27 @@ export default class GalaxyDirective {
   /**
    * @noop
    */
-  static get is () {
-    return ''
-  }
+  init () {}
 
   /**
    * @noop
    */
-  static match () {
-    return true
-  }
+  enter () {}
 
   /**
    * @noop
    */
-  init () {
-
-  }
+  move () {}
 
   /**
    * @noop
    */
-  render () {
+  leave () {}
 
-  }
+  /**
+   * @noop
+   */
+  render () {}
 }
 
 /**

@@ -50,6 +50,16 @@ export default class ChildrenRenderer {
     }
   }
 
+  callDirectiveHook (hook) {
+    for (const { directives } of this.renderers) {
+      if (directives) {
+        for (const directive of directives) {
+          directive[hook]()
+        }
+      }
+    }
+  }
+
   render () {
     for (const renderer of this.renderers) {
       renderer.render()

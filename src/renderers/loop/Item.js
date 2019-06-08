@@ -69,6 +69,9 @@ export default class ItemRenderer extends ElementRenderer {
   }
 
   _dispatchTransitionEvent (type, target, transitionCb) {
-    dispatchTransitionEvent(this.element, `for:${type}`, target, transitionCb)
+    dispatchTransitionEvent(this.element, `for:${type}`, target, () => {
+      transitionCb()
+      this.callDirectiveHook(type)
+    })
   }
 }

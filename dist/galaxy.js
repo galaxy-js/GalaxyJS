@@ -1931,6 +1931,15 @@
       )
     }
 
+    callDirectiveHook (hook) {
+      // Call children hooks before
+      this.childrenRenderer.callDirectiveHook(hook);
+
+      for (const directive of this.directives) {
+        directive[hook]();
+      }
+    }
+
     render () {
       // Render directives
       super.render();
@@ -2011,7 +2020,10 @@
     }
 
     _dispatchTransitionEvent (type, target, transitionCb) {
-      dispatchTransitionEvent(this.element, `for:${type}`, target, transitionCb);
+      dispatchTransitionEvent(this.element, `for:${type}`, target, () => {
+        transitionCb();
+        this.callDirectiveHook(type);
+      });
     }
   }
 
@@ -2213,6 +2225,16 @@
         }
 
         // ... ignore comment nodes
+      }
+    }
+
+    callDirectiveHook (hook) {
+      for (const { directives } of this.renderers) {
+        if (directives) {
+          for (const directive of directives) {
+            directive[hook]();
+          }
+        }
       }
     }
 
@@ -2690,6 +2712,13 @@
 
   class GalaxyDirective {
 
+    /**
+     * @noop
+     */
+    static match () {
+      return true
+    }
+
     static get is () {
       return hyphenate(this.name)
     }
@@ -2749,30 +2778,27 @@
     /**
      * @noop
      */
-    static get is () {
-      return ''
-    }
+    init () {}
 
     /**
      * @noop
      */
-    static match () {
-      return true
-    }
+    enter () {}
 
     /**
      * @noop
      */
-    init () {
-
-    }
+    move () {}
 
     /**
      * @noop
      */
-    render () {
+    leave () {}
 
-    }
+    /**
+     * @noop
+     */
+    render () {}
   }
 
   /**
@@ -2870,7 +2896,10 @@
     }
 
     _dispatchTransitionEvent (type, target, transitionCb) {
-      dispatchTransitionEvent(this.$element, `if:${type}`, target, transitionCb);
+      dispatchTransitionEvent(this.$element, `if:${type}`, target, () => {
+        transitionCb();
+        this.$renderer.callDirectiveHook(type);
+      });
     }
   }
 
